@@ -1,0 +1,452 @@
+import 'package:flutter/material.dart';
+import '../models/time_slot.dart';
+import '../utils/app_colors.dart';
+import '../widgets/conflict_resolution_sheet.dart';
+import '../widgets/court_info_card.dart';
+import '../widgets/date_selector.dart';
+import '../widgets/slot_grid.dart';
+import '../widgets/slot_legend.dart';
+
+class SlotSelectionScreen extends StatefulWidget {
+  const SlotSelectionScreen({super.key});
+
+  @override
+  State<SlotSelectionScreen> createState() => _SlotSelectionScreenState();
+}
+
+class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
+  final List<String> _dates = const [
+    'Today',
+    'Tomorrow',
+    'Wed 23',
+    'Thu 24',
+    'Fri 25',
+    'Sat 26',
+  ];
+
+  int _selectedDateIndex = 1; // Default to 'Tomorrow' as shown in the UI
+
+  late List<TimeSlot> _slots;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeSlots();
+  }
+
+  void _initializeSlots() {
+    _slots = [
+      const TimeSlot(
+        id: 'slot_1',
+        time: '5:00 PM',
+        durationRange: '5:00 PM – 6:00 PM',
+        status: SlotStatus.available,
+        price: 2500,
+      ),
+      const TimeSlot(
+        id: 'slot_2',
+        time: '5:30 PM',
+        durationRange: '5:30 PM – 6:30 PM',
+        status: SlotStatus.available,
+        price: 2500,
+      ),
+      const TimeSlot(
+        id: 'slot_3',
+        time: '6:00 PM',
+        durationRange: '6:00 PM – 7:00 PM',
+        status: SlotStatus.selected,
+        price: 2500,
+      ),
+      const TimeSlot(
+        id: 'slot_4',
+        time: '6:30 PM',
+        durationRange: '6:30 PM – 7:30 PM',
+        status: SlotStatus.booked,
+        price: 2500,
+      ),
+      const TimeSlot(
+        id: 'slot_5',
+        time: '7:00 PM',
+        durationRange: '7:00 PM – 8:00 PM',
+        status: SlotStatus.available,
+        price: 2500,
+        isConflictTrigger: true, // Used for HCI demo
+      ),
+      const TimeSlot(
+        id: 'slot_6',
+        time: '7:30 PM',
+        durationRange: '7:30 PM – 8:30 PM',
+        status: SlotStatus.available,
+        price: 2500,
+      ),
+      const TimeSlot(
+        id: 'slot_7',
+        time: '8:00 PM',
+        durationRange: '8:00 PM – 9:00 PM',
+        status: SlotStatus.booked,
+        price: 2500,
+      ),
+    ];
+  }
+
+  TimeSlot? get _selectedSlot {
+    try {
+      return _slots.firstWhere((s) => s.status == SlotStatus.selected);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _handleSlotTap(TimeSlot tappedSlot) {
+    if (tappedSlot.status == SlotStatus.booked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${tappedSlot.time} is already booked. Please choose an available slot.'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // HCI Conflict Resolution Demo Trigger on 7:00 PM
+    if (tappedSlot.isConflictTrigger && tappedSlot.status == SlotStatus.available) {
+      ConflictResolutionSheet.show(
+        context,
+        onSelectAlternative: () {
+          setState(() {
+            // Mark 7:00 PM as booked by another user
+            _slots = _slots.map((s) {
+              if (s.id == tappedSlot.id) {
+                return s.copyWith(status: SlotStatus.booked, isConflictTrigger: false);
+              }
+              // Select 7:30 PM alternative
+              if (s.time == '7:30 PM') {
+                return s.copyWith(status: SlotStatus.selected);
+              }
+              // Deselect any previous selected slot
+              if (s.status == SlotStatus.selected) {
+                return s.copyWith(status: SlotStatus.available);
+              }
+              return s;
+            }).toList();
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Switched to alternative slot: 7:30 PM'),
+              backgroundColor: AppColors.primaryTeal,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+        onDismiss: () {
+          setState(() {
+            // Update 7:00 PM to booked
+            _slots = _slots.map((s) {
+              if (s.id == tappedSlot.id) {
+                return s.copyWith(status: SlotStatus.booked, isConflictTrigger: false);
+              }
+              return s;
+            }).toList();
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('7:00 PM marked as Booked. Please select another slot.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+      );
+      return;
+    }
+
+    // Standard slot selection
+    setState(() {
+      _slots = _slots.map((s) {
+        if (s.id == tappedSlot.id) {
+          return s.copyWith(status: SlotStatus.selected);
+        } else if (s.status == SlotStatus.selected) {
+          return s.copyWith(status: SlotStatus.available);
+        }
+        return s;
+      }).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeSlot = _selectedSlot;
+    final selectedDate = _dates[_selectedDateIndex];
+
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBackground,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Top App Bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Row(
+                children: [
+                  // Back button
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.borderLight.withValues(alpha: 0.8),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          }
+                        },
+                        customBorder: const CircleBorder(),
+                        child: const Icon(
+                          Icons.chevron_left_rounded,
+                          color: AppColors.textPrimary,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Text(
+                    'Select a Slot',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Scrollable Content
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Court Info Card
+                    const CourtInfoCard(
+                      courtName: 'Badminton Court 1',
+                      locationAndSport: 'Colombo Sports Centre · Badminton',
+                      tag: 'Court',
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Date Selection Chips
+                    DateSelector(
+                      dates: _dates,
+                      selectedIndex: _selectedDateIndex,
+                      onDateSelected: (index) {
+                        setState(() {
+                          _selectedDateIndex = index;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Availability Legend
+                    const SlotLegend(),
+                    const SizedBox(height: 24),
+
+                    // Section Title
+                    Text(
+                      '$selectedDate · Available Times',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Slots Grid
+                    SlotGrid(
+                      slots: _slots,
+                      onSlotTapped: _handleSlotTap,
+                    ),
+                    const SizedBox(height: 18),
+
+                    // HCI Tip
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        'Tip: tap 7:00 PM to see how SportSpace handles a slot booked by someone else moments ago.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 120), // Bottom bar clearance
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      // Bottom Sticky Booking Summary
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(
+              color: AppColors.borderLight.withValues(alpha: 0.6),
+              width: 1,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          16 + MediaQuery.of(context).padding.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activeSlot != null
+                          ? activeSlot.durationRange
+                          : 'No slot selected',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      activeSlot != null
+                          ? 'LKR ${activeSlot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}'
+                          : 'LKR 0',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                if (activeSlot != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.availableBg,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            color: AppColors.availableText,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Selected',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.availableText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton(
+                onPressed: activeSlot != null
+                    ? () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Proceeding to Payment for ${activeSlot.time} (${activeSlot.durationRange})',
+                            ),
+                            backgroundColor: AppColors.primaryTeal,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryTeal,
+                  disabledBackgroundColor: AppColors.textMuted.withValues(alpha: 0.3),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                ),
+                child: const Text(
+                  'Continue',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
