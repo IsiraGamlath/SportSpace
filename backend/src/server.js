@@ -1,13 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// Connect to Database
-connectDB();
 
 // Middlewares
 app.use(cors());
@@ -20,6 +18,12 @@ app.get("/api/health", (req, res) => {
     .json({ status: "OK", message: "SportSpace Backend API Running" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+const startServer = async () => {
+  await connectDB();
+
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+};
+
+startServer();
