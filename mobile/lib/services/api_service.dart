@@ -1,0 +1,58 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/time_slot.dart';
+
+class ApiService {
+  static const String baseUrl = 'http://10.0.2.2:5000/api'; // Use 10.0.2.2 for Android emulator
+
+  static Future<List<TimeSlot>> fetchSlots({String? date}) async {
+    try {
+      final uri = date != null ? Uri.parse('$baseUrl/slots?date=$date') : Uri.parse('$baseUrl/slots');
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => TimeSlot(
+          id: json['id'],
+          time: json['time'],
+          durationRange: json['durationRange'],
+          status: _parseStatus(json['status']),
+          price: json['price'].toDouble(),
+          isConflictTrigger: json['isConflictTrigger'] ?? false,
+        )).toList();
+      } else {
+        throw Exception('Failed to load slots');
+      }
+    } catch (e) {
+      throw Exception('Error fetching slots: $e');
+    }
+  }
+
+  static Future<bool> bookSlot(String id) async {
+    try {
+      final response = await http.post(Uri.parse('$baseUrl/slots/$id/book'));
+      if (response.statusCode == 200) {
+        return true;
+      } else if (response.statusCode == 409) {
+        throw Exception('Slot already booked or conflict');
+      } else {
+        throw Exception('Failed to book slot');
+      }
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  static SlotStatus _parseStatus(String status) {
+    switch (status) {
+      case 'available':
+        return SlotStatus.available;
+      case 'selected':
+        return SlotStatus.selected;
+      case 'booked':
+        return SlotStatus.booked;
+      default:
+        return SlotStatus.available;
+    }
+  }
+}

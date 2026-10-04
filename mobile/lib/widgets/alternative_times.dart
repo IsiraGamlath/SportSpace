@@ -34,8 +34,8 @@ class _TimeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-      side: const BorderSide(color: AppColors.available),
+      borderRadius: BorderRadius.circular(12),
+      side: const BorderSide(color: AppColors.availableBorder),
     );
     return Material(
       color: AppColors.availableBg,
@@ -50,7 +50,7 @@ class _TimeChip extends StatelessWidget {
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: AppColors.available,
+              color: AppColors.availableText,
             ),
           ),
         ),
