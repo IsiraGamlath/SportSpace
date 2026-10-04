@@ -7,6 +7,8 @@ import '../widgets/court_info_card.dart';
 import '../widgets/date_selector.dart';
 import '../widgets/slot_grid.dart';
 import '../widgets/slot_legend.dart';
+import '../services/api_service.dart';
+import 'booking_confirmation_screen.dart';
 
 class SlotSelectionScreen extends StatefulWidget {
   const SlotSelectionScreen({super.key});
@@ -27,68 +29,33 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
 
   int _selectedDateIndex = 1; // Default to 'Tomorrow' as shown in the UI
 
-  late List<TimeSlot> _slots;
+  late List<TimeSlot> _slots = [];
+  bool _isLoading = true;
+  bool _isBooking = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeSlots();
+    _fetchSlots();
   }
 
-  void _initializeSlots() {
-    _slots = [
-      const TimeSlot(
-        id: 'slot_1',
-        time: '5:00 PM',
-        durationRange: '5:00 PM – 6:00 PM',
-        status: SlotStatus.available,
-        price: 2500,
-      ),
-      const TimeSlot(
-        id: 'slot_2',
-        time: '5:30 PM',
-        durationRange: '5:30 PM – 6:30 PM',
-        status: SlotStatus.available,
-        price: 2500,
-      ),
-      const TimeSlot(
-        id: 'slot_3',
-        time: '6:00 PM',
-        durationRange: '6:00 PM – 7:00 PM',
-        status: SlotStatus.selected,
-        price: 2500,
-      ),
-      const TimeSlot(
-        id: 'slot_4',
-        time: '6:30 PM',
-        durationRange: '6:30 PM – 7:30 PM',
-        status: SlotStatus.booked,
-        price: 2500,
-      ),
-      const TimeSlot(
-        id: 'slot_5',
-        time: '7:00 PM',
-        durationRange: '7:00 PM – 8:00 PM',
-        status: SlotStatus.available,
-        price: 2500,
-        isConflictTrigger: true, // Used for HCI demo
-      ),
-      const TimeSlot(
-        id: 'slot_6',
-        time: '7:30 PM',
-        durationRange: '7:30 PM – 8:30 PM',
-        status: SlotStatus.available,
-        price: 2500,
-      ),
-      const TimeSlot(
-        id: 'slot_7',
-        time: '8:00 PM',
-        durationRange: '8:00 PM – 9:00 PM',
-        status: SlotStatus.booked,
-        price: 2500,
-      ),
-    ];
+  Future<void> _fetchSlots() async {
+    setState(() => _isLoading = true);
+    try {
+      final fetchedSlots = await ApiService.fetchSlots(date: _dates[_selectedDateIndex]);
+      setState(() {
+        _slots = fetchedSlots;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading slots: $e')),
+      );
+    }
   }
+
+  // Old mock initialize removed
 
   TimeSlot? get _selectedSlot {
     try {
@@ -96,6 +63,49 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<void> _openConflictScreen(TimeSlot conflicted) async {
+    // The slot has just been taken by someone else
+    setState(() {
+      _slots = [
+        for (final s in _slots)
+          s.id == conflicted.id
+              ? s.copyWith(
+                  status: SlotStatus.booked,
+                  isConflictTrigger: false,
+                )
+              : s,
+      ];
+    });
+
+    final alternatives = _slots
+        .where((s) => s.status == SlotStatus.available)
+        .toList();
+
+    final chosen = await Navigator.push<TimeSlot>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ConflictResolutionScreen(
+          bookedSlot: conflicted,
+          courtName: 'Badminton Court 1',
+          alternatives: alternatives,
+        ),
+      ),
+    );
+
+    if (!mounted || chosen == null) return;
+    setState(() {
+      _slots = [
+        for (final s in _slots)
+          if (s.id == chosen.id)
+            s.copyWith(status: SlotStatus.selected)
+          else if (s.status == SlotStatus.selected)
+            s.copyWith(status: SlotStatus.available)
+          else
+            s,
+      ];
+    });
   }
 
   void _handleSlotTap(TimeSlot tappedSlot) {
@@ -111,49 +121,6 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
       );
       return;
     }
-    Future<void> _openConflictScreen(TimeSlot conflicted) async {
-      // The slot has just been taken by someone else
-      setState(() {
-        _slots = [
-          for (final s in _slots)
-            s.id == conflicted.id
-                ? s.copyWith(
-                    status: SlotStatus.booked,
-                    isConflictTrigger: false,
-                  )
-                : s,
-        ];
-      });
-
-      final alternatives = _slots
-          .where((s) => s.status == SlotStatus.available)
-          .toList();
-
-      final chosen = await Navigator.push<TimeSlot>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ConflictResolutionScreen(
-            bookedSlot: conflicted,
-            courtName: 'Badminton Court 1',
-            alternatives: alternatives,
-          ),
-        ),
-      );
-
-      if (!mounted || chosen == null) return;
-      setState(() {
-        _slots = [
-          for (final s in _slots)
-            if (s.id == chosen.id)
-              s.copyWith(status: SlotStatus.selected)
-            else if (s.status == SlotStatus.selected)
-              s.copyWith(status: SlotStatus.available)
-            else
-              s,
-        ];
-      });
-    }
-
     // HCI Conflict Resolution Demo Trigger on 7:00 PM
     if (tappedSlot.isConflictTrigger &&
         tappedSlot.status == SlotStatus.available) {
@@ -261,9 +228,13 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                       dates: _dates,
                       selectedIndex: _selectedDateIndex,
                       onDateSelected: (index) {
-                        setState(() {
-                          _selectedDateIndex = index;
-                        });
+                        if (index != _selectedDateIndex) {
+                          setState(() {
+                            _selectedDateIndex = index;
+                            _isLoading = true;
+                          });
+                          _fetchSlots();
+                        }
                       },
                     ),
                     const SizedBox(height: 20),
@@ -285,7 +256,15 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                     const SizedBox(height: 14),
 
                     // Slots Grid
-                    SlotGrid(slots: _slots, onSlotTapped: _handleSlotTap),
+                    if (_isLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    else
+                      SlotGrid(slots: _slots, onSlotTapped: _handleSlotTap),
                     const SizedBox(height: 18),
 
                     // HCI Tip
@@ -408,17 +387,41 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
               width: double.infinity,
               height: 54,
               child: ElevatedButton(
-                onPressed: activeSlot != null
-                    ? () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Proceeding to Payment for ${activeSlot.time} (${activeSlot.durationRange})',
+                onPressed: activeSlot != null && !_isBooking
+                    ? () async {
+                        setState(() => _isBooking = true);
+                        try {
+                          await ApiService.bookSlot(activeSlot.id);
+                          if (!mounted) return;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BookingConfirmationScreen(
+                                slot: activeSlot,
+                                date: _dates[_selectedDateIndex],
+                              ),
                             ),
-                            backgroundColor: AppColors.primaryTeal,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
+                          ).then((_) {
+                            // Fetch slots again if they return
+                            if (mounted) _fetchSlots();
+                          });
+                        } catch (e) {
+                          if (!mounted) return;
+                          
+                          if (e.toString().contains('conflict') || activeSlot.isConflictTrigger) {
+                            // If it's a conflict or already booked, open the conflict screen
+                            _openConflictScreen(activeSlot);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Booking failed: $e'),
+                                backgroundColor: AppColors.bookedText,
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => _isBooking = false);
+                        }
                       }
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -431,15 +434,24 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                     borderRadius: BorderRadius.circular(28),
                   ),
                 ),
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.2,
-                  ),
-                ),
+                child: _isBooking
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Continue',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
               ),
             ),
           ],

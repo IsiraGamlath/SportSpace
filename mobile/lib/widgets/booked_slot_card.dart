@@ -17,7 +17,7 @@ class BookedSlotCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.bookedBg,
+        color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.booked),
       ),
@@ -32,9 +32,9 @@ class BookedSlotCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textMuted,
+                    color: AppColors.textSecondary,
                     decoration: TextDecoration.lineThrough,
-                    decorationColor: AppColors.textMuted,
+                    decorationColor: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -42,7 +42,7 @@ class BookedSlotCard extends StatelessWidget {
                   courtName,
                   style: const TextStyle(
                     fontSize: 12.5,
-                    color: AppColors.textMuted,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -83,7 +83,7 @@ class _BookedBadge extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
-              color: AppColors.booked,
+              color: AppColors.bookedText,
             ),
           ),
         ],

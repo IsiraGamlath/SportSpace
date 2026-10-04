@@ -20,6 +20,8 @@ app.get("/api/health", (req, res) => {
     .json({ status: "OK", message: "SportSpace Backend API Running" });
 });
 
+app.use("/api/slots", require("./routes/slots"));
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
