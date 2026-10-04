@@ -16,24 +16,13 @@ class BookingConfirmationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
-      appBar: AppBar(
-        title: const Text(
-          'Booking Confirmed',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
-      ),
-      body: Center(
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const SizedBox(height: 40),
               Container(
                 width: 80,
                 height: 80,
@@ -42,64 +31,100 @@ class BookingConfirmationScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.check_circle,
+                  Icons.check,
                   color: AppColors.available,
-                  size: 60,
+                  size: 40,
                 ),
               ),
               const SizedBox(height: 24),
               const Text(
-                'Success!',
+                'Booking Confirmed!',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
+                  color: AppColors.darkNavy,
+                  letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Your booking for Badminton Court 1 on $date at ${slot.time} has been confirmed.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
+              const SizedBox(height: 8),
+              const Text(
+                'Booking ID: SS-20481',
+                style: TextStyle(
+                  fontSize: 15,
                   color: AppColors.textSecondary,
-                  height: 1.5,
                 ),
               ),
               const SizedBox(height: 32),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.borderLight),
+                  border: Border.all(color: AppColors.borderLight.withValues(alpha: 0.8)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow('Time', slot.durationRange),
-                    const Divider(height: 24),
-                    _buildDetailRow('Total Paid', 'LKR ${slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}'),
+                    const Text(
+                      'Colombo Sports Centre',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.darkNavy,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Badminton Court 1',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildDetailRow('Date', date, isGreen: false),
+                    const SizedBox(height: 12),
+                    _buildDetailRow('Time', slot.durationRange, isGreen: false),
+                    const SizedBox(height: 12),
+                    _buildDetailRow(
+                      'Paid', 
+                      'LKR ${slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                      isGreen: true,
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 24),
+              const Text(
+                'Confirmation sent to your notifications.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+              const Spacer(),
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Navigate back to home or pop until first
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryTeal,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
+                    shape: const StadiumBorder(),
                   ),
                   child: const Text(
-                    'Back to Home',
+                    'View My Booking',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -108,6 +133,29 @@ class BookingConfirmationScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: OutlinedButton(
+                  onPressed: () {
+                    // Add to calendar logic
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.darkNavy,
+                    side: const BorderSide(color: AppColors.chipBorder),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text(
+                    'Add to Calendar',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -115,23 +163,23 @@ class BookingConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, {required bool isGreen}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
           style: const TextStyle(
-            fontSize: 15,
+            fontSize: 14,
             color: AppColors.textSecondary,
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 15,
+          style: TextStyle(
+            fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+            color: isGreen ? AppColors.available : AppColors.darkNavy,
           ),
         ),
       ],

@@ -55,6 +55,46 @@ let slots = [
     status: 'booked',
     price: 2500,
     date: 'Tomorrow'
+  },
+  {
+    id: 'slot_8',
+    time: '8:30 PM',
+    durationRange: '8:30 PM – 9:30 PM',
+    status: 'available',
+    price: 2500,
+    date: 'Tomorrow'
+  },
+  {
+    id: 'slot_9',
+    time: '9:00 PM',
+    durationRange: '9:00 PM – 10:00 PM',
+    status: 'available',
+    price: 2500,
+    date: 'Tomorrow'
+  },
+  {
+    id: 'slot_10',
+    time: '9:30 PM',
+    durationRange: '9:30 PM – 10:30 PM',
+    status: 'available',
+    price: 2500,
+    date: 'Tomorrow'
+  },
+  {
+    id: 'slot_11',
+    time: '5:00 PM',
+    durationRange: '5:00 PM – 6:00 PM',
+    status: 'available',
+    price: 2500,
+    date: 'Today'
+  },
+  {
+    id: 'slot_12',
+    time: '6:00 PM',
+    durationRange: '6:00 PM – 7:00 PM',
+    status: 'available',
+    price: 2500,
+    date: 'Today'
   }
 ];
 

@@ -66,45 +66,20 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
   }
 
   Future<void> _openConflictScreen(TimeSlot conflicted) async {
-    // The slot has just been taken by someone else
-    setState(() {
-      _slots = [
-        for (final s in _slots)
-          s.id == conflicted.id
-              ? s.copyWith(
-                  status: SlotStatus.booked,
-                  isConflictTrigger: false,
-                )
-              : s,
-      ];
-    });
-
-    final alternatives = _slots
-        .where((s) => s.status == SlotStatus.available)
-        .toList();
-
-    final chosen = await Navigator.push<TimeSlot>(
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ConflictResolutionScreen(
           bookedSlot: conflicted,
           courtName: 'Badminton Court 1',
-          alternatives: alternatives,
+          alternatives: _slots
+              .where((s) => s.status == SlotStatus.available && s.id != conflicted.id)
+              .toList(),
+          date: _dates[_selectedDateIndex],
         ),
       ),
-    );
-
-    if (!mounted || chosen == null) return;
-    setState(() {
-      _slots = [
-        for (final s in _slots)
-          if (s.id == chosen.id)
-            s.copyWith(status: SlotStatus.selected)
-          else if (s.status == SlotStatus.selected)
-            s.copyWith(status: SlotStatus.available)
-          else
-            s,
-      ];
+    ).then((_) {
+      if (mounted) _fetchSlots();
     });
   }
 
@@ -387,41 +362,23 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
               width: double.infinity,
               height: 54,
               child: ElevatedButton(
-                onPressed: activeSlot != null && !_isBooking
-                    ? () async {
-                        setState(() => _isBooking = true);
-                        try {
-                          await ApiService.bookSlot(activeSlot.id);
-                          if (!mounted) return;
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => BookingConfirmationScreen(
-                                slot: activeSlot,
-                                date: _dates[_selectedDateIndex],
-                              ),
+                onPressed: activeSlot != null
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ConflictResolutionScreen(
+                              bookedSlot: activeSlot,
+                              courtName: 'Badminton Court 1',
+                              alternatives: _slots
+                                  .where((s) => s.status == SlotStatus.available && s.id != activeSlot.id)
+                                  .toList(),
+                              date: _dates[_selectedDateIndex],
                             ),
-                          ).then((_) {
-                            // Fetch slots again if they return
-                            if (mounted) _fetchSlots();
-                          });
-                        } catch (e) {
-                          if (!mounted) return;
-                          
-                          if (e.toString().contains('conflict') || activeSlot.isConflictTrigger) {
-                            // If it's a conflict or already booked, open the conflict screen
-                            _openConflictScreen(activeSlot);
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Booking failed: $e'),
-                                backgroundColor: AppColors.bookedText,
-                              ),
-                            );
-                          }
-                        } finally {
-                          if (mounted) setState(() => _isBooking = false);
-                        }
+                          ),
+                        ).then((_) {
+                          if (mounted) _fetchSlots();
+                        });
                       }
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -434,24 +391,15 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                     borderRadius: BorderRadius.circular(28),
                   ),
                 ),
-                child: _isBooking
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Continue',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
+                child: const Text(
+                  'Continue',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.2,
+                  ),
+                ),
               ),
             ),
           ],
