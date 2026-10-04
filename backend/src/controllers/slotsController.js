@@ -1,6 +1,7 @@
-let slots = [
+const Slot = require('../models/Slot');
+
+const mockSlots = [
   {
-    id: 'slot_1',
     time: '5:00 PM',
     durationRange: '5:00 PM – 6:00 PM',
     status: 'available',
@@ -8,7 +9,6 @@ let slots = [
     date: 'Tomorrow'
   },
   {
-    id: 'slot_2',
     time: '5:30 PM',
     durationRange: '5:30 PM – 6:30 PM',
     status: 'available',
@@ -16,15 +16,13 @@ let slots = [
     date: 'Tomorrow'
   },
   {
-    id: 'slot_3',
     time: '6:00 PM',
     durationRange: '6:00 PM – 7:00 PM',
-    status: 'available', // changed to available by default for the demo
+    status: 'available',
     price: 2500,
     date: 'Tomorrow'
   },
   {
-    id: 'slot_4',
     time: '6:30 PM',
     durationRange: '6:30 PM – 7:30 PM',
     status: 'booked',
@@ -32,7 +30,6 @@ let slots = [
     date: 'Tomorrow'
   },
   {
-    id: 'slot_5',
     time: '7:00 PM',
     durationRange: '7:00 PM – 8:00 PM',
     status: 'available',
@@ -41,7 +38,6 @@ let slots = [
     date: 'Tomorrow'
   },
   {
-    id: 'slot_6',
     time: '7:30 PM',
     durationRange: '7:30 PM – 8:30 PM',
     status: 'available',
@@ -49,7 +45,6 @@ let slots = [
     date: 'Tomorrow'
   },
   {
-    id: 'slot_7',
     time: '8:00 PM',
     durationRange: '8:00 PM – 9:00 PM',
     status: 'booked',
@@ -57,7 +52,6 @@ let slots = [
     date: 'Tomorrow'
   },
   {
-    id: 'slot_8',
     time: '8:30 PM',
     durationRange: '8:30 PM – 9:30 PM',
     status: 'available',
@@ -65,7 +59,6 @@ let slots = [
     date: 'Tomorrow'
   },
   {
-    id: 'slot_9',
     time: '9:00 PM',
     durationRange: '9:00 PM – 10:00 PM',
     status: 'available',
@@ -73,7 +66,6 @@ let slots = [
     date: 'Tomorrow'
   },
   {
-    id: 'slot_10',
     time: '9:30 PM',
     durationRange: '9:30 PM – 10:30 PM',
     status: 'available',
@@ -81,7 +73,6 @@ let slots = [
     date: 'Tomorrow'
   },
   {
-    id: 'slot_11',
     time: '5:00 PM',
     durationRange: '5:00 PM – 6:00 PM',
     status: 'available',
@@ -89,7 +80,6 @@ let slots = [
     date: 'Today'
   },
   {
-    id: 'slot_12',
     time: '6:00 PM',
     durationRange: '6:00 PM – 7:00 PM',
     status: 'available',
@@ -98,35 +88,77 @@ let slots = [
   }
 ];
 
-exports.getSlots = (req, res) => {
-  const { date } = req.query;
-  let filteredSlots = slots;
-  if (date) {
-    filteredSlots = slots.filter(s => s.date === date);
+exports.seedSlots = async () => {
+  try {
+    const count = await Slot.countDocuments();
+    if (count === 0) {
+      await Slot.insertMany(mockSlots);
+      console.log('Database seeded with mock slots');
+    }
+  } catch (err) {
+    console.error('Error seeding slots:', err);
   }
-  res.status(200).json(filteredSlots);
 };
 
-exports.bookSlot = (req, res) => {
-  const { id } = req.params;
-  const slotIndex = slots.findIndex(s => s.id === id);
+exports.getSlots = async (req, res) => {
+  try {
+    const { date } = req.query;
+    let query = {};
+    if (date) {
+      query.date = date;
+    }
+    const slots = await Slot.find(query);
+    
+    // Map _id to id for the flutter frontend
+    const mappedSlots = slots.map(slot => {
+      const slotObj = slot.toObject();
+      slotObj.id = slotObj._id.toString();
+      return slotObj;
+    });
 
-  if (slotIndex === -1) {
-    return res.status(404).json({ message: 'Slot not found' });
+    res.status(200).json(mappedSlots);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching slots', error: error.message });
   }
+};
 
-  if (slots[slotIndex].status === 'booked') {
-    return res.status(409).json({ message: 'Slot already booked' });
+exports.bookSlot = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const slot = await Slot.findById(id);
+
+    if (!slot) {
+      return res.status(404).json({ message: 'Slot not found' });
+    }
+
+    if (slot.status === 'booked') {
+      return res.status(409).json({ message: 'Slot already booked' });
+    }
+
+    if (slot.isConflictTrigger) {
+      slot.status = 'booked';
+      slot.isConflictTrigger = false;
+      await slot.save();
+      return res.status(409).json({ message: 'Slot was just booked by someone else' });
+    }
+
+    slot.status = 'booked';
+    await slot.save();
+    
+    // Create the booking record
+    const Booking = require('../models/Booking');
+    const newBooking = await Booking.create({
+      slot: slot._id,
+      courtName: 'Badminton Court 1',
+      paymentMethod: 'card',
+      bookingId: `SS-${Math.floor(10000 + Math.random() * 90000)}`
+    });
+    
+    const slotObj = slot.toObject();
+    slotObj.id = slotObj._id.toString();
+    
+    res.status(200).json({ message: 'Slot booked successfully', slot: slotObj, booking: newBooking });
+  } catch (error) {
+    res.status(500).json({ message: 'Error booking slot', error: error.message });
   }
-
-  // Handle conflict demo trigger
-  if (slots[slotIndex].isConflictTrigger) {
-    // Simulate it getting booked right before the user books it
-    slots[slotIndex].status = 'booked';
-    slots[slotIndex].isConflictTrigger = false;
-    return res.status(409).json({ message: 'Slot was just booked by someone else' });
-  }
-
-  slots[slotIndex].status = 'booked';
-  res.status(200).json({ message: 'Slot booked successfully', slot: slots[slotIndex] });
 };

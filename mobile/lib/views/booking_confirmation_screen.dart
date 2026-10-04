@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/time_slot.dart';
 import '../utils/app_colors.dart';
+import 'my_bookings_screen.dart';
 
 class BookingConfirmationScreen extends StatelessWidget {
   final TimeSlot slot;
@@ -116,7 +117,12 @@ class BookingConfirmationScreen extends StatelessWidget {
                 height: 54,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MyBookingsScreen(),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryTeal,

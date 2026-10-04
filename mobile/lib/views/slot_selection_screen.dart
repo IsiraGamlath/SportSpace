@@ -9,6 +9,7 @@ import '../widgets/slot_grid.dart';
 import '../widgets/slot_legend.dart';
 import '../services/api_service.dart';
 import 'booking_confirmation_screen.dart';
+import 'checkout_screen.dart';
 
 class SlotSelectionScreen extends StatefulWidget {
   const SlotSelectionScreen({super.key});
@@ -367,13 +368,12 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ConflictResolutionScreen(
-                              bookedSlot: activeSlot,
-                              courtName: 'Badminton Court 1',
+                            builder: (_) => CheckoutScreen(
+                              slot: activeSlot,
+                              date: _dates[_selectedDateIndex],
                               alternatives: _slots
                                   .where((s) => s.status == SlotStatus.available && s.id != activeSlot.id)
                                   .toList(),
-                              date: _dates[_selectedDateIndex],
                             ),
                           ),
                         ).then((_) {

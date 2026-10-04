@@ -19,6 +19,7 @@ class ApiService {
           status: _parseStatus(json['status']),
           price: json['price'].toDouble(),
           isConflictTrigger: json['isConflictTrigger'] ?? false,
+          date: json['date'],
         )).toList();
       } else {
         throw Exception('Failed to load slots');
@@ -40,6 +41,19 @@ class ApiService {
       }
     } catch (e) {
       throw Exception(e.toString());
+    }
+  }
+
+  static Future<List<dynamic>> fetchBookings() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/bookings'));
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to load bookings');
+      }
+    } catch (e) {
+      throw Exception('Error fetching bookings: $e');
     }
   }
 
