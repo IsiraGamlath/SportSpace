@@ -87,66 +87,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 children: [
                   ...bookings.map((booking) => Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: _buildBookingCard(
-                          title: 'Colombo Sports Centre',
-                          subtitle: booking.courtName,
-                          date: booking.slot.date ?? 'N/A',
-                          time: booking.slot.durationRange,
-                          price: 'LKR ${booking.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-                          bookingId: booking.bookingId,
-                        ),
+                        child: _buildBookingCard(booking),
                       )).toList(),
-                  const SizedBox(height: 8),
-                  if (bookings.isNotEmpty)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 52,
-                            child: OutlinedButton(
-                              onPressed: () {},
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.darkNavy,
-                                side: const BorderSide(color: AppColors.borderLight),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(26),
-                                ),
-                              ),
-                              child: const Text(
-                                'Reschedule',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: SizedBox(
-                            height: 52,
-                            child: OutlinedButton(
-                              onPressed: () {},
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.bookedText,
-                                side: const BorderSide(color: AppColors.bookedBorder),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(26),
-                                ),
-                              ),
-                              child: const Text(
-                                'Cancel Booking',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                 ],
               ),
             );
@@ -157,14 +99,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     );
   }
 
-  Widget _buildBookingCard({
-    required String title,
-    required String subtitle,
-    required String date,
-    required String time,
-    required String price,
-    required String bookingId,
-  }) {
+  Widget _buildBookingCard(Booking booking) {
+    final title = 'Colombo Sports Centre';
+    final subtitle = booking.courtName;
+    final date = booking.slot.date ?? 'N/A';
+    final time = booking.slot.durationRange;
+    final price = 'LKR ${booking.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
+    final isConfirmed = booking.status == 'confirmed';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -212,7 +154,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.availableBg,
+                  color: isConfirmed ? AppColors.availableBg : Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -221,18 +163,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppColors.availableText,
+                      decoration: BoxDecoration(
+                        color: isConfirmed ? AppColors.availableText : Colors.grey.shade600,
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      'Confirmed',
+                    Text(
+                      isConfirmed ? 'Confirmed' : 'Cancelled',
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.availableText,
+                        color: isConfirmed ? AppColors.availableText : Colors.grey.shade700,
                       ),
                     ),
                   ],
@@ -246,6 +188,105 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           _buildDetailRow('Time', time),
           const SizedBox(height: 12),
           _buildDetailRow('Paid', price),
+          if (isConfirmed) ...[
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton(
+                      onPressed: () {},
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.darkNavy,
+                        side: const BorderSide(color: AppColors.borderLight),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                      ),
+                      child: const Text(
+                        'Reschedule',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton(
+                      onPressed: () => _handleCancelBooking(booking.id),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.bookedText,
+                        side: const BorderSide(color: AppColors.bookedBorder),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel Booking',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _handleCancelBooking(String bookingId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Booking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.darkNavy)),
+        content: const Text(
+          'Are you sure you want to cancel this booking? A refund will be issued to your original payment method.',
+          style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Keep Booking', style: TextStyle(color: AppColors.darkNavy, fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ApiService.cancelBooking(bookingId);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Booking cancelled successfully'), backgroundColor: AppColors.availableText),
+                );
+                setState(() {
+                  _bookingsFuture = _fetchBookings();
+                });
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to cancel: $e'), backgroundColor: AppColors.bookedText),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.bookedBg,
+              foregroundColor: AppColors.bookedText,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );

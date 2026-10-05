@@ -6,6 +6,8 @@ const bookingSchema = new mongoose.Schema({
   status: { type: String, enum: ['confirmed', 'cancelled'], default: 'confirmed' },
   bookingId: { type: String, required: true },
   paymentMethod: { type: String, required: true, default: 'card' },
+  paymentIntentId: { type: String },
+  refundId: { type: String },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

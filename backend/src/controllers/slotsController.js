@@ -125,6 +125,7 @@ exports.getSlots = async (req, res) => {
 exports.bookSlot = async (req, res) => {
   try {
     const { id } = req.params;
+    const { paymentIntentId, paymentMethod = 'card' } = req.body || {};
     const slot = await Slot.findById(id);
 
     if (!slot) {
@@ -150,7 +151,8 @@ exports.bookSlot = async (req, res) => {
     const newBooking = await Booking.create({
       slot: slot._id,
       courtName: 'Badminton Court 1',
-      paymentMethod: 'card',
+      paymentMethod,
+      paymentIntentId,
       bookingId: `SS-${Math.floor(10000 + Math.random() * 90000)}`
     });
     

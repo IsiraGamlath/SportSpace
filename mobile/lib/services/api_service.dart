@@ -29,9 +29,16 @@ class ApiService {
     }
   }
 
-  static Future<bool> bookSlot(String id) async {
+  static Future<bool> bookSlot(String id, {String? paymentIntentId, String paymentMethod = 'card'}) async {
     try {
-      final response = await http.post(Uri.parse('$baseUrl/slots/$id/book'));
+      final response = await http.post(
+        Uri.parse('$baseUrl/slots/$id/book'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'paymentIntentId': paymentIntentId,
+          'paymentMethod': paymentMethod,
+        }),
+      );
       if (response.statusCode == 200) {
         return true;
       } else if (response.statusCode == 409) {
@@ -44,7 +51,7 @@ class ApiService {
     }
   }
 
-  static Future<String?> createPaymentIntent(double amount, String currency) async {
+  static Future<Map<String, dynamic>?> createPaymentIntent(double amount, String currency) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/payments/create-intent'),
@@ -55,8 +62,7 @@ class ApiService {
         }),
       );
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['clientSecret'];
+        return json.decode(response.body);
       }
       return null;
     } catch (e) {
@@ -75,6 +81,19 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error fetching bookings: $e');
+    }
+  }
+
+  static Future<bool> cancelBooking(String bookingId) async {
+    try {
+      final response = await http.post(Uri.parse('$baseUrl/bookings/$bookingId/cancel'));
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception('Failed to cancel booking');
+      }
+    } catch (e) {
+      throw Exception('Error cancelling booking: $e');
     }
   }
 
