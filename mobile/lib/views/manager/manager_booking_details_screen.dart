@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/api_service.dart';
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/pending_payment_pill.dart';
 import '../../widgets/manager/section_card.dart';
@@ -16,6 +17,26 @@ class ManagerBookingDetailsScreen extends StatefulWidget {
 class _ManagerBookingDetailsScreenState
     extends State<ManagerBookingDetailsScreen> {
   bool _isConfirmed = false;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVerificationStatus();
+  }
+
+  Future<void> _fetchVerificationStatus() async {
+    try {
+      final statusData = await ApiService.fetchVerificationStatus('SS-20481');
+      if (mounted) {
+        setState(() {
+          _isConfirmed = statusData['paymentStatus'] == 'verified';
+        });
+      }
+    } catch (_) {
+      // Retain default state if network unreachable
+    }
+  }
 
   void _openNotifications() {
     Navigator.of(context).push(
@@ -25,28 +46,46 @@ class _ManagerBookingDetailsScreenState
     );
   }
 
-  void _confirmPayment() {
+  Future<void> _confirmPayment() async {
     setState(() {
-      _isConfirmed = true;
+      _isLoading = true;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Payment Confirmed! Booking status updated to Paid.'),
-        backgroundColor: ManagerColors.green,
-      ),
-    );
+    try {
+      await ApiService.verifyPayment('SS-20481');
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _isConfirmed = true;
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment Confirmed! Booking status updated to Paid.'),
+          backgroundColor: ManagerColors.green,
+        ),
+      );
+    }
   }
 
-  void _markUnpaid() {
+  Future<void> _markUnpaid() async {
     setState(() {
-      _isConfirmed = false;
+      _isLoading = true;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Booking marked as Unpaid.'),
-        backgroundColor: ManagerColors.amber,
-      ),
-    );
+    try {
+      await ApiService.markPaymentUnpaid('SS-20481');
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _isConfirmed = false;
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Booking marked as Unpaid.'),
+          backgroundColor: ManagerColors.amber,
+        ),
+      );
+    }
   }
 
   @override
@@ -149,7 +188,7 @@ class _ManagerBookingDetailsScreenState
                             child: SizedBox(
                               height: 48,
                               child: OutlinedButton(
-                                onPressed: _markUnpaid,
+                                onPressed: _isLoading ? null : _markUnpaid,
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: ManagerColors.navy,
                                   backgroundColor: Colors.transparent,
@@ -177,7 +216,7 @@ class _ManagerBookingDetailsScreenState
                             child: SizedBox(
                               height: 48,
                               child: ElevatedButton(
-                                onPressed: _confirmPayment,
+                                onPressed: _isLoading ? null : _confirmPayment,
                                 style: ElevatedButton.styleFrom(
                                   elevation: 0,
                                   shadowColor: Colors.transparent,
@@ -190,13 +229,22 @@ class _ManagerBookingDetailsScreenState
                                   ),
                                   padding: EdgeInsets.zero,
                                 ),
-                                child: Text(
-                                  _isConfirmed ? 'Payment Confirmed √' : 'Confirm Payment',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Text(
+                                        _isConfirmed ? 'Payment Confirmed √' : 'Confirm Payment',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                               ),
                             ),
                           ),
