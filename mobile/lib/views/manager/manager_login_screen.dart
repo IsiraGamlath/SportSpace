@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/manager_text_field.dart';
+import '../login_screen.dart';
 import 'manager_main_screen.dart';
 
 class ManagerLoginScreen extends StatefulWidget {
@@ -265,6 +266,38 @@ class _ManagerLoginScreenState extends State<ManagerLoginScreen> {
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          Center(
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const LoginScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text.rich(
+                                TextSpan(
+                                  text: 'Looking to book courts? ',
+                                  style: TextStyle(
+                                    color: ManagerColors.secondaryText,
+                                    fontSize: 12.5,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: 'Player Login',
+                                      style: TextStyle(
+                                        color: ManagerColors.primaryButton,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
