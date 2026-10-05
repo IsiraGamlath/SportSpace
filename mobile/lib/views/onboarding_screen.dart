@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../utils/app_colors.dart';
+import 'login_screen.dart';
 import 'role_selection_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -226,7 +227,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 6),
           _OnboardingButton(
             label: 'Log In',
-            onPressed: () => _finish(context),
+            onPressed: () => Navigator.of(context).pushReplacement(
+              MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+            ),
             outlined: true,
           ),
           const SizedBox(height: 10),

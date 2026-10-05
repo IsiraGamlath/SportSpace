@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../utils/app_colors.dart';
-import 'slot_selection_screen.dart';
+import 'registration_screen.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -15,9 +15,19 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
 
   void _continue() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const SlotSelectionScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => RegistrationScreen(
+          role: _roleNames[_selectedRole],
+        ),
+      ),
     );
   }
+
+  static const _roleNames = [
+    'Player',
+    'Facility Manager',
+    'Community / Public User',
+  ];
 
   @override
   Widget build(BuildContext context) {
