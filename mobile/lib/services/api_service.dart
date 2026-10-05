@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:5000/api'; // Use 10.0.2.2 for Android emulator
+  static const String baseUrl = 'http://10.137.39.116:5000/api'; // Use 10.0.2.2 for Android emulator
 
   static Future<List<TimeSlot>> fetchSlots({String? date}) async {
     try {
