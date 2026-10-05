@@ -51,6 +51,10 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  assets:
+    - assets/sportspace_logo.png
+    - assets/Sport Space logo.png
+    - assets/onboarding_athlete.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

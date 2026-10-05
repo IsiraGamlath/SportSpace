@@ -2,9 +2,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/main.dart';
 
 void main() {
+  testWidgets('Launch screen opens onboarding screen', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const SportSpaceApp());
+
+    expect(find.text('Find a place to play'), findsNothing);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Find a place to play'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+  });
+
   testWidgets('Slot Selection screen smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const SportSpaceApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('Find a place to play'), findsOneWidget);
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
 
     // Verify header and court info are displayed
     expect(find.text('Select a Slot'), findsOneWidget);
@@ -21,8 +39,14 @@ void main() {
     expect(find.text('Continue'), findsOneWidget);
   });
 
-  testWidgets('Interactive conflict resolution flow works', (WidgetTester tester) async {
+  testWidgets('Interactive conflict resolution flow works', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const SportSpaceApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
 
     // Scroll to 7:00 PM and tap
     await tester.ensureVisible(find.text('7:00 PM'));

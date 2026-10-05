@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'utils/app_colors.dart';
-import 'views/slot_selection_screen.dart';
+import 'views/launch_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +31,7 @@ class SportSpaceApp extends StatelessWidget {
           primary: AppColors.primaryTeal,
         ),
       ),
-      home: const SlotSelectionScreen(),
+      home: const LaunchScreen(),
     );
   }
 }
