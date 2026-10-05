@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../utils/app_colors.dart';
-import 'slot_selection_screen.dart';
+import 'manager/manager_login_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
 
   void _finish(BuildContext context) {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const SlotSelectionScreen()),
+      MaterialPageRoute<void>(builder: (_) => const ManagerLoginScreen()),
     );
   }
 
