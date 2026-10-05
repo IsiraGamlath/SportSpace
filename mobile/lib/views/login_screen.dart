@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../utils/app_colors.dart';
+import 'manager/manager_login_screen.dart';
 import 'registration_screen.dart';
 import 'slot_selection_screen.dart';
 
@@ -36,6 +37,14 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => const RegistrationScreen(role: 'Player'),
+      ),
+    );
+  }
+
+  void _openManagerLogin() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ManagerLoginScreen(),
       ),
     );
   }
@@ -129,10 +138,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 160),
+                const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
-                  height: 47,
+                  height: 48,
                   child: ElevatedButton(
                     onPressed: _login,
                     style: ElevatedButton.styleFrom(
@@ -143,11 +152,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: const Text(
                       'Login',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Center(
                   child: TextButton(
                     onPressed: _openRegistration,
@@ -156,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         text: "Don't have an account? ",
                         style: TextStyle(
                           color: AppColors.textSecondary,
-                          fontSize: 11,
+                          fontSize: 12,
                         ),
                         children: [
                           TextSpan(
@@ -171,6 +180,47 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                const Row(
+                  children: [
+                    Expanded(child: Divider(color: AppColors.borderLight)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'FACILITY MANAGER?',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: AppColors.borderLight)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _openManagerLogin,
+                    icon: const Icon(Icons.business_center_outlined, size: 18),
+                    label: const Text(
+                      'Sign in to Manager Portal',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF183E63),
+                      side: const BorderSide(color: Color(0xFF183E63), width: 1.5),
+                      shape: const StadiumBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
