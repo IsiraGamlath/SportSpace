@@ -44,6 +44,27 @@ class ApiService {
     }
   }
 
+  static Future<String?> createPaymentIntent(double amount, String currency) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/payments/create-intent'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'amount': amount.toInt(),
+          'currency': currency,
+        }),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['clientSecret'];
+      }
+      return null;
+    } catch (e) {
+      print('Error creating payment intent: $e');
+      return null;
+    }
+  }
+
   static Future<List<dynamic>> fetchBookings() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/bookings'));

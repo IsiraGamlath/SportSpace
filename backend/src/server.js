@@ -25,6 +25,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/slots", require("./routes/slots"));
 app.use("/api/bookings", require("./routes/bookings"));
+app.use("/api/payments", require("./routes/payments"));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
