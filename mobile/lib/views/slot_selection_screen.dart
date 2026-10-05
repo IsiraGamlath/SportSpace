@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../models/time_slot.dart';
 import '../utils/app_colors.dart';
-import '../widgets/conflict_resolution_sheet.dart';
+import 'conflict_resolution_screen.dart';
 import '../widgets/court_info_card.dart';
 import '../widgets/date_selector.dart';
 import '../widgets/slot_grid.dart';
@@ -101,64 +102,62 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
     if (tappedSlot.status == SlotStatus.booked) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${tappedSlot.time} is already booked. Please choose an available slot.'),
+          content: Text(
+            '${tappedSlot.time} is already booked. Please choose an available slot.',
+          ),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
+    Future<void> _openConflictScreen(TimeSlot conflicted) async {
+      // The slot has just been taken by someone else
+      setState(() {
+        _slots = [
+          for (final s in _slots)
+            s.id == conflicted.id
+                ? s.copyWith(
+                    status: SlotStatus.booked,
+                    isConflictTrigger: false,
+                  )
+                : s,
+        ];
+      });
+
+      final alternatives = _slots
+          .where((s) => s.status == SlotStatus.available)
+          .toList();
+
+      final chosen = await Navigator.push<TimeSlot>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ConflictResolutionScreen(
+            bookedSlot: conflicted,
+            courtName: 'Badminton Court 1',
+            alternatives: alternatives,
+          ),
+        ),
+      );
+
+      if (!mounted || chosen == null) return;
+      setState(() {
+        _slots = [
+          for (final s in _slots)
+            if (s.id == chosen.id)
+              s.copyWith(status: SlotStatus.selected)
+            else if (s.status == SlotStatus.selected)
+              s.copyWith(status: SlotStatus.available)
+            else
+              s,
+        ];
+      });
+    }
 
     // HCI Conflict Resolution Demo Trigger on 7:00 PM
-    if (tappedSlot.isConflictTrigger && tappedSlot.status == SlotStatus.available) {
-      ConflictResolutionSheet.show(
-        context,
-        onSelectAlternative: () {
-          setState(() {
-            // Mark 7:00 PM as booked by another user
-            _slots = _slots.map((s) {
-              if (s.id == tappedSlot.id) {
-                return s.copyWith(status: SlotStatus.booked, isConflictTrigger: false);
-              }
-              // Select 7:30 PM alternative
-              if (s.time == '7:30 PM') {
-                return s.copyWith(status: SlotStatus.selected);
-              }
-              // Deselect any previous selected slot
-              if (s.status == SlotStatus.selected) {
-                return s.copyWith(status: SlotStatus.available);
-              }
-              return s;
-            }).toList();
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Switched to alternative slot: 7:30 PM'),
-              backgroundColor: AppColors.primaryTeal,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        },
-        onDismiss: () {
-          setState(() {
-            // Update 7:00 PM to booked
-            _slots = _slots.map((s) {
-              if (s.id == tappedSlot.id) {
-                return s.copyWith(status: SlotStatus.booked, isConflictTrigger: false);
-              }
-              return s;
-            }).toList();
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('7:00 PM marked as Booked. Please select another slot.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        },
-      );
+    if (tappedSlot.isConflictTrigger &&
+        tappedSlot.status == SlotStatus.available) {
+      _openConflictScreen(tappedSlot);
       return;
     }
 
@@ -286,10 +285,7 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                     const SizedBox(height: 14),
 
                     // Slots Grid
-                    SlotGrid(
-                      slots: _slots,
-                      onSlotTapped: _handleSlotTap,
-                    ),
+                    SlotGrid(slots: _slots, onSlotTapped: _handleSlotTap),
                     const SizedBox(height: 18),
 
                     // HCI Tip
@@ -427,7 +423,9 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryTeal,
-                  disabledBackgroundColor: AppColors.textMuted.withValues(alpha: 0.3),
+                  disabledBackgroundColor: AppColors.textMuted.withValues(
+                    alpha: 0.3,
+                  ),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(28),
