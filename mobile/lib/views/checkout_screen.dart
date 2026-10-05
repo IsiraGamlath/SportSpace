@@ -104,27 +104,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               const SizedBox(height: 28),
 
-              if (_selectedPaymentMethod == 0) ...[
-                _buildSectionTitle('Card Details'),
-                const SizedBox(height: 12),
-                _buildTextField(hintText: '4111 •••• •••• 1234', keyboardType: TextInputType.number),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: _buildTextField(hintText: '09/28', keyboardType: TextInputType.datetime),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 1,
-                      child: _buildTextField(hintText: '•••', isCenter: true, keyboardType: TextInputType.number),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(hintText: 'Isuru Nuwan', keyboardType: TextInputType.name),
-              ] else if (_selectedPaymentMethod == 1) ...[
+              if (_selectedPaymentMethod == 1) ...[
                 _buildSectionTitle('Bank Transfer Details'),
                 const SizedBox(height: 12),
                 Container(
@@ -234,11 +214,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       }
                       
                       try {
+                        String? paymentIntentId;
+                        String paymentMethod = 'card';
+
                         if (_selectedPaymentMethod == 0) {
-                          final clientSecret = await ApiService.createPaymentIntent(widget.slot.price * 100, 'lkr');
-                          if (clientSecret == null) {
+                          paymentMethod = 'card';
+                          final intentData = await ApiService.createPaymentIntent(widget.slot.price * 100, 'lkr');
+                          if (intentData == null) {
                             throw Exception('Failed to initialize payment.');
                           }
+
+                          final clientSecret = intentData['clientSecret'];
+                          paymentIntentId = intentData['paymentIntentId'];
 
                           await Stripe.instance.initPaymentSheet(
                             paymentSheetParameters: SetupPaymentSheetParameters(
@@ -248,9 +235,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           );
 
                           await Stripe.instance.presentPaymentSheet();
+                        } else if (_selectedPaymentMethod == 1) {
+                          paymentMethod = 'bank';
+                        } else if (_selectedPaymentMethod == 2) {
+                          paymentMethod = 'wallet';
                         }
                         
-                        await ApiService.bookSlot(widget.slot.id);
+                        await ApiService.bookSlot(
+                          widget.slot.id, 
+                          paymentIntentId: paymentIntentId, 
+                          paymentMethod: paymentMethod
+                        );
                         if (!mounted) return;
                         setState(() => _isProcessing = false);
                         
@@ -305,8 +300,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         strokeWidth: 2.5,
                       ),
                     )
-                  : Text(
-                      'Pay $priceText',
+                  : const Text(
+                      'Proceed to Pay',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
