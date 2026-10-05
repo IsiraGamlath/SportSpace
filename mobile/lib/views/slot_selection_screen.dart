@@ -7,7 +7,6 @@ import '../widgets/date_selector.dart';
 import '../widgets/slot_grid.dart';
 import '../widgets/slot_legend.dart';
 import '../services/api_service.dart';
-import 'booking_confirmation_screen.dart';
 import 'checkout_screen.dart';
 
 class SlotSelectionScreen extends StatefulWidget {
@@ -44,16 +43,19 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
   Future<void> _fetchSlots() async {
     setState(() => _isLoading = true);
     try {
-      final fetchedSlots = await ApiService.fetchSlots(date: _dates[_selectedDateIndex]);
+      final fetchedSlots = await ApiService.fetchSlots(
+        date: _dates[_selectedDateIndex],
+      );
+      if (!mounted) return;
       setState(() {
         _slots = fetchedSlots;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading slots: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error loading slots: $e')));
     }
   }
 
@@ -66,8 +68,6 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
       return null;
     }
   }
-
-
 
   void _handleSlotTap(TimeSlot tappedSlot) {
     if (tappedSlot.status == SlotStatus.booked) {
@@ -82,7 +82,6 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
       );
       return;
     }
-
 
     // Standard slot selection
     setState(() {
@@ -334,20 +333,29 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                         if (widget.rescheduleBookingId != null) {
                           setState(() => _isBooking = true);
                           try {
-                            await ApiService.rescheduleBooking(widget.rescheduleBookingId!, activeSlot.id);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Booking rescheduled successfully!'), backgroundColor: AppColors.availableText),
-                              );
-                              Navigator.pop(context, true);
-                            }
+                            await ApiService.rescheduleBooking(
+                              widget.rescheduleBookingId!,
+                              activeSlot.id,
+                            );
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Booking rescheduled successfully!',
+                                ),
+                                backgroundColor: AppColors.availableText,
+                              ),
+                            );
+                            Navigator.pop(context, true);
                           } catch (e) {
-                            if (mounted) {
-                              setState(() => _isBooking = false);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Failed to reschedule: $e'), backgroundColor: AppColors.bookedText),
-                              );
-                            }
+                            if (!context.mounted) return;
+                            setState(() => _isBooking = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to reschedule: $e'),
+                                backgroundColor: AppColors.bookedText,
+                              ),
+                            );
                           }
                         } else {
                           Navigator.push(
@@ -357,7 +365,11 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                                 slot: activeSlot,
                                 date: _dates[_selectedDateIndex],
                                 alternatives: _slots
-                                    .where((s) => s.status == SlotStatus.available && s.id != activeSlot.id)
+                                    .where(
+                                      (s) =>
+                                          s.status == SlotStatus.available &&
+                                          s.id != activeSlot.id,
+                                    )
                                     .toList(),
                               ),
                             ),
@@ -382,11 +394,16 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                         child: SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         ),
                       )
                     : Text(
-                        widget.rescheduleBookingId != null ? 'Confirm Reschedule' : 'Continue',
+                        widget.rescheduleBookingId != null
+                            ? 'Confirm Reschedule'
+                            : 'Continue',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,

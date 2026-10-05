@@ -1,7 +1,15 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+  : null;
 
 exports.createPaymentIntent = async (req, res) => {
   try {
+    if (!stripe) {
+      return res.status(503).json({
+        message: 'Payment service is not configured',
+      });
+    }
+
     const { amount, currency } = req.body;
 
     // Create a PaymentIntent with the order amount and currency

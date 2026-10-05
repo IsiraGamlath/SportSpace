@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
@@ -19,8 +20,11 @@ void main() async {
   );
 
   // 3. Initialize Stripe with your Publishable Key
-  Stripe.publishableKey = 'pk_test_51UN2PdKGnYmWIfAiN3XLjEJ9hmOmCJytN65y6LARBGNu9t5SPj20mPWh03CglgPmEdfkFkoCVdA6TABhTyKxFu9g00BVuIwbs8';
-  await Stripe.instance.applySettings();
+  if (!kIsWeb) {
+    Stripe.publishableKey =
+        'pk_test_51UN2PdKGnYmWIfAiN3XLjEJ9hmOmCJytN65y6LARBGNu9t5SPj20mPWh03CglgPmEdfkFkoCVdA6TABhTyKxFu9g00BVuIwbs8';
+    await Stripe.instance.applySettings();
+  }
 
   runApp(const SportSpaceApp());
 }

@@ -30,7 +30,9 @@ exports.createBooking = async (req, res) => {
   }
 };
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+  : null;
 
 exports.cancelBooking = async (req, res) => {
   try {
@@ -47,6 +49,12 @@ exports.cancelBooking = async (req, res) => {
 
     // Process refund if paid with card
     if (booking.paymentMethod === 'card' && booking.paymentIntentId) {
+      if (!stripe) {
+        return res.status(503).json({
+          message: 'Payment service is not configured',
+        });
+      }
+
       try {
         const refund = await stripe.refunds.create({
           payment_intent: booking.paymentIntentId
@@ -116,4 +124,3 @@ exports.rescheduleBooking = async (req, res) => {
     res.status(500).json({ message: 'Error rescheduling booking', error: err.message });
   }
 };
-

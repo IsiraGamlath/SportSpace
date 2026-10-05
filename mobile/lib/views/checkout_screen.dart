@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
 import '../models/time_slot.dart';
 import '../utils/app_colors.dart';
 
 import 'package:flutter_stripe/flutter_stripe.dart';
+
 import '../services/api_service.dart';
 import 'booking_confirmation_screen.dart';
 import 'conflict_resolution_screen.dart';
@@ -29,8 +32,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final priceText = 'LKR ${widget.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
-
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
@@ -41,7 +42,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           child: Center(
             child: Material(
               color: AppColors.cardBackground,
-              shape: const CircleBorder(side: BorderSide(color: AppColors.borderLight)),
+              shape: const CircleBorder(
+                side: BorderSide(color: AppColors.borderLight),
+              ),
               child: InkWell(
                 onTap: () => Navigator.pop(context),
                 customBorder: const CircleBorder(),
@@ -80,7 +83,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 12),
               _buildBookingSummaryCard(),
               const SizedBox(height: 28),
-              
+
               _buildSectionTitle('Payment Method'),
               const SizedBox(height: 12),
               _buildPaymentMethodOption(
@@ -147,16 +150,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ] else if (_selectedPaymentMethod == 2) ...[
                 _buildSectionTitle('Mobile Wallet Details'),
                 const SizedBox(height: 12),
-                _buildTextField(hintText: 'Mobile Number (e.g., 07x xxx xxxx)', keyboardType: TextInputType.phone),
+                _buildTextField(
+                  hintText: 'Mobile Number (e.g., 07x xxx xxxx)',
+                  keyboardType: TextInputType.phone,
+                ),
               ],
-              
+
               const SizedBox(height: 24),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Padding(
                     padding: EdgeInsets.only(top: 2.0),
-                    child: Icon(Icons.lock_outline, size: 14, color: AppColors.available),
+                    child: Icon(
+                      Icons.lock_outline,
+                      size: 14,
+                      color: AppColors.available,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -188,17 +198,99 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           height: 54,
           child: ElevatedButton(
             onPressed: _isProcessing
-                  ? null
-                  : () async {
-                      setState(() => _isProcessing = true);
-                      
-                      // Check for hardcoded conflict demo
-                      if (widget.slot.isConflictTrigger) {
-                        await Future.delayed(const Duration(milliseconds: 800)); // fake delay
-                        if (!mounted) return;
-                        setState(() => _isProcessing = false);
-                        
-                        // Push Conflict Screen
+                ? null
+                : () async {
+                    setState(() => _isProcessing = true);
+
+                    // Check for hardcoded conflict demo
+                    if (widget.slot.isConflictTrigger) {
+                      await Future.delayed(
+                        const Duration(milliseconds: 800),
+                      ); // fake delay
+                      if (!mounted) return;
+                      setState(() => _isProcessing = false);
+
+                      // Push Conflict Screen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ConflictResolutionScreen(
+                            bookedSlot: widget.slot,
+                            courtName: 'Badminton Court 1',
+                            alternatives: widget.alternatives,
+                            date: widget.date,
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    try {
+                      String? paymentIntentId;
+                      String paymentMethod = 'card';
+
+                      if (_selectedPaymentMethod == 0) {
+                        if (kIsWeb) {
+                          if (!mounted) return;
+                          setState(() => _isProcessing = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Card payments are available in the mobile app.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        paymentMethod = 'card';
+                        final intentData = await ApiService.createPaymentIntent(
+                          widget.slot.price * 100,
+                          'lkr',
+                        );
+                        if (intentData == null) {
+                          throw Exception('Failed to initialize payment.');
+                        }
+
+                        final clientSecret = intentData['clientSecret'];
+                        paymentIntentId = intentData['paymentIntentId'];
+
+                        await Stripe.instance.initPaymentSheet(
+                          paymentSheetParameters: SetupPaymentSheetParameters(
+                            paymentIntentClientSecret: clientSecret,
+                            merchantDisplayName: 'SportSpace',
+                          ),
+                        );
+
+                        await Stripe.instance.presentPaymentSheet();
+                      } else if (_selectedPaymentMethod == 1) {
+                        paymentMethod = 'bank';
+                      } else if (_selectedPaymentMethod == 2) {
+                        paymentMethod = 'wallet';
+                      }
+
+                      await ApiService.bookSlot(
+                        widget.slot.id,
+                        paymentIntentId: paymentIntentId,
+                        paymentMethod: paymentMethod,
+                      );
+                      if (!mounted) return;
+                      setState(() => _isProcessing = false);
+
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BookingConfirmationScreen(
+                            slot: widget.slot,
+                            date: widget.date,
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      setState(() => _isProcessing = false);
+
+                      if (e.toString().contains('conflict')) {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
@@ -210,80 +302,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                         );
-                        return;
-                      }
-                      
-                      try {
-                        String? paymentIntentId;
-                        String paymentMethod = 'card';
-
-                        if (_selectedPaymentMethod == 0) {
-                          paymentMethod = 'card';
-                          final intentData = await ApiService.createPaymentIntent(widget.slot.price * 100, 'lkr');
-                          if (intentData == null) {
-                            throw Exception('Failed to initialize payment.');
-                          }
-
-                          final clientSecret = intentData['clientSecret'];
-                          paymentIntentId = intentData['paymentIntentId'];
-
-                          await Stripe.instance.initPaymentSheet(
-                            paymentSheetParameters: SetupPaymentSheetParameters(
-                              paymentIntentClientSecret: clientSecret,
-                              merchantDisplayName: 'SportSpace',
-                            ),
-                          );
-
-                          await Stripe.instance.presentPaymentSheet();
-                        } else if (_selectedPaymentMethod == 1) {
-                          paymentMethod = 'bank';
-                        } else if (_selectedPaymentMethod == 2) {
-                          paymentMethod = 'wallet';
-                        }
-                        
-                        await ApiService.bookSlot(
-                          widget.slot.id, 
-                          paymentIntentId: paymentIntentId, 
-                          paymentMethod: paymentMethod
-                        );
-                        if (!mounted) return;
-                        setState(() => _isProcessing = false);
-                        
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => BookingConfirmationScreen(
-                              slot: widget.slot,
-                              date: widget.date,
-                            ),
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Payment failed: $e'),
+                            backgroundColor: AppColors.bookedText,
                           ),
                         );
-                      } catch (e) {
-                        if (!mounted) return;
-                        setState(() => _isProcessing = false);
-                        
-                        if (e.toString().contains('conflict')) {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ConflictResolutionScreen(
-                                bookedSlot: widget.slot,
-                                courtName: 'Badminton Court 1',
-                                alternatives: widget.alternatives,
-                                date: widget.date,
-                              ),
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Payment failed: $e'),
-                              backgroundColor: AppColors.bookedText,
-                            ),
-                          );
-                        }
                       }
-                    },
+                    }
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryTeal,
               elevation: 0,
@@ -292,22 +320,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
             child: _isProcessing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
-                    )
-                  : const Text(
-                      'Proceed to Pay',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
                     ),
+                  )
+                : const Text(
+                    'Proceed to Pay',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),
@@ -326,7 +354,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildBookingSummaryCard() {
-    final priceText = 'LKR ${widget.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
+    final priceText =
+        'LKR ${widget.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -356,10 +385,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           const SizedBox(height: 2),
           const Text(
             'Badminton Court 1',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
           _buildSummaryRow('Date', widget.date),
@@ -378,10 +404,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         Text(
           value,
@@ -422,11 +445,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         child: Row(
           children: [
             if (showLeadingIcon && icon != null) ...[
-              Icon(
-                icon,
-                size: 18,
-                color: AppColors.darkNavy,
-              ),
+              Icon(icon, size: 18, color: AppColors.darkNavy),
               const SizedBox(width: 12),
             ] else if (showLeadingIcon) ...[
               const SizedBox(width: 30), // placeholder if needed
@@ -437,7 +456,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  color: isSelected ? AppColors.darkNavy : AppColors.textSecondary,
+                  color: isSelected
+                      ? AppColors.darkNavy
+                      : AppColors.textSecondary,
                 ),
               ),
             ),
@@ -448,7 +469,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 shape: BoxShape.circle,
                 color: isSelected ? AppColors.darkNavy : Colors.transparent,
                 border: Border.all(
-                  color: isSelected ? AppColors.darkNavy : AppColors.borderLight,
+                  color: isSelected
+                      ? AppColors.darkNavy
+                      : AppColors.borderLight,
                   width: 1.5,
                 ),
               ),
@@ -459,14 +482,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildTextField({required String hintText, bool isCenter = false, TextInputType? keyboardType}) {
+  Widget _buildTextField({
+    required String hintText,
+    bool isCenter = false,
+    TextInputType? keyboardType,
+  }) {
     return TextField(
       textAlign: isCenter ? TextAlign.center : TextAlign.left,
       keyboardType: keyboardType,
-      style: const TextStyle(
-        fontSize: 15,
-        color: AppColors.textPrimary,
-      ),
+      style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(
@@ -475,7 +499,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.borderLight),
