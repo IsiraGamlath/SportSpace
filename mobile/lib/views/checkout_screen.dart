@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/time_slot.dart';
 import '../utils/app_colors.dart';
 
+import 'package:flutter_stripe/flutter_stripe.dart';
 import '../services/api_service.dart';
 import 'booking_confirmation_screen.dart';
 import 'conflict_resolution_screen.dart';
@@ -106,23 +107,67 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               if (_selectedPaymentMethod == 0) ...[
                 _buildSectionTitle('Card Details'),
                 const SizedBox(height: 12),
-                _buildTextField(hintText: '4111 •••• •••• 1234'),
+                _buildTextField(hintText: '4111 •••• •••• 1234', keyboardType: TextInputType.number),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       flex: 2,
-                      child: _buildTextField(hintText: '09/28'),
+                      child: _buildTextField(hintText: '09/28', keyboardType: TextInputType.datetime),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       flex: 1,
-                      child: _buildTextField(hintText: '•••', isCenter: true),
+                      child: _buildTextField(hintText: '•••', isCenter: true, keyboardType: TextInputType.number),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildTextField(hintText: 'Isuru Nuwan'),
+                _buildTextField(hintText: 'Isuru Nuwan', keyboardType: TextInputType.name),
+              ] else if (_selectedPaymentMethod == 1) ...[
+                _buildSectionTitle('Bank Transfer Details'),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.borderLight),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSummaryRow('Bank Name', 'Commercial Bank'),
+                      const SizedBox(height: 8),
+                      _buildSummaryRow('Account No.', '1234 5678 9012'),
+                      const SizedBox(height: 8),
+                      _buildSummaryRow('Branch', '012'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Upload slip action (placeholder for now)
+                    },
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Upload Transfer Slip'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: AppColors.primaryTeal),
+                      foregroundColor: AppColors.primaryTeal,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ] else if (_selectedPaymentMethod == 2) ...[
+                _buildSectionTitle('Mobile Wallet Details'),
+                const SizedBox(height: 12),
+                _buildTextField(hintText: 'Mobile Number (e.g., 07x xxx xxxx)', keyboardType: TextInputType.phone),
               ],
               
               const SizedBox(height: 24),
@@ -189,6 +234,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       }
                       
                       try {
+                        if (_selectedPaymentMethod == 0) {
+                          final clientSecret = await ApiService.createPaymentIntent(widget.slot.price * 100, 'lkr');
+                          if (clientSecret == null) {
+                            throw Exception('Failed to initialize payment.');
+                          }
+
+                          await Stripe.instance.initPaymentSheet(
+                            paymentSheetParameters: SetupPaymentSheetParameters(
+                              paymentIntentClientSecret: clientSecret,
+                              merchantDisplayName: 'SportSpace',
+                            ),
+                          );
+
+                          await Stripe.instance.presentPaymentSheet();
+                        }
+                        
                         await ApiService.bookSlot(widget.slot.id);
                         if (!mounted) return;
                         setState(() => _isProcessing = false);
@@ -403,20 +464,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildTextField({required String hintText, bool isCenter = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
+  Widget _buildTextField({required String hintText, bool isCenter = false, TextInputType? keyboardType}) {
+    return TextField(
+      textAlign: isCenter ? TextAlign.center : TextAlign.left,
+      keyboardType: keyboardType,
+      style: const TextStyle(
+        fontSize: 15,
+        color: AppColors.textPrimary,
       ),
-      alignment: isCenter ? Alignment.center : Alignment.centerLeft,
-      child: Text(
-        hintText,
-        style: const TextStyle(
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(
           fontSize: 15,
-          color: AppColors.textPrimary,
+          color: AppColors.textSecondary.withOpacity(0.5),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.darkNavy, width: 1.5),
         ),
       ),
     );
