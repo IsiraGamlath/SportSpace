@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'utils/app_colors.dart';
-import 'views/slot_selection_screen.dart';
+import 'views/home_screen.dart';
 
 void main() async {
   // 1. Ensure Flutter bindings are ready for async operations
@@ -40,7 +40,7 @@ class SportSpaceApp extends StatelessWidget {
           primary: AppColors.primaryTeal,
         ),
       ),
-      home: const SlotSelectionScreen(),
+      home: const HomeScreen(),
     );
   }
 }

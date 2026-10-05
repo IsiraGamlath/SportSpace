@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/time_slot.dart';
 import '../utils/app_colors.dart';
-import 'conflict_resolution_screen.dart';
 import '../widgets/court_info_card.dart';
 import '../widgets/date_selector.dart';
 import '../widgets/slot_grid.dart';
@@ -12,7 +11,9 @@ import 'booking_confirmation_screen.dart';
 import 'checkout_screen.dart';
 
 class SlotSelectionScreen extends StatefulWidget {
-  const SlotSelectionScreen({super.key});
+  final String? rescheduleBookingId;
+
+  const SlotSelectionScreen({super.key, this.rescheduleBookingId});
 
   @override
   State<SlotSelectionScreen> createState() => _SlotSelectionScreenState();
@@ -66,23 +67,7 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
     }
   }
 
-  Future<void> _openConflictScreen(TimeSlot conflicted) async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ConflictResolutionScreen(
-          bookedSlot: conflicted,
-          courtName: 'Badminton Court 1',
-          alternatives: _slots
-              .where((s) => s.status == SlotStatus.available && s.id != conflicted.id)
-              .toList(),
-          date: _dates[_selectedDateIndex],
-        ),
-      ),
-    ).then((_) {
-      if (mounted) _fetchSlots();
-    });
-  }
+
 
   void _handleSlotTap(TimeSlot tappedSlot) {
     if (tappedSlot.status == SlotStatus.booked) {
@@ -97,12 +82,7 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
       );
       return;
     }
-    // HCI Conflict Resolution Demo Trigger on 7:00 PM
-    if (tappedSlot.isConflictTrigger &&
-        tappedSlot.status == SlotStatus.available) {
-      _openConflictScreen(tappedSlot);
-      return;
-    }
+
 
     // Standard slot selection
     setState(() {
@@ -242,20 +222,6 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                     else
                       SlotGrid(slots: _slots, onSlotTapped: _handleSlotTap),
                     const SizedBox(height: 18),
-
-                    // HCI Tip
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        'Tip: tap 7:00 PM to see how SportSpace handles a slot booked by someone else moments ago.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          height: 1.4,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 120), // Bottom bar clearance
                   ],
                 ),
@@ -363,22 +329,42 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
               width: double.infinity,
               height: 54,
               child: ElevatedButton(
-                onPressed: activeSlot != null
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CheckoutScreen(
-                              slot: activeSlot,
-                              date: _dates[_selectedDateIndex],
-                              alternatives: _slots
-                                  .where((s) => s.status == SlotStatus.available && s.id != activeSlot.id)
-                                  .toList(),
+                onPressed: (activeSlot != null && !_isBooking)
+                    ? () async {
+                        if (widget.rescheduleBookingId != null) {
+                          setState(() => _isBooking = true);
+                          try {
+                            await ApiService.rescheduleBooking(widget.rescheduleBookingId!, activeSlot.id);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Booking rescheduled successfully!'), backgroundColor: AppColors.availableText),
+                              );
+                              Navigator.pop(context, true);
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              setState(() => _isBooking = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to reschedule: $e'), backgroundColor: AppColors.bookedText),
+                              );
+                            }
+                          }
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CheckoutScreen(
+                                slot: activeSlot,
+                                date: _dates[_selectedDateIndex],
+                                alternatives: _slots
+                                    .where((s) => s.status == SlotStatus.available && s.id != activeSlot.id)
+                                    .toList(),
+                              ),
                             ),
-                          ),
-                        ).then((_) {
-                          if (mounted) _fetchSlots();
-                        });
+                          ).then((_) {
+                            if (mounted) _fetchSlots();
+                          });
+                        }
                       }
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -391,15 +377,23 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                     borderRadius: BorderRadius.circular(28),
                   ),
                 ),
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.2,
-                  ),
-                ),
+                child: _isBooking
+                    ? const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        ),
+                      )
+                    : Text(
+                        widget.rescheduleBookingId != null ? 'Confirm Reschedule' : 'Continue',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
               ),
             ),
           ],

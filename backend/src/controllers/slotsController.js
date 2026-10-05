@@ -34,7 +34,6 @@ const mockSlots = [
     durationRange: '7:00 PM – 8:00 PM',
     status: 'available',
     price: 2500,
-    isConflictTrigger: true,
     date: 'Tomorrow'
   },
   {
@@ -136,12 +135,7 @@ exports.bookSlot = async (req, res) => {
       return res.status(409).json({ message: 'Slot already booked' });
     }
 
-    if (slot.isConflictTrigger) {
-      slot.status = 'booked';
-      slot.isConflictTrigger = false;
-      await slot.save();
-      return res.status(409).json({ message: 'Slot was just booked by someone else' });
-    }
+
 
     slot.status = 'booked';
     await slot.save();

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../services/api_service.dart';
 import '../models/booking.dart';
+import 'slot_selection_screen.dart';
+import 'home_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -105,7 +107,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     final date = booking.slot.date ?? 'N/A';
     final time = booking.slot.durationRange;
     final price = 'LKR ${booking.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
-    final isConfirmed = booking.status == 'confirmed';
+    final isActive = booking.status == 'confirmed' || booking.status == 'rescheduled';
+    final isRescheduled = booking.status == 'rescheduled';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -154,7 +157,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: isConfirmed ? AppColors.availableBg : Colors.grey.shade200,
+                  color: isActive
+                      ? (isRescheduled ? Colors.blue.shade50 : AppColors.availableBg)
+                      : Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -164,17 +169,21 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: isConfirmed ? AppColors.availableText : Colors.grey.shade600,
+                        color: isActive
+                            ? (isRescheduled ? Colors.blue : AppColors.availableText)
+                            : Colors.grey.shade600,
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      isConfirmed ? 'Confirmed' : 'Cancelled',
+                      isActive ? (isRescheduled ? 'Rescheduled' : 'Confirmed') : 'Cancelled',
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: isConfirmed ? AppColors.availableText : Colors.grey.shade700,
+                        color: isActive
+                            ? (isRescheduled ? Colors.blue.shade700 : AppColors.availableText)
+                            : Colors.grey.shade700,
                       ),
                     ),
                   ],
@@ -188,7 +197,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           _buildDetailRow('Time', time),
           const SizedBox(height: 12),
           _buildDetailRow('Paid', price),
-          if (isConfirmed) ...[
+          if (isActive) ...[
             const SizedBox(height: 20),
             Row(
               children: [
@@ -196,7 +205,19 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   child: SizedBox(
                     height: 44,
                     child: OutlinedButton(
-                      onPressed: () {},
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SlotSelectionScreen(rescheduleBookingId: booking.id),
+                          ),
+                        );
+                        if (result == true) {
+                          setState(() {
+                            _bookingsFuture = _fetchBookings();
+                          });
+                        }
+                      },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.darkNavy,
                         side: const BorderSide(color: AppColors.borderLight),
@@ -325,6 +346,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       ),
       child: BottomNavigationBar(
         currentIndex: 2, // 'Bookings' is selected
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (route) => false,
+            );
+          }
+        },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
         selectedItemColor: AppColors.availableText,

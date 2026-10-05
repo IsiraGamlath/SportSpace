@@ -97,6 +97,25 @@ class ApiService {
     }
   }
 
+  static Future<bool> rescheduleBooking(String bookingId, String newSlotId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/bookings/$bookingId/reschedule'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'newSlotId': newSlotId,
+        }),
+      );
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception('Failed to reschedule booking');
+      }
+    } catch (e) {
+      throw Exception('Error rescheduling booking: $e');
+    }
+  }
+
   static SlotStatus _parseStatus(String status) {
     switch (status) {
       case 'available':

@@ -79,3 +79,41 @@ exports.cancelBooking = async (req, res) => {
   }
 };
 
+exports.rescheduleBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newSlotId } = req.body;
+    
+    const booking = await Booking.findById(id).populate('slot');
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.status !== 'confirmed' && booking.status !== 'rescheduled') return res.status(400).json({ message: 'Can only reschedule active bookings' });
+    
+    const newSlot = await Slot.findById(newSlotId);
+    if (!newSlot) return res.status(404).json({ message: 'New slot not found' });
+    if (newSlot.status === 'booked') return res.status(400).json({ message: 'New slot is already booked' });
+    
+    // Mark old slot available
+    if (booking.slot) {
+      const oldSlot = await Slot.findById(booking.slot._id);
+      if (oldSlot) {
+        oldSlot.status = 'available';
+        await oldSlot.save();
+      }
+    }
+    
+    // Mark new slot booked
+    newSlot.status = 'booked';
+    await newSlot.save();
+    
+    // Update booking
+    booking.slot = newSlot._id;
+    booking.status = 'rescheduled';
+    await booking.save();
+    
+    res.status(200).json({ message: 'Booking rescheduled', booking });
+  } catch (err) {
+    console.error('Error rescheduling booking:', err);
+    res.status(500).json({ message: 'Error rescheduling booking', error: err.message });
+  }
+};
+
