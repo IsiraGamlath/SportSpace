@@ -6,7 +6,7 @@ Mobile sports facility booking app.
 
 - Mobile: Flutter
 - Backend: Node.js + Express
-- Database: PostgreSQL
+- Database: MongoDB
 - Auth & Notifications: Firebase (Auth, FCM)
 
 ## Repository Structure
@@ -37,6 +37,6 @@ Mobile sports facility booking app.
 
 ## Setup
 
-1. Copy `.env.example` to `.env` and fill in your values
+1. Configure the root `.env` with `MONGODB_URI` and optionally `PORT` (the backend loads this file automatically)
 2. Backend: `cd backend && npm install && npm run dev`
 3. Mobile: `cd mobile && flutter pub get && flutter run`
