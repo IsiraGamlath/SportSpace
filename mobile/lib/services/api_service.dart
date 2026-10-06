@@ -1,18 +1,18 @@
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
 
 class ApiService {
-  // Host Candidates:
-  // 1. USB ADB Reverse: http://127.0.0.1:5000/api (Fastest, zero-latency, bypasses firewall)
-  // 2. Wi-Fi LAN IP: http://10.137.39.116:5000/api (Local wireless network)
-  // 3. Android Emulator: http://10.0.2.2:5000/api
-  static const String usbUrl = 'http://127.0.0.1:5000/api';
-  static const String wifiUrl = 'http://10.137.39.116:5000/api';
-  static const String emulatorUrl = 'http://10.0.2.2:5000/api';
+  static const String _webUrl = 'http://localhost:5000/api';
+  static const String _usbUrl = 'http://127.0.0.1:5000/api';
+  static const String _wifiUrl = 'http://192.168.8.100:5000/api';
+  static const String _emulatorUrl = 'http://10.0.2.2:5000/api';
+  static String? _activeBaseUrl;
 
-  static String baseUrl = kIsWeb ? 'http://localhost:5000/api' : usbUrl;
+  static String get baseUrl =>
+      _activeBaseUrl ?? (kIsWeb ? _webUrl : _emulatorUrl);
 
   static Future<Map<String, dynamic>> register({
     required String fullName,
@@ -50,91 +50,153 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return body;
     }
+
     throw Exception(body['message'] ?? 'Authentication request failed');
   }
 
-  static final List<String> _candidates = [
-    usbUrl,
-    wifiUrl,
-    emulatorUrl,
-  ];
+  static Future<void> syncUserProfile({
+    required String fullName,
+    required String role,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('You must be signed in to sync your profile.');
+    }
 
-  static Future<http.Response> _get(String path, {Map<String, String>? queryParams}) async {
+    final token = await user.getIdToken();
+    final response = await _post(
+      '/users/profile',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({'fullName': fullName, 'role': role}),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Unable to save profile to MongoDB');
+    }
+  }
+
+  static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
+
+  static Future<http.Response> _get(
+    String path, {
+    Map<String, String>? queryParams,
+  }) async {
     try {
-      final uri = Uri.parse('$baseUrl$path').replace(queryParameters: queryParams);
+      final uri = Uri.parse(
+        '$baseUrl$path',
+      ).replace(queryParameters: queryParams);
       return await http.get(uri).timeout(const Duration(milliseconds: 2500));
     } catch (_) {}
 
     for (final candidate in _candidates) {
       if (candidate == baseUrl) continue;
       try {
-        final uri = Uri.parse('$candidate$path').replace(queryParameters: queryParams);
-        final res = await http.get(uri).timeout(const Duration(milliseconds: 2500));
-        baseUrl = candidate;
+        final uri = Uri.parse(
+          '$candidate$path',
+        ).replace(queryParameters: queryParams);
+        final res = await http
+            .get(uri)
+            .timeout(const Duration(milliseconds: 2500));
+        _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
     }
     throw Exception('Failed to connect to backend on any host (USB or Wi-Fi)');
   }
 
-  static Future<http.Response> _post(String path, {Map<String, String>? headers, Object? body}) async {
+  static Future<http.Response> _post(
+    String path, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
     try {
-      return await http.post(Uri.parse('$baseUrl$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
+      return await http
+          .post(Uri.parse('$baseUrl$path'), headers: headers, body: body)
+          .timeout(const Duration(milliseconds: 2500));
     } catch (_) {}
 
     for (final candidate in _candidates) {
       if (candidate == baseUrl) continue;
       try {
-        final res = await http.post(Uri.parse('$candidate$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
-        baseUrl = candidate;
+        final res = await http
+            .post(Uri.parse('$candidate$path'), headers: headers, body: body)
+            .timeout(const Duration(milliseconds: 2500));
+        _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
     }
     throw Exception('Failed to connect to backend on any host');
   }
 
-  static Future<http.Response> _put(String path, {Map<String, String>? headers, Object? body}) async {
+  static Future<http.Response> _put(
+    String path, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
     try {
-      return await http.put(Uri.parse('$baseUrl$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
+      return await http
+          .put(Uri.parse('$baseUrl$path'), headers: headers, body: body)
+          .timeout(const Duration(milliseconds: 2500));
     } catch (_) {}
 
     for (final candidate in _candidates) {
       if (candidate == baseUrl) continue;
       try {
-        final res = await http.put(Uri.parse('$candidate$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
-        baseUrl = candidate;
+        final res = await http
+            .put(Uri.parse('$candidate$path'), headers: headers, body: body)
+            .timeout(const Duration(milliseconds: 2500));
+        _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
     }
     throw Exception('Failed to connect to backend on any host');
   }
 
-  static Future<http.Response> _patch(String path, {Map<String, String>? headers, Object? body}) async {
+  static Future<http.Response> _patch(
+    String path, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
     try {
-      return await http.patch(Uri.parse('$baseUrl$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
+      return await http
+          .patch(Uri.parse('$baseUrl$path'), headers: headers, body: body)
+          .timeout(const Duration(milliseconds: 2500));
     } catch (_) {}
 
     for (final candidate in _candidates) {
       if (candidate == baseUrl) continue;
       try {
-        final res = await http.patch(Uri.parse('$candidate$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
-        baseUrl = candidate;
+        final res = await http
+            .patch(Uri.parse('$candidate$path'), headers: headers, body: body)
+            .timeout(const Duration(milliseconds: 2500));
+        _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
     }
     throw Exception('Failed to connect to backend on any host');
   }
 
-  static Future<http.Response> _delete(String path, {Map<String, String>? headers}) async {
+  static Future<http.Response> _delete(
+    String path, {
+    Map<String, String>? headers,
+  }) async {
     try {
-      return await http.delete(Uri.parse('$baseUrl$path'), headers: headers).timeout(const Duration(milliseconds: 2500));
+      return await http
+          .delete(Uri.parse('$baseUrl$path'), headers: headers)
+          .timeout(const Duration(milliseconds: 2500));
     } catch (_) {}
 
     for (final candidate in _candidates) {
       if (candidate == baseUrl) continue;
       try {
-        final res = await http.delete(Uri.parse('$candidate$path'), headers: headers).timeout(const Duration(milliseconds: 2500));
-        baseUrl = candidate;
+        final res = await http
+            .delete(Uri.parse('$candidate$path'), headers: headers)
+            .timeout(const Duration(milliseconds: 2500));
+        _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
     }
@@ -154,19 +216,26 @@ class ApiService {
       if (courtName != null) queryParams['courtName'] = courtName;
       if (managerView) queryParams['managerView'] = 'true';
 
-      final response = await _get('/slots', queryParams: queryParams.isNotEmpty ? queryParams : null);
+      final response = await _get(
+        '/slots',
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.map((json) => TimeSlot(
-          id: json['id'],
-          time: json['time'],
-          durationRange: json['durationRange'],
-          status: _parseStatus(json['status']),
-          price: json['price'].toDouble(),
-          isConflictTrigger: json['isConflictTrigger'] ?? false,
-          date: json['date'],
-        )).toList();
+        return data
+            .map(
+              (json) => TimeSlot(
+                id: json['id'],
+                time: json['time'],
+                durationRange: json['durationRange'],
+                status: _parseStatus(json['status']),
+                price: json['price'].toDouble(),
+                isConflictTrigger: json['isConflictTrigger'] ?? false,
+                date: json['date'],
+              ),
+            )
+            .toList();
       } else {
         throw Exception('Failed to load slots');
       }
@@ -182,7 +251,9 @@ class ApiService {
     try {
       final queryParams = <String, String>{'managerView': 'true'};
       if (date != null && date.isNotEmpty) queryParams['date'] = date;
-      if (courtName != null && courtName.isNotEmpty && courtName != 'All Courts') {
+      if (courtName != null &&
+          courtName.isNotEmpty &&
+          courtName != 'All Courts') {
         queryParams['courtName'] = courtName;
       }
 
@@ -199,7 +270,9 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> createSlot(Map<String, dynamic> slotData) async {
+  static Future<Map<String, dynamic>> createSlot(
+    Map<String, dynamic> slotData,
+  ) async {
     try {
       final response = await _post(
         '/slots',
@@ -216,7 +289,10 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateSlot(String id, Map<String, dynamic> slotData) async {
+  static Future<Map<String, dynamic>> updateSlot(
+    String id,
+    Map<String, dynamic> slotData,
+  ) async {
     try {
       final response = await _put(
         '/slots/$id',
@@ -251,10 +327,7 @@ class ApiService {
       final response = await _patch(
         '/slots/$id/block',
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'blocked': blocked,
-          'reason': reason,
-        }),
+        body: json.encode({'blocked': blocked, 'reason': reason}),
       );
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -266,7 +339,11 @@ class ApiService {
     }
   }
 
-  static Future<bool> bookSlot(String id, {String? paymentIntentId, String paymentMethod = 'card'}) async {
+  static Future<bool> bookSlot(
+    String id, {
+    String? paymentIntentId,
+    String paymentMethod = 'card',
+  }) async {
     try {
       final response = await _post(
         '/slots/$id/book',
@@ -299,7 +376,10 @@ class ApiService {
       if (status != null) queryParams['status'] = status;
       if (facilityName != null) queryParams['facilityName'] = facilityName;
 
-      final response = await _get('/maintenance', queryParams: queryParams.isNotEmpty ? queryParams : null);
+      final response = await _get(
+        '/maintenance',
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
+      );
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -324,7 +404,9 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> createMaintenanceFlag(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> createMaintenanceFlag(
+    Map<String, dynamic> data,
+  ) async {
     try {
       final response = await _post(
         '/maintenance',
@@ -341,7 +423,10 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateMaintenanceFlag(String id, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateMaintenanceFlag(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
     try {
       final response = await _put(
         '/maintenance/$id',
@@ -358,7 +443,10 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> resolveMaintenanceFlag(String id, {String? resolutionNotes}) async {
+  static Future<Map<String, dynamic>> resolveMaintenanceFlag(
+    String id, {
+    String? resolutionNotes,
+  }) async {
     try {
       final response = await _patch(
         '/maintenance/$id/resolve',
@@ -388,15 +476,15 @@ class ApiService {
 
   // ================= PAYMENTS & BOOKINGS ================= //
 
-  static Future<Map<String, dynamic>?> createPaymentIntent(double amount, String currency) async {
+  static Future<Map<String, dynamic>?> createPaymentIntent(
+    double amount,
+    String currency,
+  ) async {
     try {
       final response = await _post(
         '/payments/create-intent',
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'amount': amount.toInt(),
-          'currency': currency,
-        }),
+        body: json.encode({'amount': amount.toInt(), 'currency': currency}),
       );
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -430,14 +518,15 @@ class ApiService {
     }
   }
 
-  static Future<bool> rescheduleBooking(String bookingId, String newSlotId) async {
+  static Future<bool> rescheduleBooking(
+    String bookingId,
+    String newSlotId,
+  ) async {
     try {
       final response = await _post(
         '/bookings/$bookingId/reschedule',
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'newSlotId': newSlotId,
-        }),
+        body: json.encode({'newSlotId': newSlotId}),
       );
       if (response.statusCode == 200) {
         return true;
@@ -460,7 +549,10 @@ class ApiService {
       if (paymentStatus != null) queryParams['paymentStatus'] = paymentStatus;
       if (courtName != null) queryParams['courtName'] = courtName;
 
-      final response = await _get('/payment-verifications', queryParams: queryParams.isNotEmpty ? queryParams : null);
+      final response = await _get(
+        '/payment-verifications',
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
+      );
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -472,7 +564,9 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> fetchVerificationStatus(String bookingId) async {
+  static Future<Map<String, dynamic>> fetchVerificationStatus(
+    String bookingId,
+  ) async {
     try {
       final response = await _get('/payment-verifications/$bookingId/status');
       if (response.statusCode == 200) {
