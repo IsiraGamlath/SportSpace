@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import 'login_screen.dart';
 
@@ -47,13 +48,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
 
     setState(() => _isRegistering = true);
+    User? createdUser;
     try {
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
-      await credential.user?.updateDisplayName(_fullNameController.text.trim());
+      createdUser = credential.user;
+      await createdUser?.updateDisplayName(_fullNameController.text.trim());
+      await createdUser?.getIdToken(true);
+      await ApiService.syncUserProfile(
+        fullName: _fullNameController.text.trim(),
+        role: widget.role,
+      );
       await FirebaseAuth.instance.signOut();
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
@@ -61,6 +69,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(_registrationErrorMessage(error))));
+      return;
+    } catch (error) {
+      await createdUser?.delete();
+      if (!mounted) return;
+      setState(() => _isRegistering = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Registration could not be saved: $error')),
+      );
       return;
     }
 

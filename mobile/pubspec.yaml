@@ -61,6 +61,8 @@ flutter:
     - assets/Sport Space logo 2.png
     - assets/onboarding_athlete.png
     - assets/onboarding_athlete2.png
+    - assets/bas.png
+    - assets/badminton.png
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

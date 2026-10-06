@@ -40,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
       Color(0xFFC9A878),
       Icons.sports_basketball,
       '4.8',
+      imagePath: 'assets/bas.png',
     ),
     _FacilityData(
       'City Sports Complex',
@@ -48,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
       Color(0xFF477D82),
       Icons.sports_tennis,
       '4.7',
+      imagePath: 'assets/badminton.png',
     ),
     _FacilityData(
       'Elite Football Arena',
@@ -392,6 +394,7 @@ class _FacilityCard extends StatelessWidget {
         color: data.color,
         icon: data.icon,
         rating: data.rating,
+        imagePath: data.imagePath,
       );
 
   const _FacilityCard({
@@ -401,6 +404,7 @@ class _FacilityCard extends StatelessWidget {
     required this.color,
     required this.icon,
     required this.rating,
+    required this.imagePath,
   });
 
   final String name;
@@ -409,6 +413,7 @@ class _FacilityCard extends StatelessWidget {
   final Color color;
   final IconData icon;
   final String rating;
+  final String? imagePath;
 
   @override
   Widget build(BuildContext context) {
@@ -434,13 +439,20 @@ class _FacilityCard extends StatelessWidget {
                       end: Alignment.bottomRight,
                     ),
                   ),
-                  child: Center(
-                    child: Icon(
-                      icon,
-                      color: Colors.white.withValues(alpha: 0.8),
-                      size: 54,
-                    ),
-                  ),
+                  child: imagePath == null
+                      ? Center(
+                          child: Icon(
+                            icon,
+                            color: Colors.white.withValues(alpha: 0.8),
+                            size: 54,
+                          ),
+                        )
+                      : Image.asset(
+                          imagePath!,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
                 ),
                 Positioned(
                   top: 9,
@@ -529,8 +541,9 @@ class _FacilityData {
     this.distance,
     this.color,
     this.icon,
-    this.rating,
-  );
+    this.rating, {
+    this.imagePath,
+  });
 
   final String name;
   final String sport;
@@ -538,6 +551,7 @@ class _FacilityData {
   final Color color;
   final IconData icon;
   final String rating;
+  final String? imagePath;
 }
 
 class _EventData {

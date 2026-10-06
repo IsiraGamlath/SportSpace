@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
@@ -49,7 +50,33 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return body;
     }
+
     throw Exception(body['message'] ?? 'Authentication request failed');
+  }
+
+  static Future<void> syncUserProfile({
+    required String fullName,
+    required String role,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('You must be signed in to sync your profile.');
+    }
+
+    final token = await user.getIdToken();
+    final response = await _post(
+      '/users/profile',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({'fullName': fullName, 'role': role}),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Unable to save profile to MongoDB');
+    }
   }
 
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
