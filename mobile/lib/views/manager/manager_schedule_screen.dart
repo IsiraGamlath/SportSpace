@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/api_service.dart';
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/schedule_card.dart';
 import 'manager_booking_details_screen.dart';
@@ -15,20 +16,53 @@ class ManagerScheduleScreen extends StatefulWidget {
 class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
   bool _daySelected = true;
   int _selectedCourt = 0;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _slots = [];
 
   final List<String> _courts = [
     'All Courts',
-    'Badminton',
-    'Tennis',
-    'Basketball',
+    'Badminton Court 1',
+    'Badminton Court 2',
+    'Tennis Court 1',
+    'Basketball Court',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSlots();
+  }
+
+  Future<void> _loadSlots() async {
+    setState(() => _isLoading = true);
+    try {
+      final courtFilter = _selectedCourt == 0 ? null : _courts[_selectedCourt];
+      final dateFilter = _daySelected ? 'Tomorrow' : 'Today';
+
+      final slots = await ApiService.fetchManagerSlots(
+        date: dateFilter,
+        courtName: courtFilter,
+      );
+
+      if (mounted) {
+        setState(() {
+          _slots = slots;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   void _openBookingDetails() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => const ManagerBookingDetailsScreen(),
       ),
-    );
+    ).then((_) => _loadSlots());
   }
 
   void _openNotifications() {
@@ -40,6 +74,12 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
   }
 
   void _showAddSlotModal() {
+    String selectedCourtName = _courts[1];
+    String timeStr = '7:30 PM';
+    String durationRangeStr = '7:30 PM – 8:30 PM';
+    double priceVal = 2500;
+    final reasonController = TextEditingController(text: 'Routine maintenance window');
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -47,50 +87,265 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                22,
+                22,
+                22,
+                MediaQuery.of(context).viewInsets.bottom + 26,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Add Slot or Block Schedule',
+                        style: TextStyle(
+                          color: ManagerColors.navyDark,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, size: 22),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  const Text(
+                    'Facility Court',
+                    style: TextStyle(
+                      color: ManagerColors.navy,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: ManagerColors.border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: selectedCourtName,
+                        items: _courts
+                            .where((c) => c != 'All Courts')
+                            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setModalState(() => selectedCourtName = val);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Time Slot',
+                    style: TextStyle(
+                      color: ManagerColors.navy,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setModalState(() {
+                              timeStr = '7:30 PM';
+                              durationRangeStr = '7:30 PM – 8:30 PM';
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: timeStr == '7:30 PM'
+                                  ? ManagerColors.navy
+                                  : ManagerColors.border,
+                            ),
+                          ),
+                          child: const Text('7:30 PM – 8:30 PM'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setModalState(() {
+                              timeStr = '8:30 PM';
+                              durationRangeStr = '8:30 PM – 9:30 PM';
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: timeStr == '8:30 PM'
+                                  ? ManagerColors.navy
+                                  : ManagerColors.border,
+                            ),
+                          ),
+                          child: const Text('8:30 PM – 9:30 PM'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: reasonController,
+                    decoration: const InputDecoration(
+                      labelText: 'Block Reason (optional)',
+                      hintText: 'e.g. Surface cleaning or reserved',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            try {
+                              await ApiService.createSlot({
+                                'courtName': selectedCourtName,
+                                'time': timeStr,
+                                'durationRange': durationRangeStr,
+                                'price': priceVal,
+                                'date': _daySelected ? 'Tomorrow' : 'Today',
+                                'status': 'available',
+                              });
+                              _loadSlots();
+                              if (mounted) {
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Slot added and marked as Available'),
+                                    backgroundColor: ManagerColors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(content: Text('Error adding slot: $e')),
+                                );
+                              }
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                          ),
+                          child: const Text('Add Slot (Available)', style: TextStyle(fontSize: 13)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            try {
+                              await ApiService.createSlot({
+                                'courtName': selectedCourtName,
+                                'time': timeStr,
+                                'durationRange': durationRangeStr,
+                                'price': priceVal,
+                                'date': _daySelected ? 'Tomorrow' : 'Today',
+                                'status': 'blocked',
+                                'blockedReason': reasonController.text.trim().isNotEmpty
+                                    ? reasonController.text.trim()
+                                    : 'Blocked by Manager',
+                              });
+                              _loadSlots();
+                              if (mounted) {
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Slot blocked successfully'),
+                                    backgroundColor: ManagerColors.red,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(content: Text('Error blocking slot: $e')),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            backgroundColor: ManagerColors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                          ),
+                          child: const Text('Block Slot', style: TextStyle(fontSize: 13)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showSlotActionModal(Map<String, dynamic> slot) {
+    final slotId = slot['id'] ?? slot['_id'] ?? '';
+    final courtName = slot['courtName'] ?? 'Court';
+    final time = slot['time'] ?? '';
+    final status = slot['status'] ?? 'available';
+    final isBlocked = status == 'blocked';
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
         return Padding(
-          padding: EdgeInsets.fromLTRB(
-            22,
-            22,
-            22,
-            MediaQuery.of(context).viewInsets.bottom + 26,
-          ),
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Block Slot or Add Schedule',
-                    style: TextStyle(
-                      color: ManagerColors.navyDark,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, size: 22),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Court: Badminton Court 1',
-                style: TextStyle(
-                  color: ManagerColors.navy,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+              Text(
+                '$courtName — $time',
+                style: const TextStyle(
+                  color: ManagerColors.navyDark,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Time: 7:30 PM - 8:30 PM',
-                style: TextStyle(
+              Text(
+                'Current Status: ${status.toString().toUpperCase()}',
+                style: const TextStyle(
                   color: ManagerColors.secondaryText,
-                  fontSize: 13.5,
+                  fontSize: 13,
                 ),
               ),
               const SizedBox(height: 20),
@@ -98,40 +353,70 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Slot marked as Available')),
-                        );
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        try {
+                          await ApiService.toggleBlockSlot(
+                            slotId,
+                            blocked: !isBlocked,
+                            reason: isBlocked ? null : 'Blocked by Manager',
+                          );
+                          _loadSlots();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  isBlocked
+                                      ? 'Slot unblocked and made Available'
+                                      : 'Slot marked as Blocked',
+                                ),
+                                backgroundColor: isBlocked
+                                    ? ManagerColors.green
+                                    : ManagerColors.red,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed: $e')),
+                            );
+                          }
+                        }
                       },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                       ),
-                      child: const Text('Add Slot', style: TextStyle(fontSize: 14)),
+                      child: Text(
+                        isBlocked ? 'Unblock (Make Available)' : 'Block Slot',
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Slot blocked successfully')),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        backgroundColor: ManagerColors.red,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                      ),
-                      child: const Text('Block Slot', style: TextStyle(fontSize: 14)),
-                    ),
+                  IconButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      try {
+                        await ApiService.deleteSlot(slotId);
+                        _loadSlots();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Slot deleted')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Delete failed: $e')),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.delete_outline, color: ManagerColors.red),
                   ),
                 ],
               ),
@@ -140,6 +425,21 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
         );
       },
     );
+  }
+
+  ScheduleCardStatus _resolveStatus(String? status) {
+    switch (status) {
+      case 'booked':
+        return ScheduleCardStatus.booked;
+      case 'available':
+        return ScheduleCardStatus.available;
+      case 'pending':
+        return ScheduleCardStatus.pending;
+      case 'blocked':
+        return ScheduleCardStatus.blocked;
+      default:
+        return ScheduleCardStatus.available;
+    }
   }
 
   @override
@@ -152,90 +452,104 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
           alignment: Alignment.topCenter,
           child: SizedBox(
             width: width,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: 16),
-                  _buildDayWeekSwitch(),
-                  const SizedBox(height: 18),
-                  _buildDateRow(),
-                  const SizedBox(height: 14),
-                  _buildCourtFilters(),
-                  const SizedBox(height: 18),
+            child: RefreshIndicator(
+              onRefresh: _loadSlots,
+              color: ManagerColors.navy,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 16),
+                    _buildDayWeekSwitch(),
+                    const SizedBox(height: 18),
+                    _buildDateRow(),
+                    const SizedBox(height: 14),
+                    _buildCourtFilters(),
+                    const SizedBox(height: 18),
 
-                  ScheduleCard(
-                    time: '5:00 PM',
-                    title: 'Badminton Court 1',
-                    status: ScheduleCardStatus.booked,
-                    onTap: _openBookingDetails,
-                  ),
-                  const SizedBox(height: 10),
-
-                  ScheduleCard(
-                    time: '5:30 PM',
-                    title: 'Tennis Court 1',
-                    status: ScheduleCardStatus.available,
-                    onTap: _openBookingDetails,
-                  ),
-                  const SizedBox(height: 10),
-
-                  ScheduleCard(
-                    time: '6:00 PM',
-                    title: 'Badminton Court 2',
-                    status: ScheduleCardStatus.pending,
-                    onTap: _openBookingDetails,
-                  ),
-                  const SizedBox(height: 10),
-
-                  ScheduleCard(
-                    time: '6:30 PM',
-                    title: 'Basketball Court',
-                    status: ScheduleCardStatus.booked,
-                    onTap: _openBookingDetails,
-                  ),
-                  const SizedBox(height: 10),
-
-                  _BlockedScheduleCard(onTap: _showAddSlotModal),
-                  const SizedBox(height: 10),
-
-                  ScheduleCard(
-                    time: '7:00 PM',
-                    title: 'Badminton Court 1',
-                    status: ScheduleCardStatus.available,
-                    onTap: _openBookingDetails,
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton(
-                      onPressed: _showAddSlotModal,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: ManagerColors.navy,
-                        backgroundColor: Colors.transparent,
-                        side: const BorderSide(
-                          color: ManagerColors.border,
-                          width: 1.5,
+                    if (_isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 36),
+                        child: Center(
+                          child: CircularProgressIndicator(color: ManagerColors.navy),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+                      )
+                    else if (_slots.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'No facility slots found for the selected filter.',
+                          style: TextStyle(
+                            color: ManagerColors.secondaryText,
+                            fontSize: 14,
+                          ),
                         ),
+                      )
+                    else
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _slots.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final slot = _slots[index];
+                          final time = slot['time'] as String? ?? '5:00 PM';
+                          final courtName = slot['courtName'] as String? ?? 'Court';
+                          final statusStr = slot['status'] as String? ?? 'available';
+                          final blockedReason = slot['blockedReason'] as String?;
+
+                          if (statusStr == 'blocked') {
+                            return _BlockedScheduleCard(
+                              time: time,
+                              title: '$courtName — ${blockedReason ?? "Under Maintenance"}',
+                              onTap: () => _showSlotActionModal(slot),
+                            );
+                          }
+
+                          return ScheduleCard(
+                            time: time,
+                            title: courtName,
+                            status: _resolveStatus(statusStr),
+                            onTap: statusStr == 'booked'
+                                ? _openBookingDetails
+                                : () => _showSlotActionModal(slot),
+                          );
+                        },
                       ),
-                      child: const Text(
-                        '+ Add Schedule / Block Slot',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+
+                    const SizedBox(height: 24),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: _showAddSlotModal,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: ManagerColors.navy,
+                          backgroundColor: Colors.transparent,
+                          side: const BorderSide(
+                            color: ManagerColors.border,
+                            width: 1.5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        child: const Text(
+                          '+ Add Schedule / Block Slot',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -290,17 +604,23 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
         children: [
           Expanded(
             child: _SegmentButton(
-              label: 'Day',
+              label: 'Tomorrow',
               selected: _daySelected,
-              onTap: () => setState(() => _daySelected = true),
+              onTap: () {
+                setState(() => _daySelected = true);
+                _loadSlots();
+              },
             ),
           ),
           const SizedBox(width: 6),
           Expanded(
             child: _SegmentButton(
-              label: 'Week',
+              label: 'Today',
               selected: !_daySelected,
-              onTap: () => setState(() => _daySelected = false),
+              onTap: () {
+                setState(() => _daySelected = false);
+                _loadSlots();
+              },
             ),
           ),
         ],
@@ -311,10 +631,10 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
   Widget _buildDateRow() {
     return Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
-            'Wednesday, 16 September',
-            style: TextStyle(
+            _daySelected ? 'Tomorrow Schedule' : 'Today Schedule',
+            style: const TextStyle(
               color: ManagerColors.navyDark,
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -330,14 +650,10 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
             border: Border.all(color: ManagerColors.border),
           ),
           child: IconButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Date picker opened')),
-              );
-            },
+            onPressed: _loadSlots,
             padding: EdgeInsets.zero,
             icon: const Icon(
-              Icons.calendar_month_outlined,
+              Icons.refresh_rounded,
               size: 19,
               color: ManagerColors.navy,
             ),
@@ -359,7 +675,10 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
 
           return InkWell(
             borderRadius: BorderRadius.circular(18),
-            onTap: () => setState(() => _selectedCourt = index),
+            onTap: () {
+              setState(() => _selectedCourt = index);
+              _loadSlots();
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               alignment: Alignment.center,
@@ -422,8 +741,14 @@ class _SegmentButton extends StatelessWidget {
 }
 
 class _BlockedScheduleCard extends StatelessWidget {
-  const _BlockedScheduleCard({this.onTap});
+  const _BlockedScheduleCard({
+    required this.time,
+    required this.title,
+    this.onTap,
+  });
 
+  final String time;
+  final String title;
   final VoidCallback? onTap;
 
   @override
@@ -450,22 +775,22 @@ class _BlockedScheduleCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '6:45 PM',
-                    style: TextStyle(
+                    time,
+                    style: const TextStyle(
                       color: ManagerColors.secondaryText,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    'Tennis Court 1 — Under Maintenance',
-                    style: TextStyle(
+                    title,
+                    style: const TextStyle(
                       color: ManagerColors.secondaryText,
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
