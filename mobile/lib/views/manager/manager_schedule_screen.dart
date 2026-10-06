@@ -75,10 +75,17 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
 
   void _showAddSlotModal() {
     String selectedCourtName = _courts[1];
-    String timeStr = '7:30 PM';
-    String durationRangeStr = '7:30 PM – 8:30 PM';
-    double priceVal = 2500;
+    TimeOfDay startTime = const TimeOfDay(hour: 17, minute: 0);
+    TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
+    final priceController = TextEditingController(text: '2500');
     final reasonController = TextEditingController(text: 'Routine maintenance window');
+
+    String formatTimeOfDay(TimeOfDay tod) {
+      final hour = tod.hourOfPeriod == 0 ? 12 : tod.hourOfPeriod;
+      final minute = tod.minute.toString().padLeft(2, '0');
+      final period = tod.period == DayPeriod.am ? 'AM' : 'PM';
+      return '$hour:$minute $period';
+    }
 
     showModalBottomSheet<void>(
       context: context,
@@ -90,6 +97,10 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final startFormatted = formatTimeOfDay(startTime);
+            final endFormatted = formatTimeOfDay(endTime);
+            final durationRangeStr = '$startFormatted – $endFormatted';
+
             return Padding(
               padding: EdgeInsets.fromLTRB(
                 22,
@@ -152,53 +163,156 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   const Text(
-                    'Time Slot',
+                    'Define Time Window',
                     style: TextStyle(
                       color: ManagerColors.navy,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
+
+                  Row(
+                    children: [
+                      // Start Time Picker Card
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: startTime,
+                            );
+                            if (picked != null) {
+                              setModalState(() => startTime = picked);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: ManagerColors.border),
+                              color: const Color(0xFFF8FAFC),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Start Time',
+                                  style: TextStyle(
+                                    color: ManagerColors.secondaryText,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.access_time_rounded,
+                                      size: 16,
+                                      color: ManagerColors.navy,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      startFormatted,
+                                      style: const TextStyle(
+                                        color: ManagerColors.navyDark,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // End Time Picker Card
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: endTime,
+                            );
+                            if (picked != null) {
+                              setModalState(() => endTime = picked);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: ManagerColors.border),
+                              color: const Color(0xFFF8FAFC),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'End Time',
+                                  style: TextStyle(
+                                    color: ManagerColors.secondaryText,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.access_time_rounded,
+                                      size: 16,
+                                      color: ManagerColors.navy,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      endFormatted,
+                                      style: const TextStyle(
+                                        color: ManagerColors.navyDark,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+                  Text(
+                    'Window: $durationRangeStr',
+                    style: const TextStyle(
+                      color: ManagerColors.secondaryText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            setModalState(() {
-                              timeStr = '7:30 PM';
-                              durationRangeStr = '7:30 PM – 8:30 PM';
-                            });
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: timeStr == '7:30 PM'
-                                  ? ManagerColors.navy
-                                  : ManagerColors.border,
-                            ),
+                        child: TextField(
+                          controller: priceController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Price (LKR)',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           ),
-                          child: const Text('7:30 PM – 8:30 PM'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            setModalState(() {
-                              timeStr = '8:30 PM';
-                              durationRangeStr = '8:30 PM – 9:30 PM';
-                            });
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: timeStr == '8:30 PM'
-                                  ? ManagerColors.navy
-                                  : ManagerColors.border,
-                            ),
-                          ),
-                          child: const Text('8:30 PM – 9:30 PM'),
                         ),
                       ),
                     ],
@@ -208,9 +322,10 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                   TextField(
                     controller: reasonController,
                     decoration: const InputDecoration(
-                      labelText: 'Block Reason (optional)',
-                      hintText: 'e.g. Surface cleaning or reserved',
+                      labelText: 'Block Reason (if blocking slot)',
+                      hintText: 'e.g. Surface cleaning or maintenance',
                       border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                   ),
 
@@ -221,10 +336,11 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                         child: OutlinedButton(
                           onPressed: () async {
                             Navigator.pop(context);
+                            final priceVal = double.tryParse(priceController.text.trim()) ?? 2500.0;
                             try {
                               await ApiService.createSlot({
                                 'courtName': selectedCourtName,
-                                'time': timeStr,
+                                'time': startFormatted,
                                 'durationRange': durationRangeStr,
                                 'price': priceVal,
                                 'date': _daySelected ? 'Tomorrow' : 'Today',
@@ -233,8 +349,8 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                               _loadSlots();
                               if (mounted) {
                                 ScaffoldMessenger.of(this.context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Slot added and marked as Available'),
+                                  SnackBar(
+                                    content: Text('Added slot for $selectedCourtName ($durationRangeStr)'),
                                     backgroundColor: ManagerColors.green,
                                   ),
                                 );
@@ -261,10 +377,11 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                         child: ElevatedButton(
                           onPressed: () async {
                             Navigator.pop(context);
+                            final priceVal = double.tryParse(priceController.text.trim()) ?? 2500.0;
                             try {
                               await ApiService.createSlot({
                                 'courtName': selectedCourtName,
-                                'time': timeStr,
+                                'time': startFormatted,
                                 'durationRange': durationRangeStr,
                                 'price': priceVal,
                                 'date': _daySelected ? 'Tomorrow' : 'Today',
@@ -276,8 +393,8 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                               _loadSlots();
                               if (mounted) {
                                 ScaffoldMessenger.of(this.context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Slot blocked successfully'),
+                                  SnackBar(
+                                    content: Text('Blocked slot for $selectedCourtName ($durationRangeStr)'),
                                     backgroundColor: ManagerColors.red,
                                   ),
                                 );
