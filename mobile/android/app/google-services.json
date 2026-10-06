@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "335081283783",
+    "project_id": "sportspace-uni",
+    "storage_bucket": "sportspace-uni.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:335081283783:android:0286e121e4dc5421dc1ee2",
+        "android_client_info": {
+          "package_name": "com.example.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0c8k83L6TsZEkXdKnUcui7TnuzojlWcI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

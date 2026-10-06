@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../utils/app_colors.dart';
 import 'login_screen.dart';
-import 'slot_selection_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
   final String role;
@@ -22,6 +22,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptedTerms = false;
+  bool _isRegistering = false;
 
   @override
   void dispose() {
@@ -32,7 +33,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     super.dispose();
   }
 
-  void _register() {
+  Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -45,9 +46,43 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
+    setState(() => _isRegistering = true);
+    try {
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+      await credential.user?.updateDisplayName(_fullNameController.text.trim());
+      await FirebaseAuth.instance.signOut();
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      setState(() => _isRegistering = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_registrationErrorMessage(error))));
+      return;
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const SlotSelectionScreen()),
+      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
     );
+  }
+
+  String _registrationErrorMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'email-already-in-use':
+        return 'An account already exists with this email.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'weak-password':
+        return 'The password is too weak.';
+      case 'operation-not-allowed':
+        return 'Email and password sign-in is not enabled in Firebase.';
+      default:
+        return error.message ?? 'Registration failed.';
+    }
   }
 
   String? _required(String? value, String label) {
@@ -186,17 +221,26 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   width: double.infinity,
                   height: 47,
                   child: ElevatedButton(
-                    onPressed: _register,
+                    onPressed: _isRegistering ? null : _register,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryTeal,
                       foregroundColor: Colors.white,
                       shape: const StadiumBorder(),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Register',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
+                    child: _isRegistering
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Register',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 14),

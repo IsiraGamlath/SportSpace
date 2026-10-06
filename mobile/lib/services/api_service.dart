@@ -1,16 +1,50 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
 
 class ApiService {
-  // Host Candidates:
-  // 1. USB ADB Reverse: http://127.0.0.1:5000/api (Fastest, zero-latency, bypasses firewall)
-  // 2. Wi-Fi LAN IP: http://10.137.39.116:5000/api (Local wireless network)
-  // 3. Android Emulator: http://10.0.2.2:5000/api
-  static String baseUrl = 'http://127.0.0.1:5000/api';
-  static const String usbUrl = 'http://127.0.0.1:5000/api';
-  static const String wifiUrl = 'http://10.137.39.116:5000/api';
-  static const String emulatorUrl = 'http://10.0.2.2:5000/api';
+  static String get baseUrl =>
+      kIsWeb ? 'http://localhost:5000/api' : 'http://10.0.2.2:5000/api';
+
+  static Future<Map<String, dynamic>> register({
+    required String fullName,
+    required String email,
+    required String password,
+    required String role,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'fullName': fullName,
+        'email': email,
+        'password': password,
+        'role': role,
+      }),
+    );
+    return _decodeAuthResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': email, 'password': password}),
+    );
+    return _decodeAuthResponse(response);
+  }
+
+  static Map<String, dynamic> _decodeAuthResponse(http.Response response) {
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return body;
+    }
+    throw Exception(body['message'] ?? 'Authentication request failed');
+  }
 
   static final List<String> _candidates = [
     usbUrl,
@@ -362,7 +396,7 @@ class ApiService {
       }
       return null;
     } catch (e) {
-      // Error creating payment intent: $e
+      debugPrint('Error creating payment intent: $e');
       return null;
     }
   }
