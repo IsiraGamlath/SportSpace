@@ -3,7 +3,102 @@ import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.137.39.116:5000/api'; // Use 10.0.2.2 for Android emulator
+  // Host Candidates:
+  // 1. USB ADB Reverse: http://127.0.0.1:5000/api (Fastest, zero-latency, bypasses firewall)
+  // 2. Wi-Fi LAN IP: http://10.137.39.116:5000/api (Local wireless network)
+  // 3. Android Emulator: http://10.0.2.2:5000/api
+  static String baseUrl = 'http://127.0.0.1:5000/api';
+  static const String usbUrl = 'http://127.0.0.1:5000/api';
+  static const String wifiUrl = 'http://10.137.39.116:5000/api';
+  static const String emulatorUrl = 'http://10.0.2.2:5000/api';
+
+  static final List<String> _candidates = [
+    usbUrl,
+    wifiUrl,
+    emulatorUrl,
+  ];
+
+  static Future<http.Response> _get(String path, {Map<String, String>? queryParams}) async {
+    try {
+      final uri = Uri.parse('$baseUrl$path').replace(queryParameters: queryParams);
+      return await http.get(uri).timeout(const Duration(milliseconds: 2500));
+    } catch (_) {}
+
+    for (final candidate in _candidates) {
+      if (candidate == baseUrl) continue;
+      try {
+        final uri = Uri.parse('$candidate$path').replace(queryParameters: queryParams);
+        final res = await http.get(uri).timeout(const Duration(milliseconds: 2500));
+        baseUrl = candidate;
+        return res;
+      } catch (_) {}
+    }
+    throw Exception('Failed to connect to backend on any host (USB or Wi-Fi)');
+  }
+
+  static Future<http.Response> _post(String path, {Map<String, String>? headers, Object? body}) async {
+    try {
+      return await http.post(Uri.parse('$baseUrl$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
+    } catch (_) {}
+
+    for (final candidate in _candidates) {
+      if (candidate == baseUrl) continue;
+      try {
+        final res = await http.post(Uri.parse('$candidate$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
+        baseUrl = candidate;
+        return res;
+      } catch (_) {}
+    }
+    throw Exception('Failed to connect to backend on any host');
+  }
+
+  static Future<http.Response> _put(String path, {Map<String, String>? headers, Object? body}) async {
+    try {
+      return await http.put(Uri.parse('$baseUrl$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
+    } catch (_) {}
+
+    for (final candidate in _candidates) {
+      if (candidate == baseUrl) continue;
+      try {
+        final res = await http.put(Uri.parse('$candidate$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
+        baseUrl = candidate;
+        return res;
+      } catch (_) {}
+    }
+    throw Exception('Failed to connect to backend on any host');
+  }
+
+  static Future<http.Response> _patch(String path, {Map<String, String>? headers, Object? body}) async {
+    try {
+      return await http.patch(Uri.parse('$baseUrl$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
+    } catch (_) {}
+
+    for (final candidate in _candidates) {
+      if (candidate == baseUrl) continue;
+      try {
+        final res = await http.patch(Uri.parse('$candidate$path'), headers: headers, body: body).timeout(const Duration(milliseconds: 2500));
+        baseUrl = candidate;
+        return res;
+      } catch (_) {}
+    }
+    throw Exception('Failed to connect to backend on any host');
+  }
+
+  static Future<http.Response> _delete(String path, {Map<String, String>? headers}) async {
+    try {
+      return await http.delete(Uri.parse('$baseUrl$path'), headers: headers).timeout(const Duration(milliseconds: 2500));
+    } catch (_) {}
+
+    for (final candidate in _candidates) {
+      if (candidate == baseUrl) continue;
+      try {
+        final res = await http.delete(Uri.parse('$candidate$path'), headers: headers).timeout(const Duration(milliseconds: 2500));
+        baseUrl = candidate;
+        return res;
+      } catch (_) {}
+    }
+    throw Exception('Failed to connect to backend on any host');
+  }
 
   // ================= SCHEDULE MANAGEMENT ================= //
 
@@ -18,10 +113,7 @@ class ApiService {
       if (courtName != null) queryParams['courtName'] = courtName;
       if (managerView) queryParams['managerView'] = 'true';
 
-      final uri = Uri.parse('$baseUrl/slots').replace(
-        queryParameters: queryParams.isNotEmpty ? queryParams : null,
-      );
-      final response = await http.get(uri);
+      final response = await _get('/slots', queryParams: queryParams.isNotEmpty ? queryParams : null);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -53,10 +145,7 @@ class ApiService {
         queryParams['courtName'] = courtName;
       }
 
-      final uri = Uri.parse('$baseUrl/slots').replace(
-        queryParameters: queryParams,
-      );
-      final response = await http.get(uri);
+      final response = await _get('/slots', queryParams: queryParams);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -71,8 +160,8 @@ class ApiService {
 
   static Future<Map<String, dynamic>> createSlot(Map<String, dynamic> slotData) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/slots'),
+      final response = await _post(
+        '/slots',
         headers: {'Content-Type': 'application/json'},
         body: json.encode(slotData),
       );
@@ -88,8 +177,8 @@ class ApiService {
 
   static Future<Map<String, dynamic>> updateSlot(String id, Map<String, dynamic> slotData) async {
     try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/slots/$id'),
+      final response = await _put(
+        '/slots/$id',
         headers: {'Content-Type': 'application/json'},
         body: json.encode(slotData),
       );
@@ -105,7 +194,7 @@ class ApiService {
 
   static Future<bool> deleteSlot(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/slots/$id'));
+      final response = await _delete('/slots/$id');
       return response.statusCode == 200;
     } catch (e) {
       throw Exception('Error deleting slot: $e');
@@ -118,8 +207,8 @@ class ApiService {
     String? reason,
   }) async {
     try {
-      final response = await http.patch(
-        Uri.parse('$baseUrl/slots/$id/block'),
+      final response = await _patch(
+        '/slots/$id/block',
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'blocked': blocked,
@@ -138,8 +227,8 @@ class ApiService {
 
   static Future<bool> bookSlot(String id, {String? paymentIntentId, String paymentMethod = 'card'}) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/slots/$id/book'),
+      final response = await _post(
+        '/slots/$id/book',
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'paymentIntentId': paymentIntentId,
@@ -169,10 +258,7 @@ class ApiService {
       if (status != null) queryParams['status'] = status;
       if (facilityName != null) queryParams['facilityName'] = facilityName;
 
-      final uri = Uri.parse('$baseUrl/maintenance').replace(
-        queryParameters: queryParams.isNotEmpty ? queryParams : null,
-      );
-      final response = await http.get(uri);
+      final response = await _get('/maintenance', queryParams: queryParams.isNotEmpty ? queryParams : null);
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -186,7 +272,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> fetchMaintenanceSummary() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/maintenance/overview/summary'));
+      final response = await _get('/maintenance/overview/summary');
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -199,8 +285,8 @@ class ApiService {
 
   static Future<Map<String, dynamic>> createMaintenanceFlag(Map<String, dynamic> data) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/maintenance'),
+      final response = await _post(
+        '/maintenance',
         headers: {'Content-Type': 'application/json'},
         body: json.encode(data),
       );
@@ -216,8 +302,8 @@ class ApiService {
 
   static Future<Map<String, dynamic>> updateMaintenanceFlag(String id, Map<String, dynamic> data) async {
     try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/maintenance/$id'),
+      final response = await _put(
+        '/maintenance/$id',
         headers: {'Content-Type': 'application/json'},
         body: json.encode(data),
       );
@@ -233,8 +319,8 @@ class ApiService {
 
   static Future<Map<String, dynamic>> resolveMaintenanceFlag(String id, {String? resolutionNotes}) async {
     try {
-      final response = await http.patch(
-        Uri.parse('$baseUrl/maintenance/$id/resolve'),
+      final response = await _patch(
+        '/maintenance/$id/resolve',
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'resolutionNotes': resolutionNotes ?? 'Court verified ready for play',
@@ -252,7 +338,7 @@ class ApiService {
 
   static Future<bool> deleteMaintenanceFlag(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/maintenance/$id'));
+      final response = await _delete('/maintenance/$id');
       return response.statusCode == 200;
     } catch (e) {
       throw Exception('Error deleting maintenance flag: $e');
@@ -263,8 +349,8 @@ class ApiService {
 
   static Future<Map<String, dynamic>?> createPaymentIntent(double amount, String currency) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/payments/create-intent'),
+      final response = await _post(
+        '/payments/create-intent',
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'amount': amount.toInt(),
@@ -283,7 +369,7 @@ class ApiService {
 
   static Future<List<dynamic>> fetchBookings() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/bookings'));
+      final response = await _get('/bookings');
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -296,12 +382,8 @@ class ApiService {
 
   static Future<bool> cancelBooking(String bookingId) async {
     try {
-      final response = await http.post(Uri.parse('$baseUrl/bookings/$bookingId/cancel'));
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        throw Exception('Failed to cancel booking');
-      }
+      final response = await _post('/bookings/$bookingId/cancel');
+      return response.statusCode == 200;
     } catch (e) {
       throw Exception('Error cancelling booking: $e');
     }
@@ -309,8 +391,8 @@ class ApiService {
 
   static Future<bool> rescheduleBooking(String bookingId, String newSlotId) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/bookings/$bookingId/reschedule'),
+      final response = await _post(
+        '/bookings/$bookingId/reschedule',
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'newSlotId': newSlotId,
@@ -337,10 +419,7 @@ class ApiService {
       if (paymentStatus != null) queryParams['paymentStatus'] = paymentStatus;
       if (courtName != null) queryParams['courtName'] = courtName;
 
-      final uri = Uri.parse('$baseUrl/payment-verifications').replace(
-        queryParameters: queryParams.isNotEmpty ? queryParams : null,
-      );
-      final response = await http.get(uri);
+      final response = await _get('/payment-verifications', queryParams: queryParams.isNotEmpty ? queryParams : null);
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -354,9 +433,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> fetchVerificationStatus(String bookingId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/payment-verifications/$bookingId/status'),
-      );
+      final response = await _get('/payment-verifications/$bookingId/status');
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -373,8 +450,8 @@ class ApiService {
     String? notes,
   }) async {
     try {
-      final response = await http.patch(
-        Uri.parse('$baseUrl/payment-verifications/$bookingId/verify'),
+      final response = await _patch(
+        '/payment-verifications/$bookingId/verify',
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'verifiedBy': verifiedBy ?? 'Manager',
@@ -397,8 +474,8 @@ class ApiService {
     String? notes,
   }) async {
     try {
-      final response = await http.patch(
-        Uri.parse('$baseUrl/payment-verifications/$bookingId/unpaid'),
+      final response = await _patch(
+        '/payment-verifications/$bookingId/unpaid',
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'verifiedBy': verifiedBy ?? 'Manager',
