@@ -313,12 +313,23 @@ exports.bookSlot = async (req, res) => {
 
     slot.status = 'booked';
     await slot.save();
+    let bookingStatus = 'confirmed';
+    let slipUrl = null;
 
+    if (req.file) {
+      slipUrl = req.file.path;
+      bookingStatus = 'pending_verification';
+    }
+
+    // Create the booking record
+    const Booking = require('../models/Booking');
     const newBooking = await Booking.create({
       slot: slot._id,
       courtName: slot.courtName || 'Badminton Court 1',
       paymentMethod,
       paymentIntentId,
+      status: bookingStatus,
+      slipUrl,
       bookingId: `SS-${Math.floor(10000 + Math.random() * 90000)}`,
     });
 
