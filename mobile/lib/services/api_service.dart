@@ -42,6 +42,33 @@ class ApiService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> fetchManagerSlots({
+    String? date,
+    String? courtName,
+  }) async {
+    try {
+      final queryParams = <String, String>{'managerView': 'true'};
+      if (date != null && date.isNotEmpty) queryParams['date'] = date;
+      if (courtName != null && courtName.isNotEmpty && courtName != 'All Courts') {
+        queryParams['courtName'] = courtName;
+      }
+
+      final uri = Uri.parse('$baseUrl/slots').replace(
+        queryParameters: queryParams,
+      );
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => json as Map<String, dynamic>).toList();
+      } else {
+        throw Exception('Failed to load manager slots');
+      }
+    } catch (e) {
+      throw Exception('Error fetching manager slots: $e');
+    }
+  }
+
   static Future<Map<String, dynamic>> createSlot(Map<String, dynamic> slotData) async {
     try {
       final response = await http.post(
