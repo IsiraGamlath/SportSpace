@@ -4,7 +4,7 @@ import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'home_screen.dart';
 import 'my_bookings_screen.dart';
-import 'slot_selection_screen.dart';
+import 'facility_profile_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -195,7 +195,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const SlotSelectionScreen(),
+                        builder: (_) => FacilityProfileScreen(
+                          name: facility.name,
+                          sport: facility.sport,
+                          distance: facility.distance,
+                          rating: facility.rating,
+                          price: facility.price,
+                          color: facility.color,
+                          icon: facility.icon,
+                          imagePath: facility.imagePath,
+                        ),
                       ),
                     ),
                   ),
