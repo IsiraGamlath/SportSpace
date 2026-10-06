@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/api_service.dart';
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/manager_text_field.dart';
 import '../login_screen.dart';
@@ -14,25 +15,72 @@ class ManagerLoginScreen extends StatefulWidget {
 
 class _ManagerLoginScreenState extends State<ManagerLoginScreen> {
   final TextEditingController _emailController = TextEditingController(
-    text: 'imal.fernando@sportspace.lk',
+    text: 'manager@gmail.com',
   );
 
   final TextEditingController _passwordController = TextEditingController(
-    text: 'password',
+    text: '12345678',
   );
 
   bool _rememberMe = true;
   bool _hidePassword = true;
+  bool _isLoading = false;
 
-  void _signIn() {
+  Future<void> _signIn() async {
     FocusScope.of(context).unfocus();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-    // Navigate to Manager Dashboard
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => const ManagerMainScreen(),
-      ),
-    );
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter both email and password.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final res = await ApiService.login(email: email, password: password);
+      final user = res['user'] as Map<String, dynamic>?;
+      final role = user?['role']?.toString();
+
+      if (role != 'Facility Manager') {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Access Restricted: Account is registered as "${role ?? "User"}", not a Facility Manager.',
+            ),
+            backgroundColor: Colors.orangeAccent,
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      // Navigate to Manager Dashboard
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => const ManagerMainScreen(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      final errStr = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errStr),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   void _forgotPassword() {
@@ -246,11 +294,11 @@ class _ManagerLoginScreenState extends State<ManagerLoginScreen> {
 
                           const SizedBox(height: 26),
 
-                          SizedBox(
+                            SizedBox(
                             width: double.infinity,
                             height: 50,
                             child: ElevatedButton(
-                              onPressed: _signIn,
+                              onPressed: _isLoading ? null : _signIn,
                               style: ElevatedButton.styleFrom(
                                 elevation: 0,
                                 backgroundColor: ManagerColors.primaryButton,
@@ -261,13 +309,22 @@ class _ManagerLoginScreenState extends State<ManagerLoginScreen> {
                                   borderRadius: BorderRadius.circular(25),
                                 ),
                               ),
-                              child: const Text(
-                                'Sign In',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Sign In',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                             ),
                           ),
 

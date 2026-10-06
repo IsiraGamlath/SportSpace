@@ -120,9 +120,13 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                     _TopBar(onNotificationsTap: () => _openNotifications(context)),
                     const SizedBox(height: 18),
 
-                    const Text(
-                      'Good morning, Nimal',
-                      style: TextStyle(
+                    Text(
+                      DateTime.now().hour < 12
+                          ? 'Good morning, Manager'
+                          : (DateTime.now().hour < 17
+                              ? 'Good afternoon, Manager'
+                              : 'Good evening, Manager'),
+                      style: const TextStyle(
                         color: ManagerColors.navy,
                         fontSize: 20,
                         height: 1.15,
@@ -414,13 +418,10 @@ class _TopBar extends StatelessWidget {
         const CircleAvatar(
           radius: 19,
           backgroundColor: Color(0xFF245D7D),
-          child: Text(
-            'NF',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+          child: Icon(
+            Icons.manage_accounts_rounded,
+            size: 21,
+            color: Colors.white,
           ),
         ),
       ],

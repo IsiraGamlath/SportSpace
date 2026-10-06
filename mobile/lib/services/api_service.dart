@@ -4,8 +4,15 @@ import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
 
 class ApiService {
-  static String get baseUrl =>
-      kIsWeb ? 'http://localhost:5000/api' : 'http://10.0.2.2:5000/api';
+  // Host Candidates:
+  // 1. USB ADB Reverse: http://127.0.0.1:5000/api (Fastest, zero-latency, bypasses firewall)
+  // 2. Wi-Fi LAN IP: http://10.137.39.116:5000/api (Local wireless network)
+  // 3. Android Emulator: http://10.0.2.2:5000/api
+  static const String usbUrl = 'http://127.0.0.1:5000/api';
+  static const String wifiUrl = 'http://10.137.39.116:5000/api';
+  static const String emulatorUrl = 'http://10.0.2.2:5000/api';
+
+  static String baseUrl = kIsWeb ? 'http://localhost:5000/api' : usbUrl;
 
   static Future<Map<String, dynamic>> register({
     required String fullName,
@@ -13,8 +20,8 @@ class ApiService {
     required String password,
     required String role,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/register'),
+    final response = await _post(
+      '/auth/register',
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
         'fullName': fullName,
@@ -30,8 +37,8 @@ class ApiService {
     required String email,
     required String password,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
+    final response = await _post(
+      '/auth/login',
       headers: {'Content-Type': 'application/json'},
       body: json.encode({'email': email, 'password': password}),
     );
