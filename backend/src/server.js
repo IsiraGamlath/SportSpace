@@ -14,7 +14,11 @@ if (!process.env.JWT_SECRET) {
 // Connect to Database
 connectDB().then(() => {
   const { seedSlots } = require('./controllers/slotsController');
+  const { seedMaintenance } = require('./controllers/maintenanceController');
+  const { seedPaymentVerifications } = require('./controllers/paymentVerificationController');
   seedSlots();
+  seedMaintenance();
+  seedPaymentVerifications();
 });
 
 // Middlewares
@@ -32,6 +36,8 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/slots", require("./routes/slots"));
 app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/payments", require("./routes/payments"));
+app.use("/api/maintenance", require("./routes/maintenance"));
+app.use("/api/payment-verifications", require("./routes/paymentVerifications"));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
