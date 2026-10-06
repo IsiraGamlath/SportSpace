@@ -244,6 +244,7 @@ class ApiService {
     }
   }
 
+
   static Future<List<Map<String, dynamic>>> fetchManagerSlots({
     String? date,
     String? courtName,
@@ -339,26 +340,43 @@ class ApiService {
     }
   }
 
-  static Future<bool> bookSlot(
-    String id, {
-    String? paymentIntentId,
-    String paymentMethod = 'card',
-  }) async {
+  static Future<Map<String, dynamic>> bookSlot(String id, {String? paymentIntentId, String paymentMethod = 'card', String? slipFilePath}) async {
     try {
-      final response = await _post(
-        '/slots/$id/book',
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'paymentIntentId': paymentIntentId,
-          'paymentMethod': paymentMethod,
-        }),
-      );
-      if (response.statusCode == 200) {
-        return true;
-      } else if (response.statusCode == 409) {
-        throw Exception('Slot already booked or conflict');
+      if (slipFilePath != null) {
+        var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/slots/$id/book'));
+        request.fields['paymentMethod'] = paymentMethod;
+        if (paymentIntentId != null) {
+          request.fields['paymentIntentId'] = paymentIntentId;
+        }
+        
+        request.files.add(await http.MultipartFile.fromPath('slip', slipFilePath));
+        
+        var streamedResponse = await request.send();
+        var response = await http.Response.fromStream(streamedResponse);
+        
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else if (response.statusCode == 409) {
+          throw Exception('Slot already booked or conflict');
+        } else {
+          throw Exception('Failed to book slot');
+        }
       } else {
-        throw Exception('Failed to book slot');
+        final response = await http.post(
+          Uri.parse('$baseUrl/slots/$id/book'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'paymentIntentId': paymentIntentId,
+            'paymentMethod': paymentMethod,
+          }),
+        );
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        } else if (response.statusCode == 409) {
+          throw Exception('Slot already booked or conflict');
+        } else {
+          throw Exception('Failed to book slot');
+        }
       }
     } catch (e) {
       throw Exception(e.toString());
