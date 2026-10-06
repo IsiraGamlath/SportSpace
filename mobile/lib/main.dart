@@ -1,18 +1,35 @@
-// lib/main.dart
-//
-// Minimal entry point so the Tertiary Stakeholder Home screen can be
-// built/run in isolation for testing.
-//
-// IMPORTANT: If your real main.dart already sets up Player/Manager
-// entry points, role selection, or app-wide theming, don't just
-// overwrite it with this — merge the `home:` / routing logic in below
-// instead, so Player/Manager setup stays untouched.
-
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 
-import 'views/tertiary/home_view.dart';
+import 'firebase_options.dart';
+import 'utils/app_colors.dart';
+import 'views/launch_screen.dart';
 
-void main() {
+void main() async {
+  // 1. Ensure Flutter bindings are ready for async operations
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. Initialize Firebase for authentication and other Firebase services.
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // 3. Configure system UI overlay
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+    ),
+  );
+
+  // 4. Initialize Stripe with your Publishable Key
+  if (!kIsWeb) {
+    Stripe.publishableKey = 'pk_test_51UN2PdKGnYmWIfAiN3XLjEJ9hmOmCJytN65y6LARBGNu9t5SPj20mPWh03CglgPmEdfkFkoCVdA6TABhTyKxFu9g00BVuIwbs8';
+    await Stripe.instance.applySettings();
+  }
+
   runApp(const SportSpaceApp());
 }
 
@@ -26,13 +43,13 @@ class SportSpaceApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF5F6F8),
+        scaffoldBackgroundColor: AppColors.scaffoldBackground,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primaryTeal,
+          primary: AppColors.primaryTeal,
+        ),
       ),
-      // Temporary: launches straight into the Tertiary Stakeholder
-      // Home screen for development/testing. Replace `home:` with
-      // your real entry point (login, role selection, etc.) once
-      // that flow exists — this doesn't touch Player/Manager code.
-      home: const TertiaryHomeView(),
+      home: const LaunchScreen(),
     );
   }
 }
