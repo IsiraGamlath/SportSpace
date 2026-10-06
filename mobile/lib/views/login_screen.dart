@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../utils/app_colors.dart';
+import 'home_screen.dart';
 import 'manager/manager_login_screen.dart';
 import 'registration_screen.dart';
-import 'slot_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const SlotSelectionScreen()),
+      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
     );
   }
 
