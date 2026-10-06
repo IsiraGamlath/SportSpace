@@ -1,9 +1,50 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:5000/api'; // Use 10.0.2.2 for Android emulator
+  static String get baseUrl =>
+      kIsWeb ? 'http://localhost:5000/api' : 'http://10.0.2.2:5000/api';
+
+  static Future<Map<String, dynamic>> register({
+    required String fullName,
+    required String email,
+    required String password,
+    required String role,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'fullName': fullName,
+        'email': email,
+        'password': password,
+        'role': role,
+      }),
+    );
+    return _decodeAuthResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': email, 'password': password}),
+    );
+    return _decodeAuthResponse(response);
+  }
+
+  static Map<String, dynamic> _decodeAuthResponse(http.Response response) {
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return body;
+    }
+    throw Exception(body['message'] ?? 'Authentication request failed');
+  }
 
   static Future<List<TimeSlot>> fetchSlots({String? date}) async {
     try {
@@ -66,7 +107,7 @@ class ApiService {
       }
       return null;
     } catch (e) {
-      print('Error creating payment intent: $e');
+      debugPrint('Error creating payment intent: $e');
       return null;
     }
   }

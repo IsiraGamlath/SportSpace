@@ -7,6 +7,10 @@ require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+if (!process.env.JWT_SECRET) {
+  console.warn("JWT_SECRET is not configured; registration and login will be unavailable.");
+}
+
 // Connect to Database
 connectDB().then(() => {
   const { seedSlots } = require('./controllers/slotsController');
@@ -24,6 +28,7 @@ app.get("/api/health", (req, res) => {
     .json({ status: "OK", message: "SportSpace Backend API Running" });
 });
 
+app.use("/api/auth", require("./routes/auth"));
 app.use("/api/slots", require("./routes/slots"));
 app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/payments", require("./routes/payments"));
