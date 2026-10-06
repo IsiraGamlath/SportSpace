@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
+import 'explore_screen.dart';
 import 'my_bookings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -202,7 +203,12 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: AppBottomNav(
         currentIndex: 0,
         onItemSelected: (index) {
-          if (index == 2) {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ExploreScreen()),
+            );
+          } else if (index == 2) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
