@@ -7,7 +7,12 @@ import '../../widgets/manager/section_card.dart';
 import 'manager_notifications_screen.dart';
 
 class ManagerBookingDetailsScreen extends StatefulWidget {
-  const ManagerBookingDetailsScreen({super.key});
+  const ManagerBookingDetailsScreen({
+    super.key,
+    this.bookingId = 'SS-20481',
+  });
+
+  final String bookingId;
 
   @override
   State<ManagerBookingDetailsScreen> createState() =>
@@ -18,6 +23,7 @@ class _ManagerBookingDetailsScreenState
     extends State<ManagerBookingDetailsScreen> {
   bool _isConfirmed = false;
   bool _isLoading = false;
+  Map<String, dynamic>? _data;
 
   @override
   void initState() {
@@ -26,15 +32,20 @@ class _ManagerBookingDetailsScreenState
   }
 
   Future<void> _fetchVerificationStatus() async {
+    setState(() => _isLoading = true);
     try {
-      final statusData = await ApiService.fetchVerificationStatus('SS-20481');
+      final statusData = await ApiService.fetchVerificationStatus(widget.bookingId);
       if (mounted) {
         setState(() {
+          _data = statusData;
           _isConfirmed = statusData['paymentStatus'] == 'verified';
+          _isLoading = false;
         });
       }
     } catch (_) {
-      // Retain default state if network unreachable
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -47,49 +58,72 @@ class _ManagerBookingDetailsScreenState
   }
 
   Future<void> _confirmPayment() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     try {
-      await ApiService.verifyPayment('SS-20481');
-    } catch (_) {}
-    if (mounted) {
-      setState(() {
-        _isConfirmed = true;
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment Confirmed! Booking status updated to Paid.'),
-          backgroundColor: ManagerColors.green,
-        ),
-      );
+      final res = await ApiService.verifyPayment(widget.bookingId);
+      if (mounted) {
+        setState(() {
+          _isConfirmed = true;
+          _isLoading = false;
+          if (res['verification'] != null) {
+            _data = res['verification'];
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment Confirmed! Booking status updated to Paid.'),
+            backgroundColor: ManagerColors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Verification failed: $e')),
+        );
+      }
     }
   }
 
   Future<void> _markUnpaid() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     try {
-      await ApiService.markPaymentUnpaid('SS-20481');
-    } catch (_) {}
-    if (mounted) {
-      setState(() {
-        _isConfirmed = false;
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Booking marked as Unpaid.'),
-          backgroundColor: ManagerColors.amber,
-        ),
-      );
+      final res = await ApiService.markPaymentUnpaid(widget.bookingId);
+      if (mounted) {
+        setState(() {
+          _isConfirmed = false;
+          _isLoading = false;
+          if (res['verification'] != null) {
+            _data = res['verification'];
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking marked as Unpaid.'),
+            backgroundColor: ManagerColors.amber,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Update failed: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final playerName = _data?['playerName'] as String? ?? 'Kasun Perera';
+    final playerPhone = _data?['playerPhone'] as String? ?? '077 123 4567';
+    final playerEmail = _data?['playerEmail'] as String? ?? 'kasun.p@email.com';
+    final courtName = _data?['courtName'] as String? ?? 'Badminton Court 1';
+    final amount = (_data?['amount'] as num?)?.toDouble() ?? 2500.0;
+    final paymentRef = _data?['paymentRef'] as String? ?? 'PMT-88213';
+
     return Scaffold(
       backgroundColor: ManagerColors.pageBackground,
       body: SafeArea(
@@ -102,155 +136,172 @@ class _ManagerBookingDetailsScreenState
               alignment: Alignment.topCenter,
               child: SizedBox(
                 width: width,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _Header(
-                        onNotificationsTap: _openNotifications,
-                      ),
-                      const SizedBox(height: 18),
+                child: RefreshIndicator(
+                  onRefresh: _fetchVerificationStatus,
+                  color: ManagerColors.navy,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _Header(
+                          onNotificationsTap: _openNotifications,
+                        ),
+                        const SizedBox(height: 18),
 
-                      RichText(
-                        text: const TextSpan(
+                        RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              color: ManagerColors.secondaryText,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            children: [
+                              const TextSpan(text: 'Booking '),
+                              TextSpan(
+                                text: widget.bookingId,
+                                style: const TextStyle(
+                                  color: ManagerColors.navyDark,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const TextSpan(text: ' · Verification Record'),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
+                        const _SectionTitle('Player'),
+                        const SizedBox(height: 10),
+
+                        SectionCard(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                          child: _PlayerInfo(
+                            name: playerName,
+                            phone: playerPhone,
+                            email: playerEmail,
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
+                        const _SectionTitle('Booking Details'),
+                        const SizedBox(height: 10),
+
+                        SectionCard(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                          child: _BookingInfo(
+                            courtName: courtName,
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
+                        const _SectionTitle('Payment Verification'),
+                        const SizedBox(height: 10),
+
+                        SectionCard(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                          child: _PaymentInfo(
+                            isConfirmed: _isConfirmed,
+                            amount: amount,
+                            paymentRef: paymentRef,
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        const Text(
+                          'Free cancellation up to 3 hours before the slot.',
                           style: TextStyle(
                             color: ManagerColors.secondaryText,
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w400,
                           ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Cancellations after this window are non-refundable.',
+                          style: TextStyle(
+                            color: ManagerColors.secondaryText,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        Row(
                           children: [
-                            TextSpan(text: 'Booking '),
-                            TextSpan(
-                              text: 'SS-20481',
-                              style: TextStyle(
-                                color: ManagerColors.navyDark,
-                                fontWeight: FontWeight.w800,
+                            Expanded(
+                              child: SizedBox(
+                                height: 48,
+                                child: OutlinedButton(
+                                  onPressed: _isLoading ? null : _markUnpaid,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: ManagerColors.navy,
+                                    backgroundColor: Colors.transparent,
+                                    side: const BorderSide(
+                                      color: ManagerColors.border,
+                                      width: 1.5,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  child: const Text(
+                                    'Mark as Unpaid',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                            TextSpan(text: ' · Created today, 2:14 PM'),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: SizedBox(
+                                height: 48,
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _confirmPayment,
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    shadowColor: Colors.transparent,
+                                    backgroundColor: _isConfirmed
+                                        ? ManagerColors.green
+                                        : ManagerColors.primaryBlue,
+                                    foregroundColor: ManagerColors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          _isConfirmed
+                                              ? 'Payment Confirmed √'
+                                              : 'Confirm Payment',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-
-                      const SizedBox(height: 18),
-                      const _SectionTitle('Player'),
-                      const SizedBox(height: 10),
-
-                      const SectionCard(
-                        padding: EdgeInsets.fromLTRB(16, 14, 16, 14),
-                        child: _PlayerInfo(),
-                      ),
-
-                      const SizedBox(height: 18),
-                      const _SectionTitle('Booking Details'),
-                      const SizedBox(height: 10),
-
-                      const SectionCard(
-                        padding: EdgeInsets.fromLTRB(16, 14, 16, 14),
-                        child: _BookingInfo(),
-                      ),
-
-                      const SizedBox(height: 18),
-                      const _SectionTitle('Payment Verification'),
-                      const SizedBox(height: 10),
-
-                      SectionCard(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                        child: _PaymentInfo(isConfirmed: _isConfirmed),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      const Text(
-                        'Free cancellation up to 3 hours before the slot.',
-                        style: TextStyle(
-                          color: ManagerColors.secondaryText,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Cancellations after this window are non-refundable.',
-                        style: TextStyle(
-                          color: ManagerColors.secondaryText,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 48,
-                              child: OutlinedButton(
-                                onPressed: _isLoading ? null : _markUnpaid,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: ManagerColors.navy,
-                                  backgroundColor: Colors.transparent,
-                                  side: const BorderSide(
-                                    color: ManagerColors.border,
-                                    width: 1.5,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                ),
-                                child: const Text(
-                                  'Mark as Unpaid',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _confirmPayment,
-                                style: ElevatedButton.styleFrom(
-                                  elevation: 0,
-                                  shadowColor: Colors.transparent,
-                                  backgroundColor: _isConfirmed
-                                      ? ManagerColors.green
-                                      : ManagerColors.primaryBlue,
-                                  foregroundColor: ManagerColors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : Text(
-                                        _isConfirmed ? 'Payment Confirmed √' : 'Confirm Payment',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -341,18 +392,28 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _PlayerInfo extends StatelessWidget {
-  const _PlayerInfo();
+  const _PlayerInfo({
+    required this.name,
+    required this.phone,
+    required this.email,
+  });
+
+  final String name;
+  final String phone;
+  final String email;
 
   @override
   Widget build(BuildContext context) {
+    final initials = name.trim().split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join();
+
     return Row(
       children: [
-        const CircleAvatar(
+        CircleAvatar(
           radius: 24,
           backgroundColor: ManagerColors.avatarBlue,
           child: Text(
-            'KP',
-            style: TextStyle(
+            initials.isNotEmpty ? initials : 'KP',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
               fontWeight: FontWeight.w800,
@@ -360,30 +421,30 @@ class _PlayerInfo extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 14),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Kasun Perera',
-                style: TextStyle(
+                name,
+                style: const TextStyle(
                   color: ManagerColors.navyDark,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              SizedBox(height: 5),
+              const SizedBox(height: 5),
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.phone_outlined,
                     size: 14,
                     color: ManagerColors.secondaryText,
                   ),
-                  SizedBox(width: 5),
+                  const SizedBox(width: 5),
                   Text(
-                    '077 123 4567',
-                    style: TextStyle(
+                    phone,
+                    style: const TextStyle(
                       color: ManagerColors.secondaryText,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -391,18 +452,18 @@ class _PlayerInfo extends StatelessWidget {
                   ),
                 ],
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.mail_outline_rounded,
                     size: 14,
                     color: ManagerColors.secondaryText,
                   ),
-                  SizedBox(width: 5),
+                  const SizedBox(width: 5),
                   Text(
-                    'kasun.p@email.com',
-                    style: TextStyle(
+                    email,
+                    style: const TextStyle(
                       color: ManagerColors.secondaryText,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -419,14 +480,16 @@ class _PlayerInfo extends StatelessWidget {
 }
 
 class _BookingInfo extends StatelessWidget {
-  const _BookingInfo();
+  const _BookingInfo({required this.courtName});
+
+  final String courtName;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Colombo Sports Centre',
           style: TextStyle(
             color: ManagerColors.navyDark,
@@ -434,22 +497,22 @@ class _BookingInfo extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
-          'Badminton Court 1',
-          style: TextStyle(
+          courtName,
+          style: const TextStyle(
             color: ManagerColors.secondaryText,
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
         ),
-        SizedBox(height: 14),
-        _InfoRow(
+        const SizedBox(height: 14),
+        const _InfoRow(
           label: 'Date',
-          value: '16 September',
+          value: 'Tomorrow',
         ),
-        SizedBox(height: 8),
-        _InfoRow(
+        const SizedBox(height: 8),
+        const _InfoRow(
           label: 'Time',
           value: '6:00 PM – 7:00 PM',
         ),
@@ -495,32 +558,38 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _PaymentInfo extends StatelessWidget {
-  const _PaymentInfo({required this.isConfirmed});
+  const _PaymentInfo({
+    required this.isConfirmed,
+    required this.amount,
+    required this.paymentRef,
+  });
 
   final bool isConfirmed;
+  final double amount;
+  final String paymentRef;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'LKR 2,500',
-                style: TextStyle(
+                'LKR ${amount.toInt()}',
+                style: const TextStyle(
                   color: ManagerColors.navyDark,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   height: 1.0,
                 ),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Card payment · Ref #PMT-88213',
-                style: TextStyle(
+                'Card payment · Ref #$paymentRef',
+                style: const TextStyle(
                   color: ManagerColors.secondaryText,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
