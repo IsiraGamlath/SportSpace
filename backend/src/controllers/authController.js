@@ -100,3 +100,17 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: 'Unable to log in' });
   }
 };
+
+exports.checkEmail = async (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase();
+
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+
+  const user = await User.findOne({ email }).select('role');
+  return res.status(200).json({
+    exists: Boolean(user),
+    role: user?.role ?? null,
+  });
+};

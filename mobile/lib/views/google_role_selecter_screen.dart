@@ -58,18 +58,33 @@ class _GoogleRoleSelecterScreenState extends State<GoogleRoleSelecterScreen> {
       if (user == null) {
         throw Exception('Google sign-in did not return a user account.');
       }
+
       final selectedRole = _roles[_selectedRole].title;
-      await ApiService.syncGoogleProfile(
-        fullName: user.displayName?.trim().isNotEmpty == true
-            ? user.displayName!.trim()
-            : user.email?.split('@').first ?? 'User',
-        role: selectedRole,
-      );
+      final existingProfile = await ApiService.fetchUserProfile();
+      final registeredRole = existingProfile?['role'] as String?;
+      if (registeredRole != null && registeredRole.trim().isNotEmpty) {
+        if (registeredRole != selectedRole) {
+          _showSignInError(
+            'This email is already registered as $registeredRole. '
+            'Use another email for a $selectedRole account.',
+          );
+          await FirebaseAuth.instance.signOut();
+          if (!kIsWeb) {
+            await GoogleSignIn.instance.signOut();
+          }
+          return;
+        }
+      } else {
+        await ApiService.syncGoogleProfile(
+          fullName: user.displayName?.trim().isNotEmpty == true
+              ? user.displayName!.trim()
+              : user.email?.split('@').first ?? 'User',
+          role: selectedRole,
+        );
+      }
 
       if (!mounted) return;
-      final destination = _selectedRole == 1
-          ? const ManagerMainScreen()
-          : const HomeScreen();
+      final destination = _destinationForRole(registeredRole ?? selectedRole);
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(builder: (_) => destination),
         (route) => false,
@@ -87,6 +102,12 @@ class _GoogleRoleSelecterScreenState extends State<GoogleRoleSelecterScreen> {
     } finally {
       if (mounted) setState(() => _isSigningIn = false);
     }
+  }
+
+  Widget _destinationForRole(String role) {
+    return role == 'Facility Manager'
+        ? const ManagerMainScreen()
+        : const HomeScreen();
   }
 
   void _showSignInError(String message) {

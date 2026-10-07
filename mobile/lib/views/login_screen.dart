@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../utils/app_colors.dart';
+import 'google_role_selecter_screen.dart';
 import 'home_screen.dart';
-import 'manager/manager_login_screen.dart';
 import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -39,9 +39,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
       setState(() => _isLoggingIn = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_loginErrorMessage(error))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_loginErrorMessage(error))));
       return;
     }
 
@@ -76,11 +76,9 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _openManagerLogin() {
+  void _openGoogleSignIn() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const ManagerLoginScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const GoogleRoleSelecterScreen()),
     );
   }
 
@@ -173,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 150),
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -224,19 +222,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 const Row(
                   children: [
                     Expanded(child: Divider(color: AppColors.borderLight)),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
-                        'FACILITY MANAGER?',
+                        'OR',
                         style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
                         ),
                       ),
                     ),
@@ -247,20 +243,32 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   width: double.infinity,
                   height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: _openManagerLogin,
-                    icon: const Icon(Icons.business_center_outlined, size: 18),
-                    label: const Text(
-                      'Sign in to Manager Portal',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13.5,
-                      ),
-                    ),
+                  child: OutlinedButton(
+                    onPressed: _openGoogleSignIn,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF183E63),
-                      side: const BorderSide(color: Color(0xFF183E63), width: 1.5),
+                      foregroundColor: AppColors.textPrimary,
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(color: AppColors.borderLight),
                       shape: const StadiumBorder(),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/google.png',
+                          width: 18,
+                          height: 18,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 9),
+                        const Text(
+                          'Continue with Google',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -293,15 +301,14 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppColors.primaryTeal),
       ),
-      errorStyle: const TextStyle(fontSize: 10),
     );
   }
 }
 
 class _LoginLabel extends StatelessWidget {
-  final String label;
-
   const _LoginLabel({required this.label});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {

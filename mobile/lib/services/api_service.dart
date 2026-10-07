@@ -45,6 +45,19 @@ class ApiService {
     return _decodeAuthResponse(response);
   }
 
+  static Future<Map<String, dynamic>> checkEmail(String email) async {
+    final response = await _get(
+      '/auth/check-email',
+      queryParams: {'email': email.trim().toLowerCase()},
+    );
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return body;
+    }
+
+    throw Exception(body['message'] ?? 'Unable to validate email');
+  }
+
   static Map<String, dynamic> _decodeAuthResponse(http.Response response) {
     final body = json.decode(response.body) as Map<String, dynamic>;
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -104,6 +117,26 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>?> fetchUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('You must be signed in to fetch your profile.');
+    }
+
+    final token = await user.getIdToken();
+    final response = await _get(
+      '/users/profile',
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 404) return null;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Unable to load your profile');
+    }
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    return body['user'] as Map<String, dynamic>;
+  }
+
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
   static Future<http.Response> _get(
@@ -117,7 +150,11 @@ class ApiService {
       ).replace(queryParameters: queryParams);
       return await http
           .get(uri, headers: headers)
+<<<<<<< Updated upstream
           .timeout(const Duration(milliseconds: 7000));
+=======
+          .timeout(const Duration(milliseconds: 2500));
+>>>>>>> Stashed changes
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -128,7 +165,11 @@ class ApiService {
         ).replace(queryParameters: queryParams);
         final res = await http
             .get(uri, headers: headers)
+<<<<<<< Updated upstream
             .timeout(const Duration(milliseconds: 6000));
+=======
+            .timeout(const Duration(milliseconds: 2500));
+>>>>>>> Stashed changes
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}

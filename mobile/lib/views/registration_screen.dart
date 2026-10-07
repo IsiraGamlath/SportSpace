@@ -24,6 +24,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _obscureConfirmPassword = true;
   bool _acceptedTerms = false;
   bool _isRegistering = false;
+  String? _emailRoleError;
 
   @override
   void dispose() {
@@ -50,6 +51,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     setState(() => _isRegistering = true);
     User? createdUser;
     try {
+      final emailError = await _checkEmailRole();
+      if (emailError != null) {
+        if (mounted) {
+          setState(() => _isRegistering = false);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(emailError)));
+        }
+        return;
+      }
+
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
@@ -84,6 +96,40 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
     );
+  }
+
+  Future<String?> _checkEmailRole() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) return null;
+
+    try {
+      final result = await ApiService.checkEmail(email);
+      if (result['exists'] == true) {
+        final existingRole = result['role']?.toString();
+        if (existingRole != null && existingRole != widget.role) {
+          return 'This email is already registered as $existingRole. Use another email for a ${widget.role} account.';
+        }
+        return 'An account already exists with this email.';
+      }
+      _emailRoleError = null;
+      return null;
+    } catch (error) {
+      return 'Unable to validate this email. Please try again.';
+    }
+  }
+
+  Future<void> _validateEmailAfterEntry() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) return;
+
+    final error = await _checkEmailRole();
+    if (!mounted) return;
+    setState(() => _emailRoleError = error);
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+    }
   }
 
   String _registrationErrorMessage(FirebaseAuthException error) {
@@ -158,10 +204,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   controller: _emailController,
                   hintText: 'you@email.com',
                   keyboardType: TextInputType.emailAddress,
+                  onChanged: (_) {
+                    if (_emailRoleError != null) {
+                      setState(() => _emailRoleError = null);
+                    }
+                  },
+                  onEditingComplete: _validateEmailAfterEntry,
                   validator: (value) {
                     final requiredError = _required(value, 'Email');
                     if (requiredError != null) return requiredError;
                     if (!value!.contains('@')) return 'Enter a valid email';
+                    if (_emailRoleError != null) return _emailRoleError;
                     return null;
                   },
                 ),
@@ -232,7 +285,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 96),
                 SizedBox(
                   width: double.infinity,
                   height: 47,
@@ -330,6 +383,8 @@ class _RegistrationField extends StatelessWidget {
   final bool obscureText;
   final TextInputType? keyboardType;
   final Widget? suffixIcon;
+  final ValueChanged<String>? onChanged;
+  final VoidCallback? onEditingComplete;
   final String? Function(String?)? validator;
 
   const _RegistrationField({
@@ -338,6 +393,8 @@ class _RegistrationField extends StatelessWidget {
     this.obscureText = false,
     this.keyboardType,
     this.suffixIcon,
+    this.onChanged,
+    this.onEditingComplete,
     this.validator,
   });
 
@@ -347,6 +404,8 @@ class _RegistrationField extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      onChanged: onChanged,
+      onEditingComplete: onEditingComplete,
       validator: validator,
       style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
       decoration: InputDecoration(

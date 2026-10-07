@@ -82,188 +82,219 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     required VoidCallback onContinue,
     required VoidCallback onSkip,
   }) {
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Flexible(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 128),
-                    child: Image.asset(
-                      'assets/Sport Space logo.png',
-                      width: double.infinity,
-                      height: 87,
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.none,
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : 700.0;
+        final header = Padding(
+          padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 128),
+                  child: Image.asset(
+                    'assets/Sport Space logo.png',
+                    width: double.infinity,
+                    height: 87,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.none,
                   ),
                 ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: onSkip,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF91AEC6),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    minimumSize: const Size(40, 40),
-                  ),
-                  child: const Text('Skip'),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: onSkip,
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF91AEC6),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: const Size(40, 40),
                 ),
-              ],
-            ),
+                child: const Text('Skip'),
+              ),
+            ],
           ),
-          SizedBox(
-            height: 300,
-            child: Image.asset(
-              imagePath,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-              filterQuality: FilterQuality.none,
-            ),
+        );
+        final content = Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+          color: AppColors.darkNavy,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _PageIndicator(active: _currentPage == 0),
+                  _PageIndicator(active: _currentPage == 1),
+                  _PageIndicator(active: _currentPage == 2),
+                ],
+              ),
+              const SizedBox(height: 17),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                description,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF91AEC6),
+                  fontSize: 13,
+                  height: 1.25,
+                ),
+              ),
+              const SizedBox(height: 36),
+              SizedBox(
+                width: double.infinity,
+                height: 47,
+                child: ElevatedButton(
+                  onPressed: onContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2C8DB4),
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Continue',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
           ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 14, 24, 52),
-            color: AppColors.darkNavy,
+        );
+        final image = Image.asset(
+          imagePath,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
+          filterQuality: FilterQuality.none,
+        );
+
+        if (availableHeight < 300) {
+          return SingleChildScrollView(
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _PageIndicator(active: _currentPage == 0),
-                    _PageIndicator(active: _currentPage == 1),
-                    _PageIndicator(active: _currentPage == 2),
-                  ],
-                ),
-                const SizedBox(height: 17),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  description,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF91AEC6),
-                    fontSize: 13,
-                    height: 1.25,
-                  ),
-                ),
-                const SizedBox(height: 36),
-                SizedBox(
-                  width: double.infinity,
-                  height: 47,
-                  child: ElevatedButton(
-                    onPressed: onContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2C8DB4),
-                      foregroundColor: Colors.white,
-                      shape: const StadiumBorder(),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Continue',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
+                header,
+                SizedBox(height: 220, child: image),
+                content,
               ],
             ),
+          );
+        }
+
+        return SizedBox(
+          height: availableHeight,
+          child: Column(
+            children: [
+              header,
+              Expanded(child: image),
+              content,
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildFinalPage() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-        child: Column(
-          children: [
-            const SizedBox(height: 48),
-            Image.asset(
-              'assets/Sport Space logo.png',
-              width: 128,
-              height: 87,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.none,
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Find a place\nto play',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                height: 1.1,
-                fontWeight: FontWeight.w700,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : 700.0;
+        final content = Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+          child: Column(
+            children: [
+              SizedBox(height: height > 500 ? 115 : 28),
+              Image.asset(
+                'assets/Sport Space logo.png',
+                width: 128,
+                height: 87,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.none,
               ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Discover courts and grounds nearby,\n'
-              'check real-time availability, and book\n'
-              'with confidence.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF91AEC6),
-                fontSize: 11,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 72),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _PageIndicator(active: _currentPage == 0),
-                _PageIndicator(active: _currentPage == 1),
-                _PageIndicator(active: _currentPage == 2),
-              ],
-            ),
-            const SizedBox(height: 22),
-            _OnboardingButton(
-              label: 'Get Started',
-              onPressed: () => _finish(context),
-            ),
-            const SizedBox(height: 6),
-            _OnboardingButton(
-              label: 'Log In',
-              onPressed: () => Navigator.of(context).pushReplacement(
-                MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
-              ),
-              outlined: true,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'OR',
-              style: TextStyle(color: Color(0xFF91AEC6), fontSize: 10),
-            ),
-            const SizedBox(height: 8),
-            _OnboardingButton(
-              label: 'Continue with Google',
-              onPressed: () => Navigator.of(context).pushReplacement(
-                MaterialPageRoute<void>(
-                  builder: (_) => const GoogleRoleSelecterScreen(),
+              const SizedBox(height: 24),
+              const Text(
+                'Find a place\nto play',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  height: 1.1,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              google: true,
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 14),
+              const Text(
+                'Discover courts and grounds nearby,\n'
+                'check real-time availability, and book\n'
+                'with confidence.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF91AEC6),
+                  fontSize: 11,
+                  height: 1.35,
+                ),
+              ),
+              if (height > 500) const Spacer() else const SizedBox(height: 40),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _PageIndicator(active: _currentPage == 0),
+                  _PageIndicator(active: _currentPage == 1),
+                  _PageIndicator(active: _currentPage == 2),
+                ],
+              ),
+              const SizedBox(height: 22),
+              _OnboardingButton(
+                label: 'Get Started',
+                onPressed: () => _finish(context),
+              ),
+              const SizedBox(height: 6),
+              _OnboardingButton(
+                label: 'Log In',
+                onPressed: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+                ),
+                outlined: true,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'OR',
+                style: TextStyle(color: Color(0xFF91AEC6), fontSize: 10),
+              ),
+              const SizedBox(height: 8),
+              _OnboardingButton(
+                label: 'Continue with Google',
+                onPressed: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const GoogleRoleSelecterScreen(),
+                  ),
+                ),
+                google: true,
+              ),
+            ],
+          ),
+        );
+
+        if (height < 500) {
+          return SingleChildScrollView(child: content);
+        }
+
+        return SizedBox(height: height, child: content);
+      },
     );
   }
 }
