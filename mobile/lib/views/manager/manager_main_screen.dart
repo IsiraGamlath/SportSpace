@@ -23,6 +23,8 @@ class ManagerMainScreen extends StatefulWidget {
 
 class _ManagerMainScreenState extends State<ManagerMainScreen> {
   late int _currentIndex;
+  final GlobalKey<ManagerDashboardScreenState> _dashboardKey = GlobalKey();
+  final GlobalKey<ManagerBookingDetailsScreenState> _bookingKey = GlobalKey();
 
   @override
   void initState() {
@@ -34,6 +36,11 @@ class _ManagerMainScreenState extends State<ManagerMainScreen> {
     setState(() {
       _currentIndex = index;
     });
+    if (index == 0) {
+      _dashboardKey.currentState?.reload();
+    } else if (index == 2) {
+      _bookingKey.currentState?.reload();
+    }
   }
 
   @override
@@ -54,9 +61,15 @@ class _ManagerMainScreenState extends State<ManagerMainScreen> {
           child: IndexedStack(
             index: _currentIndex,
             children: [
-              ManagerDashboardScreen(onNavigateTab: _onTabSelected),
+              ManagerDashboardScreen(
+                key: _dashboardKey,
+                onNavigateTab: _onTabSelected,
+              ),
               const ManagerScheduleScreen(),
-              const ManagerBookingDetailsScreen(),
+              ManagerBookingDetailsScreen(
+                key: _bookingKey,
+                onBackTap: () => _onTabSelected(0),
+              ),
               const ManagerMaintenanceScreen(),
               const ManagerProfileScreen(),
             ],

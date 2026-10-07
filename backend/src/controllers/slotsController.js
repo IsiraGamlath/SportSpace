@@ -147,7 +147,27 @@ exports.getSlots = async (req, res) => {
     }
 
     const slots = await Slot.find(query).sort({ time: 1 });
-    const mappedSlots = slots.map(formatSlot);
+    let mappedSlots = slots.map(formatSlot);
+
+    if (managerView === 'true') {
+      const bookedSlots = mappedSlots.filter((s) => s.status === 'booked');
+      if (bookedSlots.length > 0) {
+        const slotIds = bookedSlots.map((s) => s.id);
+        const bookings = await Booking.find({ slot: { $in: slotIds } });
+        const bookingBySlot = {};
+        for (const b of bookings) {
+          if (b.slot && b.bookingId) {
+            bookingBySlot[b.slot.toString()] = b.bookingId;
+          }
+        }
+        mappedSlots = mappedSlots.map((s) => {
+          if (bookingBySlot[s.id]) {
+            s.bookingId = bookingBySlot[s.id];
+          }
+          return s;
+        });
+      }
+    }
 
     res.status(200).json(mappedSlots);
   } catch (error) {

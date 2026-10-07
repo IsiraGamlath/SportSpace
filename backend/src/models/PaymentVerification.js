@@ -4,12 +4,15 @@ const paymentVerificationSchema = new mongoose.Schema({
   bookingId: { type: String, required: true }, // e.g. "SS-20481"
   bookingRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
   courtName: { type: String, default: 'Badminton Court 1' },
-  playerName: { type: String, default: 'Kasun Perera' },
-  playerPhone: { type: String, default: '077 123 4567' },
-  playerEmail: { type: String, default: 'kasun.p@email.com' },
+  facilityName: { type: String, default: 'Colombo Sports Centre' },
+  slotDate: { type: String, default: 'Tomorrow' },
+  slotTime: { type: String, default: '6:00 PM – 7:00 PM' },
+  playerName: { type: String, default: 'Player' },
+  playerPhone: { type: String, default: '' },
+  playerEmail: { type: String, default: '' },
   amount: { type: Number, default: 2500 },
   paymentMethod: { type: String, default: 'card' },
-  paymentRef: { type: String, default: 'PMT-88213' },
+  paymentRef: { type: String, default: '' },
   paymentStatus: {
     type: String,
     enum: ['pending', 'verified', 'unpaid', 'refunded'],
@@ -18,6 +21,7 @@ const paymentVerificationSchema = new mongoose.Schema({
   verifiedBy: { type: String, default: null },
   verifiedAt: { type: Date, default: null },
   verificationNotes: { type: String, default: null },
+  slipUrl: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('PaymentVerification', paymentVerificationSchema);
