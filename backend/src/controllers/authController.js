@@ -54,6 +54,7 @@ exports.register = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
+        isApproved: user.isApproved,
       },
     });
   } catch (error) {
@@ -76,7 +77,7 @@ exports.login = async (req, res) => {
     }
 
     const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+passwordHash');
-    const passwordMatches = user && await bcrypt.compare(password, user.passwordHash);
+    const passwordMatches = user && user.passwordHash && await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatches) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -88,6 +89,7 @@ exports.login = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
+        isApproved: user.isApproved,
       },
     });
   } catch (error) {

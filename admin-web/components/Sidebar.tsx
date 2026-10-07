@@ -15,8 +15,7 @@ const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Users", href: "/users", icon: Users },
     { name: "Facility Managers", href: "/managers", icon: Building2 },
-    { name: "Payment Slips", href: "/payments", icon: CreditCard },
-    { name: "Commissions & Payouts", href: "/commissions", icon: Percent },
+    { name: "Payment Audit", href: "/payments", icon: CreditCard },
     { name: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -39,8 +38,8 @@ export default function Sidebar() {
                             key={item.name}
                             href={item.href}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
-                                    ? "bg-emerald-50 text-emerald-700 font-semibold"
-                                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                                ? "bg-emerald-50 text-emerald-700 font-semibold"
+                                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                                 }`}
                         >
                             <Icon className={`w-5 h-5 ${isActive ? "text-emerald-600" : "text-slate-400"}`} />

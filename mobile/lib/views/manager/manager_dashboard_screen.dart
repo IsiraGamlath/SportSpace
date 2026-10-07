@@ -11,9 +11,11 @@ class ManagerDashboardScreen extends StatefulWidget {
   const ManagerDashboardScreen({
     super.key,
     this.onNavigateTab,
+    this.isApproved = false,
   });
 
   final ValueChanged<int>? onNavigateTab;
+  final bool isApproved;
 
   @override
   State<ManagerDashboardScreen> createState() => _ManagerDashboardScreenState();
@@ -119,6 +121,33 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                   children: [
                     _TopBar(onNotificationsTap: () => _openNotifications(context)),
                     const SizedBox(height: 18),
+
+                    if (!widget.isApproved)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: ManagerColors.amber.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: ManagerColors.amberBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: ManagerColors.amber, size: 24),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Your account is pending admin approval. You can view the dashboard but cannot manage venues yet.',
+                                style: TextStyle(
+                                  color: ManagerColors.amber.withOpacity(0.9),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
 
                     Text(
                       DateTime.now().hour < 12

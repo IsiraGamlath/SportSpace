@@ -79,6 +79,28 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> fetchUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('You must be signed in to fetch your profile.');
+    }
+
+    final token = await user.getIdToken();
+    final response = await _get(
+      '/users/profile',
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Unable to fetch profile');
+    }
+  }
+
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
   static Future<http.Response> _get(
