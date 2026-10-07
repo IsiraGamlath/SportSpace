@@ -3,6 +3,7 @@ const router = express.Router();
 const bookingsController = require('../controllers/bookingsController');
 const { requireFirebaseUser } = require('../middlewares/firebaseAuth');
 
+router.get('/all', bookingsController.getAllBookings);
 router.get('/', requireFirebaseUser, bookingsController.getBookings);
 router.post('/', requireFirebaseUser, bookingsController.createBooking);
 router.post('/:id/cancel', requireFirebaseUser, bookingsController.cancelBooking);

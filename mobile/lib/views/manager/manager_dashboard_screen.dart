@@ -11,9 +11,11 @@ class ManagerDashboardScreen extends StatefulWidget {
   const ManagerDashboardScreen({
     super.key,
     this.onNavigateTab,
+    this.isApproved = false,
   });
 
   final ValueChanged<int>? onNavigateTab;
+  final bool isApproved;
 
   @override
   State<ManagerDashboardScreen> createState() => ManagerDashboardScreenState();
@@ -43,22 +45,30 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
-        ApiService.fetchBookings().catchError((_) => <dynamic>[]),
-        ApiService.fetchPaymentVerifications(paymentStatus: 'pending')
-            .catchError((_) => <dynamic>[]),
+        ApiService.fetchPaymentVerifications().catchError((_) => <dynamic>[]),
+        ApiService.fetchAllBookings().catchError((_) => <dynamic>[]),
         ApiService.fetchMaintenanceSummary().catchError((_) => <String, dynamic>{}),
         ApiService.fetchManagerSlots(date: 'Tomorrow')
             .catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
-      final bookings = results[0] as List<dynamic>;
-      final pendingPayments = results[1] as List<dynamic>;
+      final allVerifications = results[0] as List<dynamic>;
+      final allBookings = results[1] as List<dynamic>;
       final maintenanceSummary = results[2] as Map<String, dynamic>;
       final slots = results[3] as List<Map<String, dynamic>>;
 
+      final pendingPayments = allVerifications
+          .whereType<Map>()
+          .where((p) => p['paymentStatus']?.toString() == 'pending')
+          .toList();
+
+      final totalBookings = allBookings.length >= allVerifications.length
+          ? allBookings.length
+          : allVerifications.length;
+
       if (mounted) {
         setState(() {
-          _bookingsCount = bookings.length;
+          _bookingsCount = totalBookings;
           _pendingPaymentsCount = pendingPayments.length;
           _pendingPaymentsList = pendingPayments;
           final requiredCount = (maintenanceSummary['required'] as num?)?.toInt() ?? 0;
@@ -271,6 +281,33 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                   children: [
                     _TopBar(onNotificationsTap: () => _openNotifications(context)),
                     const SizedBox(height: 18),
+
+                    if (!widget.isApproved)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: ManagerColors.amber.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: ManagerColors.amberBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: ManagerColors.amber, size: 24),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Your account is pending admin approval. You can view the dashboard but cannot manage venues yet.',
+                                style: TextStyle(
+                                  color: ManagerColors.amber.withOpacity(0.9),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
 
                     Text(
                       DateTime.now().hour < 12

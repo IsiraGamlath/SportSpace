@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/settings_tile.dart';
 import '../onboarding_screen.dart';
-import 'manager_login_screen.dart';
+import '../login_screen.dart';
 
 class ManagerProfileScreen extends StatefulWidget {
   const ManagerProfileScreen({super.key});
@@ -17,12 +17,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
 
-  final List<String> _tabs = [
-    'Account',
-    'Preferences',
-    'Payments',
-    'Support',
-  ];
+  final List<String> _tabs = ['Account', 'Preferences', 'Payments', 'Support'];
 
   void _logout() {
     showDialog<void>(
@@ -40,7 +35,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
               Navigator.pop(ctx);
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute<void>(
-                  builder: (_) => const ManagerLoginScreen(),
+                  builder: (_) => const LoginScreen(),
                 ),
                 (route) => false,
               );
@@ -58,9 +53,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 
   void _switchToPlayerApp() {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => const OnboardingScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
       (route) => false,
     );
   }
@@ -69,8 +62,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width =
-            constraints.maxWidth > 430 ? 430.0 : constraints.maxWidth;
+        final width = constraints.maxWidth > 430 ? 430.0 : constraints.maxWidth;
 
         return Align(
           alignment: Alignment.topCenter,
@@ -106,9 +98,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: ManagerColors.border,
-                            ),
+                            border: Border.all(color: ManagerColors.border),
                           ),
                           child: SettingsTile(
                             icon: Icons.person_outline_rounded,
@@ -125,9 +115,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: ManagerColors.border,
-                            ),
+                            border: Border.all(color: ManagerColors.border),
                           ),
                           child: SettingsTile(
                             icon: Icons.sports_tennis_rounded,
@@ -144,9 +132,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: ManagerColors.border,
-                            ),
+                            border: Border.all(color: ManagerColors.border),
                           ),
                           child: SettingsTile(
                             icon: Icons.payments_outlined,
@@ -175,9 +161,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: ManagerColors.border,
-                            ),
+                            border: Border.all(color: ManagerColors.border),
                           ),
                           child: Column(
                             children: [
@@ -224,11 +208,23 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                           height: 48,
                           child: OutlinedButton.icon(
                             onPressed: _switchToPlayerApp,
-                            icon: const Icon(Icons.swap_horiz_rounded, size: 20),
-                            label: const Text('Switch to Player App', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                            icon: const Icon(
+                              Icons.swap_horiz_rounded,
+                              size: 20,
+                            ),
+                            label: const Text(
+                              'Switch to Player App',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: ManagerColors.navy,
-                              side: const BorderSide(color: ManagerColors.border, width: 1.5),
+                              side: const BorderSide(
+                                color: ManagerColors.border,
+                                width: 1.5,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(24),
                               ),
@@ -241,8 +237,19 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                           height: 48,
                           child: TextButton.icon(
                             onPressed: _logout,
-                            icon: const Icon(Icons.logout_rounded, size: 20, color: ManagerColors.red),
-                            label: const Text('Sign Out of Manager Portal', style: TextStyle(color: ManagerColors.red, fontSize: 14, fontWeight: FontWeight.w700)),
+                            icon: const Icon(
+                              Icons.logout_rounded,
+                              size: 20,
+                              color: ManagerColors.red,
+                            ),
+                            label: const Text(
+                              'Sign Out of Manager Portal',
+                              style: TextStyle(
+                                color: ManagerColors.red,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -376,24 +383,15 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
           const Row(
             children: [
               Expanded(
-                child: _StatCard(
-                  value: '18',
-                  label: "Today's",
-                ),
+                child: _StatCard(value: '18', label: "Today's"),
               ),
               SizedBox(width: 10),
               Expanded(
-                child: _StatCard(
-                  value: '4',
-                  label: 'Pending',
-                ),
+                child: _StatCard(value: '4', label: 'Pending'),
               ),
               SizedBox(width: 10),
               Expanded(
-                child: _StatCard(
-                  value: '2',
-                  label: 'Maintenance',
-                ),
+                child: _StatCard(value: '2', label: 'Maintenance'),
               ),
             ],
           ),
@@ -411,10 +409,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
         border: Border.all(color: ManagerColors.border),
       ),
       child: const TextField(
-        style: TextStyle(
-          color: ManagerColors.navyDark,
-          fontSize: 13.5,
-        ),
+        style: TextStyle(color: ManagerColors.navyDark, fontSize: 13.5),
         decoration: InputDecoration(
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 12),
@@ -424,10 +419,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             color: ManagerColors.mutedText,
           ),
           hintText: 'Search manager settings...',
-          hintStyle: TextStyle(
-            color: ManagerColors.mutedText,
-            fontSize: 13,
-          ),
+          hintStyle: TextStyle(color: ManagerColors.mutedText, fontSize: 13),
         ),
       ),
     );
@@ -477,10 +469,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.value,
-    required this.label,
-  });
+  const _StatCard({required this.value, required this.label});
 
   final String value;
   final String label;
@@ -507,10 +496,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFFBCD0E2),
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: Color(0xFFBCD0E2), fontSize: 11),
           ),
         ],
       ),
@@ -519,10 +505,7 @@ class _StatCard extends StatelessWidget {
 }
 
 class _MiniSwitch extends StatelessWidget {
-  const _MiniSwitch({
-    required this.value,
-    required this.onChanged,
-  });
+  const _MiniSwitch({required this.value, required this.onChanged});
 
   final bool value;
   final ValueChanged<bool> onChanged;

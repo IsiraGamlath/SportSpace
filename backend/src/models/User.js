@@ -11,6 +11,8 @@ const userSchema = new mongoose.Schema(
       enum: ['Player', 'Facility Manager', 'Community / Public User'],
       required: true,
     },
+    isApproved: { type: Boolean, default: false }, // For Facility Managers
+    assignedVenues: [{ type: String }], // e.g. ["Colombo Futsal Club", "Kandy Badminton"]
   },
   { timestamps: true },
 );
