@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../utils/app_colors.dart';
 import 'login_screen.dart';
+import 'role_selection_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -16,7 +17,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _finish(BuildContext context) {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+      MaterialPageRoute<void>(builder: (_) => const RoleSelectionScreen()),
     );
   }
 
@@ -52,14 +53,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           children: [
             _buildPage(
               title: 'Find a place to play',
-              description: 'Discover courts and grounds nearby, with real-time availability at every facility.',
+              description:
+                  'Discover courts and grounds nearby, with real-time availability at every facility.',
               imagePath: 'assets/onboarding_athlete.png',
               onContinue: _nextPage,
               onSkip: _openFinalPage,
             ),
             _buildPage(
               title: 'Compare & choose with confidence',
-              description: 'See ratings, amenities and prices side by side before you pick a facility.',
+              description:
+                  'See ratings, amenities and prices side by side before you pick a facility.',
               imagePath: 'assets/onboarding_athlete2.png',
               onContinue: _nextPage,
               onSkip: _openFinalPage,

@@ -115,7 +115,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                             iconColor: ManagerColors.blue,
                             iconBackground: ManagerColors.blueSoft,
                             title: 'Personal Information',
-                            subtitle: 'Nimal Fernando • Manager ID #MG-402',
+                            subtitle: 'Facility Manager • manager@gmail.com',
                             onTap: () {},
                           ),
                         ),
@@ -284,13 +284,10 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                   const CircleAvatar(
                     radius: 28,
                     backgroundColor: Color(0xFF4C7FAC),
-                    child: Text(
-                      'NF',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    child: Icon(
+                      Icons.manage_accounts_rounded,
+                      color: Colors.white,
+                      size: 32,
                     ),
                   ),
                   Positioned(
@@ -323,7 +320,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Nimal Fernando',
+                      'Facility Manager',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -332,7 +329,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'nimal.fernando@sportspace.lk',
+                      'manager@gmail.com',
                       style: TextStyle(
                         color: Color(0xFFB7C9DB),
                         fontSize: 12.5,

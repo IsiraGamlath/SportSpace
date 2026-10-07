@@ -5,9 +5,10 @@ import '../models/time_slot.dart';
 import '../utils/app_colors.dart';
 
 import 'package:flutter_stripe/flutter_stripe.dart';
-
+import 'package:file_picker/file_picker.dart';
 import '../services/api_service.dart';
 import 'booking_confirmation_screen.dart';
+import 'booking_pending_screen.dart';
 import 'conflict_resolution_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -29,6 +30,8 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   int _selectedPaymentMethod = 0; // 0: Card, 1: Bank, 2: Wallet
   bool _isProcessing = false;
+  String? _selectedSlipPath;
+  String? _selectedSlipName;
 
   @override
   Widget build(BuildContext context) {
@@ -132,15 +135,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Upload slip action (placeholder for now)
+                    onPressed: () async {
+                      final result = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: ['jpg', 'png', 'pdf'],
+                      );
+                      if (result != null && result.files.isNotEmpty) {
+                        final file = result.files.first;
+                        setState(() {
+                          _selectedSlipPath = file.path;
+                          _selectedSlipName = file.name;
+                        });
+                      }
                     },
-                    icon: const Icon(Icons.upload_file),
-                    label: const Text('Upload Transfer Slip'),
+                    icon: Icon(_selectedSlipPath != null ? Icons.check_circle : Icons.upload_file),
+                    label: Text(_selectedSlipName ?? 'Upload Transfer Slip'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: AppColors.primaryTeal),
-                      foregroundColor: AppColors.primaryTeal,
+                      side: BorderSide(color: _selectedSlipPath != null ? AppColors.availableText : AppColors.primaryTeal),
+                      foregroundColor: _selectedSlipPath != null ? AppColors.availableText : AppColors.primaryTeal,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -225,7 +238,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       return;
                     }
 
-                    try {
+                      try {
                       String? paymentIntentId;
                       String paymentMethod = 'card';
 
@@ -265,6 +278,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         await Stripe.instance.presentPaymentSheet();
                       } else if (_selectedPaymentMethod == 1) {
                         paymentMethod = 'bank';
+                        if (_selectedSlipPath == null) {
+                          throw Exception('Please upload a bank transfer slip first.');
+                        }
                       } else if (_selectedPaymentMethod == 2) {
                         paymentMethod = 'wallet';
                       }
@@ -273,19 +289,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         widget.slot.id,
                         paymentIntentId: paymentIntentId,
                         paymentMethod: paymentMethod,
+                        slipFilePath: _selectedSlipPath,
                       );
                       if (!mounted) return;
                       setState(() => _isProcessing = false);
 
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => BookingConfirmationScreen(
-                            slot: widget.slot,
-                            date: widget.date,
+                      if (_selectedPaymentMethod == 1) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BookingPendingScreen(
+                              slot: widget.slot,
+                              date: widget.date,
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      } else {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BookingConfirmationScreen(
+                              slot: widget.slot,
+                              date: widget.date,
+                            ),
+                          ),
+                        );
+                      }
                     } catch (e) {
                       if (!mounted) return;
                       setState(() => _isProcessing = false);
