@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
+import 'explore_screen.dart';
+import 'facility_profile_screen.dart';
 import 'my_bookings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -182,7 +184,24 @@ class _HomeScreenState extends State<HomeScreen> {
               else
                 ...facilities.expand(
                   (facility) => [
-                    _FacilityCard.fromData(facility),
+                    _FacilityCard.fromData(
+                      facility,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FacilityProfileScreen(
+                            name: facility.name,
+                            sport: facility.sport,
+                            distance: facility.distance,
+                            rating: facility.rating,
+                            price: 1500,
+                            color: facility.color,
+                            icon: facility.icon,
+                            imagePath: facility.imagePath,
+                          ),
+                        ),
+                      ),
+                    ),
                     if (facility != facilities.last) const SizedBox(height: 12),
                   ],
                 ),
@@ -202,7 +221,12 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: AppBottomNav(
         currentIndex: 0,
         onItemSelected: (index) {
-          if (index == 2) {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ExploreScreen()),
+            );
+          } else if (index == 2) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
@@ -386,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _FacilityCard extends StatelessWidget {
-  _FacilityCard.fromData(_FacilityData data)
+  _FacilityCard.fromData(_FacilityData data, {required VoidCallback onTap})
     : this(
         name: data.name,
         sport: data.sport,
@@ -395,6 +419,7 @@ class _FacilityCard extends StatelessWidget {
         icon: data.icon,
         rating: data.rating,
         imagePath: data.imagePath,
+        onTap: onTap,
       );
 
   const _FacilityCard({
@@ -405,6 +430,7 @@ class _FacilityCard extends StatelessWidget {
     required this.icon,
     required this.rating,
     required this.imagePath,
+    required this.onTap,
   });
 
   final String name;
@@ -414,121 +440,130 @@ class _FacilityCard extends StatelessWidget {
   final IconData icon;
   final String rating;
   final String? imagePath;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 108,
-            child: Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [color, color.withValues(alpha: 0.55)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 108,
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [color, color.withValues(alpha: 0.55)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
-                  ),
-                  child: imagePath == null
-                      ? Center(
-                          child: Icon(
-                            icon,
-                            color: Colors.white.withValues(alpha: 0.8),
-                            size: 54,
+                    child: imagePath == null
+                        ? Center(
+                            child: Icon(
+                              icon,
+                              color: Colors.white.withValues(alpha: 0.8),
+                              size: 54,
+                            ),
+                          )
+                        : Image.asset(
+                            imagePath!,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
                           ),
-                        )
-                      : Image.asset(
-                          imagePath!,
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                ),
-                Positioned(
-                  top: 9,
-                  right: 9,
-                  child: CircleAvatar(
-                    radius: 13,
-                    backgroundColor: Colors.white.withValues(alpha: 0.9),
-                    child: const Icon(
-                      Icons.favorite_border,
-                      size: 16,
-                      color: AppColors.textSecondary,
+                  ),
+                  Positioned(
+                    top: 9,
+                    right: 9,
+                    child: CircleAvatar(
+                      radius: 13,
+                      backgroundColor: Colors.white.withValues(alpha: 0.9),
+                      child: const Icon(
+                        Icons.favorite_border,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '$sport   •   Colombo   •   $distance',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Color(0xFFF4A340), size: 15),
-                    const SizedBox(width: 3),
-                    Text(
-                      rating,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
                     ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 5,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '$sport   •   Colombo   •   $distance',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.star,
+                        color: Color(0xFFF4A340),
+                        size: 15,
                       ),
-                      decoration: BoxDecoration(
-                        color: AppColors.availableBg,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        '● Available today',
-                        style: TextStyle(
-                          color: AppColors.available,
-                          fontSize: 10,
+                      const SizedBox(width: 3),
+                      Text(
+                        rating,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.availableBg,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          '● Available today',
+                          style: TextStyle(
+                            color: AppColors.available,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

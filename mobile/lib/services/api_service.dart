@@ -12,8 +12,7 @@ class ApiService {
   static const String _emulatorUrl = 'http://10.0.2.2:5000/api';
   static String? _activeBaseUrl;
 
-  static String get baseUrl =>
-      _activeBaseUrl ?? (kIsWeb ? _webUrl : _wifiUrl);
+  static String get baseUrl => _activeBaseUrl ?? (kIsWeb ? _webUrl : _wifiUrl);
 
   static Future<Map<String, dynamic>> register({
     required String fullName,
@@ -44,6 +43,19 @@ class ApiService {
       body: json.encode({'email': email, 'password': password}),
     );
     return _decodeAuthResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> checkEmail(String email) async {
+    final response = await _get(
+      '/auth/check-email',
+      queryParams: {'email': email.trim().toLowerCase()},
+    );
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return body;
+    }
+
+    throw Exception(body['message'] ?? 'Unable to validate email');
   }
 
   static Map<String, dynamic> _decodeAuthResponse(http.Response response) {
@@ -80,12 +92,52 @@ class ApiService {
     }
   }
 
-  static final List<String> _candidates = [
-    _wifiUrl,
-    _usbUrl,
-    _altWifiUrl,
-    _emulatorUrl,
-  ];
+  static Future<void> syncGoogleProfile({
+    required String fullName,
+    required String role,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('You must be signed in to sync your profile.');
+    }
+
+    final token = await user.getIdToken();
+    final response = await _post(
+      '/users/profile',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({'fullName': fullName, 'role': role}),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Unable to save profile to MongoDB');
+    }
+  }
+
+  static Future<Map<String, dynamic>?> fetchUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('You must be signed in to fetch your profile.');
+    }
+
+    final token = await user.getIdToken();
+    final response = await _get(
+      '/users/profile',
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 404) return null;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Unable to load your profile');
+    }
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    return body['user'] as Map<String, dynamic>;
+  }
+
+  static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
   static Future<http.Response> _get(
     String path, {
@@ -253,7 +305,6 @@ class ApiService {
     }
   }
 
-
   static Future<List<Map<String, dynamic>>> fetchManagerSlots({
     String? date,
     String? courtName,
@@ -349,7 +400,12 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> bookSlot(String id, {String? paymentIntentId, String paymentMethod = 'card', String? slipFilePath}) async {
+  static Future<Map<String, dynamic>> bookSlot(
+    String id, {
+    String? paymentIntentId,
+    String paymentMethod = 'card',
+    String? slipFilePath,
+  }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       final token = user != null ? await user.getIdToken() : '';
@@ -359,20 +415,22 @@ class ApiService {
       };
 
       if (slipFilePath != null) {
-        var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/slots/$id/book'));
-        if (token != null && token.isNotEmpty) {
-          request.headers['Authorization'] = 'Bearer $token';
-        }
+        var request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$baseUrl/slots/$id/book'),
+        );
         request.fields['paymentMethod'] = paymentMethod;
         if (paymentIntentId != null) {
           request.fields['paymentIntentId'] = paymentIntentId;
         }
-        
-        request.files.add(await http.MultipartFile.fromPath('slip', slipFilePath));
-        
+
+        request.files.add(
+          await http.MultipartFile.fromPath('slip', slipFilePath),
+        );
+
         var streamedResponse = await request.send();
         var response = await http.Response.fromStream(streamedResponse);
-        
+
         if (response.statusCode == 200) {
           return json.decode(response.body);
         } else if (response.statusCode == 409) {
@@ -524,7 +582,8 @@ class ApiService {
         '/payments/create-intent',
         headers: {
           'Content-Type': 'application/json',
-          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: json.encode({'amount': amount.toInt(), 'currency': currency}),
       );
@@ -545,7 +604,8 @@ class ApiService {
       final response = await _get(
         '/bookings',
         headers: {
-          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       );
       if (response.statusCode == 200) {
@@ -578,7 +638,8 @@ class ApiService {
       final response = await _post(
         '/bookings/$bookingId/cancel',
         headers: {
-          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
       );
       return response.statusCode == 200;
@@ -598,7 +659,8 @@ class ApiService {
         '/bookings/$bookingId/reschedule',
         headers: {
           'Content-Type': 'application/json',
-          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
         },
         body: json.encode({'newSlotId': newSlotId}),
       );

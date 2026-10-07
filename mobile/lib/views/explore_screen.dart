@@ -1,0 +1,607 @@
+import 'package:flutter/material.dart';
+
+import '../utils/app_colors.dart';
+import '../widgets/app_bottom_nav.dart';
+import 'home_screen.dart';
+import 'my_bookings_screen.dart';
+import 'facility_profile_screen.dart';
+
+class ExploreScreen extends StatefulWidget {
+  const ExploreScreen({super.key});
+
+  @override
+  State<ExploreScreen> createState() => _ExploreScreenState();
+}
+
+class _ExploreScreenState extends State<ExploreScreen> {
+  final _searchController = TextEditingController();
+  String? _sport;
+  String? _location;
+  String? _price;
+
+  static const _facilities = [
+    _ExploreFacility(
+      'Colombo Cricket Grounds',
+      'Cricket',
+      '3.6 km',
+      '4.8',
+      1200,
+      Color(0xFF6B8E5B),
+      Icons.sports_cricket,
+    ),
+    _ExploreFacility(
+      'Lanka Cricket Academy',
+      'Cricket',
+      '5.4 km',
+      '4.6',
+      1800,
+      Color(0xFF4E7891),
+      Icons.sports_cricket,
+    ),
+    _ExploreFacility(
+      'Colombo Sports Hub',
+      'Basketball',
+      '2.5 km',
+      '4.8',
+      1500,
+      Color(0xFFC9A878),
+      Icons.sports_basketball,
+      imagePath: 'assets/bas.png',
+    ),
+    _ExploreFacility(
+      'City Sports Complex',
+      'Badminton',
+      '4.1 km',
+      '4.7',
+      2000,
+      Color(0xFF477D82),
+      Icons.sports_tennis,
+      imagePath: 'assets/badminton.png',
+    ),
+    _ExploreFacility(
+      'Elite Football Arena',
+      'Football',
+      '3.2 km',
+      '4.6',
+      1600,
+      Color(0xFF5E8C61),
+      Icons.sports_soccer,
+    ),
+    _ExploreFacility(
+      'Ace Tennis Club',
+      'Tennis',
+      '5.0 km',
+      '4.9',
+      2200,
+      Color(0xFFB77B64),
+      Icons.sports_tennis,
+    ),
+    _ExploreFacility(
+      'Aqua Life Centre',
+      'Swimming',
+      '6.3 km',
+      '4.5',
+      2500,
+      Color(0xFF4F91B5),
+      Icons.pool,
+    ),
+    _ExploreFacility(
+      'Riverside Badminton Hall',
+      'Badminton',
+      '3.8 km',
+      '4.4',
+      1400,
+      Color(0xFF806A9B),
+      Icons.sports_tennis,
+    ),
+    _ExploreFacility(
+      'Navy Basketball Court',
+      'Basketball',
+      '7.1 km',
+      '4.3',
+      1300,
+      Color(0xFF55718D),
+      Icons.sports_basketball,
+    ),
+  ];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _searchController.text.trim().toLowerCase();
+    final facilities = _facilities.where((facility) {
+      final searchable =
+          '${facility.name} ${facility.sport} Colombo ${facility.distance}'
+              .toLowerCase();
+      return (_sport == null || facility.sport == _sport) &&
+          (_location == null || _location == 'Colombo') &&
+          _matchesPrice(facility.price) &&
+          (query.isEmpty || searchable.contains(query));
+    }).toList();
+
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBackground,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          children: [
+            Row(
+              children: [
+                Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(
+                    side: BorderSide(color: AppColors.borderLight),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => Navigator.pop(context),
+                    customBorder: const CircleBorder(),
+                    child: const SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Icon(
+                        Icons.chevron_left_rounded,
+                        color: AppColors.textPrimary,
+                        size: 25,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Explore Facilities',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildSearchField(),
+            const SizedBox(height: 10),
+            _buildFilterChips(),
+            const SizedBox(height: 14),
+            Text(
+              '${facilities.length} facilities found near Colombo',
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (facilities.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 48),
+                child: Center(
+                  child: Text(
+                    'No facilities found',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+              )
+            else
+              ...facilities.map(
+                (facility) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _FacilityCard(
+                    facility: facility,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FacilityProfileScreen(
+                          name: facility.name,
+                          sport: facility.sport,
+                          distance: facility.distance,
+                          rating: facility.rating,
+                          price: facility.price,
+                          color: facility.color,
+                          icon: facility.icon,
+                          imagePath: facility.imagePath,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 1,
+        onItemSelected: (index) {
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  bool _matchesPrice(int price) {
+    if (_price == null) return true;
+    if (_price == 'Under Rs. 1,500') return price < 1500;
+    if (_price == 'Rs. 1,500 - 2,000') return price >= 1500 && price <= 2000;
+    return price > 2000;
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _searchController,
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        hintText: 'Search facilities',
+        hintStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 12,
+        ),
+        prefixIcon: const Icon(
+          Icons.search,
+          color: AppColors.textSecondary,
+          size: 18,
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 13),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.primaryTeal),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _FilterChip(
+            label: 'Filters',
+            icon: Icons.tune,
+            selected: _sport != null || _location != null || _price != null,
+            onTap: _showAllFilters,
+          ),
+          _FilterChip(
+            label: _sport ?? 'Sport',
+            selected: _sport != null,
+            onTap: () => _showOptions(
+              'Sport',
+              [
+                'Cricket',
+                'Badminton',
+                'Football',
+                'Basketball',
+                'Tennis',
+                'Swimming',
+              ],
+              _sport,
+              (value) => setState(() => _sport = value),
+            ),
+          ),
+          _FilterChip(
+            label: _location ?? 'Location',
+            selected: _location != null,
+            onTap: () => _showOptions(
+              'Location',
+              ['Colombo'],
+              _location,
+              (value) => setState(() => _location = value),
+            ),
+          ),
+          _FilterChip(
+            label: _price ?? 'Price',
+            selected: _price != null,
+            onTap: () => _showOptions(
+              'Price',
+              ['Under Rs. 1,500', 'Rs. 1,500 - 2,000', 'Above Rs. 2,000'],
+              _price,
+              (value) => setState(() => _price = value),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showOptions(
+    String title,
+    List<String> options,
+    String? selected,
+    ValueChanged<String?> onSelected,
+  ) async {
+    final value = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (context) =>
+          _OptionsSheet(title: title, options: options, selected: selected),
+    );
+    if (value == null && selected == null) return;
+    onSelected(value);
+  }
+
+  Future<void> _showAllFilters() async {
+    final clear = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: ListTile(
+          leading: const Icon(Icons.clear_all),
+          title: const Text('Clear all filters'),
+          onTap: () => Navigator.pop(context, true),
+        ),
+      ),
+    );
+    if (clear == true) {
+      setState(() {
+        _sport = null;
+        _location = null;
+        _price = null;
+      });
+    }
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.onTap,
+    this.icon,
+    this.selected = false,
+  });
+
+  final String label;
+  final IconData? icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.darkNavy : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected ? AppColors.darkNavy : AppColors.borderLight,
+            ),
+          ),
+          child: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 13,
+                  color: selected ? Colors.white : AppColors.darkNavy,
+                ),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : AppColors.textPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OptionsSheet extends StatelessWidget {
+  const _OptionsSheet({
+    required this.title,
+    required this.options,
+    required this.selected,
+  });
+
+  final String title;
+  final List<String> options;
+  final String? selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            ListTile(
+              title: const Text('All'),
+              trailing: selected == null
+                  ? const Icon(Icons.check, color: AppColors.primaryTeal)
+                  : null,
+              onTap: () => Navigator.pop(context, null),
+            ),
+            ...options.map(
+              (option) => ListTile(
+                title: Text(option),
+                trailing: selected == option
+                    ? const Icon(Icons.check, color: AppColors.primaryTeal)
+                    : null,
+                onTap: () => Navigator.pop(context, option),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FacilityCard extends StatelessWidget {
+  const _FacilityCard({required this.facility, required this.onTap});
+
+  final _ExploreFacility facility;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 126,
+              width: double.infinity,
+              child: facility.imagePath == null
+                  ? Container(
+                      color: facility.color,
+                      child: Center(
+                        child: Icon(
+                          facility.icon,
+                          color: Colors.white70,
+                          size: 58,
+                        ),
+                      ),
+                    )
+                  : Image.asset(facility.imagePath!, fit: BoxFit.cover),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          facility.name,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.star,
+                        color: Color(0xFFF4A340),
+                        size: 14,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        facility.rating,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${facility.sport}   •   Colombo   •   ${facility.distance}',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(
+                        'Rs. ${facility.price}/hr',
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.availableBg,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          '● Available today',
+                          style: TextStyle(
+                            color: AppColors.available,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExploreFacility {
+  const _ExploreFacility(
+    this.name,
+    this.sport,
+    this.distance,
+    this.rating,
+    this.price,
+    this.color,
+    this.icon, {
+    this.imagePath,
+  });
+
+  final String name;
+  final String sport;
+  final String distance;
+  final String rating;
+  final int price;
+  final Color color;
+  final IconData icon;
+  final String? imagePath;
+}

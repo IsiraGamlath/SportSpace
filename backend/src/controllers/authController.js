@@ -54,6 +54,7 @@ exports.register = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
+        isApproved: user.isApproved,
       },
     });
   } catch (error) {
@@ -76,7 +77,7 @@ exports.login = async (req, res) => {
     }
 
     const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+passwordHash');
-    const passwordMatches = user && await bcrypt.compare(password, user.passwordHash);
+    const passwordMatches = user && user.passwordHash && await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatches) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -88,6 +89,7 @@ exports.login = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
+        isApproved: user.isApproved,
       },
     });
   } catch (error) {
@@ -97,4 +99,18 @@ exports.login = async (req, res) => {
     console.error('Login failed:', error);
     res.status(500).json({ message: 'Unable to log in' });
   }
+};
+
+exports.checkEmail = async (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase();
+
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+
+  const user = await User.findOne({ email }).select('role');
+  return res.status(200).json({
+    exists: Boolean(user),
+    role: user?.role ?? null,
+  });
 };
