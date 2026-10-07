@@ -84,12 +84,13 @@ class ApiService {
   static Future<http.Response> _get(
     String path, {
     Map<String, String>? queryParams,
+    Map<String, String>? headers,
   }) async {
     try {
       final uri = Uri.parse(
         '$baseUrl$path',
       ).replace(queryParameters: queryParams);
-      return await http.get(uri).timeout(const Duration(milliseconds: 2500));
+      return await http.get(uri, headers: headers).timeout(const Duration(milliseconds: 2500));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -99,7 +100,7 @@ class ApiService {
           '$candidate$path',
         ).replace(queryParameters: queryParams);
         final res = await http
-            .get(uri)
+            .get(uri, headers: headers)
             .timeout(const Duration(milliseconds: 2500));
         _activeBaseUrl = candidate;
         return res;
@@ -342,8 +343,18 @@ class ApiService {
 
   static Future<Map<String, dynamic>> bookSlot(String id, {String? paymentIntentId, String paymentMethod = 'card', String? slipFilePath}) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
+      final headers = {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      };
+
       if (slipFilePath != null) {
         var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/slots/$id/book'));
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
         request.fields['paymentMethod'] = paymentMethod;
         if (paymentIntentId != null) {
           request.fields['paymentIntentId'] = paymentIntentId;
@@ -364,7 +375,7 @@ class ApiService {
       } else {
         final response = await http.post(
           Uri.parse('$baseUrl/slots/$id/book'),
-          headers: {'Content-Type': 'application/json'},
+          headers: headers,
           body: json.encode({
             'paymentIntentId': paymentIntentId,
             'paymentMethod': paymentMethod,
@@ -499,9 +510,14 @@ class ApiService {
     String currency,
   ) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
       final response = await _post(
         '/payments/create-intent',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
         body: json.encode({'amount': amount.toInt(), 'currency': currency}),
       );
       if (response.statusCode == 200) {
@@ -516,7 +532,14 @@ class ApiService {
 
   static Future<List<dynamic>> fetchBookings() async {
     try {
-      final response = await _get('/bookings');
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
+      final response = await _get(
+        '/bookings',
+        headers: {
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+      );
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -529,7 +552,14 @@ class ApiService {
 
   static Future<bool> cancelBooking(String bookingId) async {
     try {
-      final response = await _post('/bookings/$bookingId/cancel');
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
+      final response = await _post(
+        '/bookings/$bookingId/cancel',
+        headers: {
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+      );
       return response.statusCode == 200;
     } catch (e) {
       throw Exception('Error cancelling booking: $e');
@@ -541,9 +571,14 @@ class ApiService {
     String newSlotId,
   ) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
       final response = await _post(
         '/bookings/$bookingId/reschedule',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
         body: json.encode({'newSlotId': newSlotId}),
       );
       if (response.statusCode == 200) {
