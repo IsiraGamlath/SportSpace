@@ -13,9 +13,11 @@ class ManagerMainScreen extends StatefulWidget {
   const ManagerMainScreen({
     super.key,
     this.initialIndex = 0,
+    this.isApproved = false,
   });
 
   final int initialIndex;
+  final bool isApproved;
 
   @override
   State<ManagerMainScreen> createState() => _ManagerMainScreenState();
@@ -64,8 +66,9 @@ class _ManagerMainScreenState extends State<ManagerMainScreen> {
               ManagerDashboardScreen(
                 key: _dashboardKey,
                 onNavigateTab: _onTabSelected,
+                isApproved: widget.isApproved,
               ),
-              const ManagerScheduleScreen(),
+              ManagerScheduleScreen(isApproved: widget.isApproved),
               ManagerBookingDetailsScreen(
                 key: _bookingKey,
                 onBackTap: () => _onTabSelected(0),
