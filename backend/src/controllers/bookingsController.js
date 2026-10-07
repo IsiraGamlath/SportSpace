@@ -3,7 +3,7 @@ const Slot = require('../models/Slot');
 
 exports.getBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find().populate('slot').sort({ createdAt: -1 });
+    const bookings = await Booking.find({ userId: req.firebaseUser.uid }).populate('slot').sort({ createdAt: -1 });
     res.status(200).json(bookings);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching bookings' });
@@ -16,6 +16,7 @@ exports.createBooking = async (req, res) => {
     
     // Create new booking
     const newBooking = await Booking.create({
+      userId: req.firebaseUser.uid,
       slot: slotId,
       courtName: courtName || 'Badminton Court 1',
       paymentMethod: paymentMethod || 'card',

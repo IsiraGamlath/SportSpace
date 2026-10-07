@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const path = require("path");
+const adminRoutes = require("./routes/adminRoutes");
 require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 
 const app = express();
@@ -39,6 +40,10 @@ app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/payments", require("./routes/payments"));
 app.use("/api/maintenance", require("./routes/maintenance"));
 app.use("/api/payment-verifications", require("./routes/paymentVerifications"));
+
+// admin routes
+app.use("/api/admin", adminRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

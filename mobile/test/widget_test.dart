@@ -1,5 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/main.dart';
+import 'package:mobile/views/tertiary/home_view.dart';
+
 
 void main() {
   testWidgets('Launch screen opens onboarding screen', (
@@ -67,4 +70,24 @@ void main() {
     expect(find.text('Slot No Longer Available'), findsNothing);
     expect(find.text('7:30 PM – 8:30 PM'), findsOneWidget);
   });
+
+  testWidgets(
+    'Tertiary Home screen renders correctly smoke test',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: TertiaryHomeView(),
+        ),
+      );
+  
+      expect(find.textContaining('Good morning, Saantha'), findsOneWidget);
+      expect(find.text('Ready to play?'), findsOneWidget);
+      expect(
+        find.text('Search facilities, sports or locations'),
+        findsOneWidget,
+      );
+      expect(find.text('Popular Events'), findsOneWidget);
+      expect(find.text('Nearby & Recommended'), findsOneWidget);
+    },
+  );
 }
