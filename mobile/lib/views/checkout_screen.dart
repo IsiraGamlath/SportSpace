@@ -136,24 +136,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final result = await FilePicker.platform.pickFiles(
+                      final result = await FilePicker.pickFiles(
                         type: FileType.custom,
                         allowedExtensions: ['jpg', 'png', 'pdf'],
                       );
-                      if (result != null && result.files.isNotEmpty) {
-                        final file = result.files.first;
+                      if (result.isNotEmpty) {
+                        final file = result.first;
                         setState(() {
                           _selectedSlipPath = file.path;
                           _selectedSlipName = file.name;
                         });
                       }
                     },
-                    icon: Icon(_selectedSlipPath != null ? Icons.check_circle : Icons.upload_file),
+                    icon: Icon(
+                      _selectedSlipPath != null
+                          ? Icons.check_circle
+                          : Icons.upload_file,
+                    ),
                     label: Text(_selectedSlipName ?? 'Upload Transfer Slip'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: _selectedSlipPath != null ? AppColors.availableText : AppColors.primaryTeal),
-                      foregroundColor: _selectedSlipPath != null ? AppColors.availableText : AppColors.primaryTeal,
+                      side: BorderSide(
+                        color: _selectedSlipPath != null
+                            ? AppColors.availableText
+                            : AppColors.primaryTeal,
+                      ),
+                      foregroundColor: _selectedSlipPath != null
+                          ? AppColors.availableText
+                          : AppColors.primaryTeal,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -238,7 +248,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       return;
                     }
 
-                      try {
+                    try {
                       String? paymentIntentId;
                       String paymentMethod = 'card';
 
@@ -279,7 +289,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       } else if (_selectedPaymentMethod == 1) {
                         paymentMethod = 'bank';
                         if (_selectedSlipPath == null) {
-                          throw Exception('Please upload a bank transfer slip first.');
+                          throw Exception(
+                            'Please upload a bank transfer slip first.',
+                          );
                         }
                       } else if (_selectedPaymentMethod == 2) {
                         paymentMethod = 'wallet';
