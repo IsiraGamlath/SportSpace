@@ -7,12 +7,12 @@ import '../models/time_slot.dart';
 class ApiService {
   static const String _webUrl = 'http://localhost:5000/api';
   static const String _usbUrl = 'http://127.0.0.1:5000/api';
-  static const String _wifiUrl = 'http://192.168.8.100:5000/api';
+  static const String _wifiUrl = 'http://10.137.39.116:5000/api';
+  static const String _altWifiUrl = 'http://192.168.8.100:5000/api';
   static const String _emulatorUrl = 'http://10.0.2.2:5000/api';
   static String? _activeBaseUrl;
 
-  static String get baseUrl =>
-      _activeBaseUrl ?? (kIsWeb ? _webUrl : _emulatorUrl);
+  static String get baseUrl => _activeBaseUrl ?? (kIsWeb ? _webUrl : _wifiUrl);
 
   static Future<Map<String, dynamic>> register({
     required String fullName,
@@ -109,12 +109,15 @@ class ApiService {
   static Future<http.Response> _get(
     String path, {
     Map<String, String>? queryParams,
+    Map<String, String>? headers,
   }) async {
     try {
       final uri = Uri.parse(
         '$baseUrl$path',
       ).replace(queryParameters: queryParams);
-      return await http.get(uri).timeout(const Duration(milliseconds: 2500));
+      return await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(milliseconds: 7000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -124,8 +127,8 @@ class ApiService {
           '$candidate$path',
         ).replace(queryParameters: queryParams);
         final res = await http
-            .get(uri)
-            .timeout(const Duration(milliseconds: 2500));
+            .get(uri, headers: headers)
+            .timeout(const Duration(milliseconds: 6000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -141,7 +144,7 @@ class ApiService {
     try {
       return await http
           .post(Uri.parse('$baseUrl$path'), headers: headers, body: body)
-          .timeout(const Duration(milliseconds: 2500));
+          .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -149,7 +152,7 @@ class ApiService {
       try {
         final res = await http
             .post(Uri.parse('$candidate$path'), headers: headers, body: body)
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -165,7 +168,7 @@ class ApiService {
     try {
       return await http
           .put(Uri.parse('$baseUrl$path'), headers: headers, body: body)
-          .timeout(const Duration(milliseconds: 2500));
+          .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -173,7 +176,7 @@ class ApiService {
       try {
         final res = await http
             .put(Uri.parse('$candidate$path'), headers: headers, body: body)
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -189,7 +192,7 @@ class ApiService {
     try {
       return await http
           .patch(Uri.parse('$baseUrl$path'), headers: headers, body: body)
-          .timeout(const Duration(milliseconds: 2500));
+          .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -197,7 +200,7 @@ class ApiService {
       try {
         final res = await http
             .patch(Uri.parse('$candidate$path'), headers: headers, body: body)
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -212,7 +215,7 @@ class ApiService {
     try {
       return await http
           .delete(Uri.parse('$baseUrl$path'), headers: headers)
-          .timeout(const Duration(milliseconds: 2500));
+          .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -220,7 +223,7 @@ class ApiService {
       try {
         final res = await http
             .delete(Uri.parse('$candidate$path'), headers: headers)
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -371,6 +374,13 @@ class ApiService {
     String? slipFilePath,
   }) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
+      final headers = {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      };
+
       if (slipFilePath != null) {
         var request = http.MultipartRequest(
           'POST',
@@ -398,7 +408,7 @@ class ApiService {
       } else {
         final response = await http.post(
           Uri.parse('$baseUrl/slots/$id/book'),
-          headers: {'Content-Type': 'application/json'},
+          headers: headers,
           body: json.encode({
             'paymentIntentId': paymentIntentId,
             'paymentMethod': paymentMethod,
@@ -533,9 +543,15 @@ class ApiService {
     String currency,
   ) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
       final response = await _post(
         '/payments/create-intent',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
         body: json.encode({'amount': amount.toInt(), 'currency': currency}),
       );
       if (response.statusCode == 200) {
@@ -550,7 +566,15 @@ class ApiService {
 
   static Future<List<dynamic>> fetchBookings() async {
     try {
-      final response = await _get('/bookings');
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
+      final response = await _get(
+        '/bookings',
+        headers: {
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      );
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -561,9 +585,30 @@ class ApiService {
     }
   }
 
+  static Future<List<dynamic>> fetchAllBookings() async {
+    try {
+      final response = await _get('/bookings/all');
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching all bookings: $e');
+      return [];
+    }
+  }
+
   static Future<bool> cancelBooking(String bookingId) async {
     try {
-      final response = await _post('/bookings/$bookingId/cancel');
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
+      final response = await _post(
+        '/bookings/$bookingId/cancel',
+        headers: {
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      );
       return response.statusCode == 200;
     } catch (e) {
       throw Exception('Error cancelling booking: $e');
@@ -575,9 +620,15 @@ class ApiService {
     String newSlotId,
   ) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final token = user != null ? await user.getIdToken() : '';
       final response = await _post(
         '/bookings/$bookingId/reschedule',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
         body: json.encode({'newSlotId': newSlotId}),
       );
       if (response.statusCode == 200) {

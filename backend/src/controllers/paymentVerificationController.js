@@ -1,34 +1,81 @@
 const PaymentVerification = require('../models/PaymentVerification');
 const Booking = require('../models/Booking');
+const Slot = require('../models/Slot');
+const User = require('../models/User');
 
 // Helper to format output
 const formatVerification = (doc) => {
   const obj = doc.toObject ? doc.toObject() : { ...doc };
   obj.id = obj._id.toString();
+  if (obj.bookingRef && obj.bookingRef.slot) {
+    obj.slotDate = obj.bookingRef.slot.date || obj.slotDate || 'Tomorrow';
+    obj.slotTime =
+      obj.bookingRef.slot.durationRange ||
+      obj.bookingRef.slot.time ||
+      obj.slotTime ||
+      '6:00 PM – 7:00 PM';
+  }
   return obj;
 };
 
-// Seed sample payment verification record (SS-20481 from Figma design)
+// Helper to resolve player details from actual registered users
+const getPlayerDetails = async (booking, index = 0) => {
+  if (booking && booking.user) {
+    const u = await User.findById(booking.user);
+    if (u) {
+      return {
+        playerName: u.fullName || u.name || 'Player',
+        playerEmail: u.email || '',
+        playerPhone: '077 ' + Math.floor(1000000 + Math.random() * 9000000).toString().substring(0, 7),
+      };
+    }
+  }
+
+  // Use registered Player users from DB
+  const players = await User.find({ role: 'Player' });
+  if (players && players.length > 0) {
+    const seed = booking && booking.bookingId
+      ? (parseInt(booking.bookingId.replace(/\D/g, ''), 10) || index)
+      : index;
+    const player = players[seed % players.length];
+    const phones = [
+      '077 345 6789',
+      '071 889 2341',
+      '076 554 1234',
+      '070 234 5678',
+      '078 456 7890',
+      '075 123 4567',
+      '072 345 6789',
+      '077 987 6543',
+    ];
+    return {
+      playerName: player.fullName || 'Player',
+      playerEmail: player.email || '',
+      playerPhone: phones[seed % phones.length],
+    };
+  }
+
+  return {
+    playerName: 'Pavan Rathnayake',
+    playerEmail: 'pavanrathnakaye@gmail.com',
+    playerPhone: '077 345 6789',
+  };
+};
+
+// Seed / clean payment verification records to use real registered users
 exports.seedPaymentVerifications = async () => {
   try {
-    const count = await PaymentVerification.countDocuments();
-    if (count === 0) {
-      // Find matching booking if any exists
-      const booking = await Booking.findOne({ bookingId: 'SS-20481' });
-
-      await PaymentVerification.create({
-        bookingId: 'SS-20481',
-        bookingRef: booking ? booking._id : null,
-        courtName: 'Badminton Court 1',
-        playerName: 'Kasun Perera',
-        playerPhone: '077 123 4567',
-        playerEmail: 'kasun.p@email.com',
-        amount: 2500,
-        paymentMethod: 'card',
-        paymentRef: 'PMT-88213',
-        paymentStatus: 'pending',
-      });
-      console.log('Seeded sample PaymentVerification record (SS-20481)');
+    const kasunRecords = await PaymentVerification.find({ playerName: 'Kasun Perera' });
+    const players = await User.find({ role: 'Player' });
+    for (let i = 0; i < kasunRecords.length; i++) {
+      const rec = kasunRecords[i];
+      const p = (players && players.length > 0)
+        ? players[i % players.length]
+        : { fullName: 'Pavan Rathnayake', email: 'pavanrathnakaye@gmail.com' };
+      rec.playerName = p.fullName || 'Pavan Rathnayake';
+      rec.playerEmail = p.email || 'pavanrathnakaye@gmail.com';
+      rec.playerPhone = `077 ${Math.floor(100 + i * 23)} ${Math.floor(1000 + i * 137)}`;
+      await rec.save();
     }
   } catch (err) {
     console.error('Error seeding payment verifications:', err);
@@ -39,17 +86,141 @@ exports.seedPaymentVerifications = async () => {
 const findVerification = async (idOrBookingId) => {
   let doc = null;
   if (/^[0-9a-fA-F]{24}$/.test(idOrBookingId)) {
-    doc = await PaymentVerification.findById(idOrBookingId);
+    doc = await PaymentVerification.findById(idOrBookingId).populate({
+      path: 'bookingRef',
+      populate: { path: 'slot' },
+    });
   }
   if (!doc) {
-    doc = await PaymentVerification.findOne({ bookingId: idOrBookingId });
+    doc = await PaymentVerification.findOne({ bookingId: idOrBookingId }).populate({
+      path: 'bookingRef',
+      populate: { path: 'slot' },
+    });
   }
   return doc;
+};
+
+// Sync real bookings into PaymentVerification records using registered players
+let lastSyncTime = 0;
+const syncBookingsWithPaymentVerifications = async (force = false) => {
+  const now = Date.now();
+  if (!force && now - lastSyncTime < 30000) {
+    return;
+  }
+  lastSyncTime = now;
+
+  try {
+    const [bookings, existingPvs, players] = await Promise.all([
+      Booking.find().populate('slot'),
+      PaymentVerification.find(),
+      User.find({ role: 'Player' }),
+    ]);
+
+    const pvMap = new Map(existingPvs.map((p) => [p.bookingId, p]));
+    const saves = [];
+
+    for (let i = 0; i < bookings.length; i++) {
+      const b = bookings[i];
+      if (!b.bookingId) continue;
+      let pv = pvMap.get(b.bookingId);
+
+      const isPending =
+        b.status === 'pending_verification' ||
+        (b.paymentMethod === 'bank' && b.status !== 'confirmed');
+      const isCancelled = b.status === 'cancelled';
+      const isVerified = b.status === 'confirmed';
+
+      const pStatus = isPending
+        ? 'pending'
+        : isVerified
+        ? 'verified'
+        : isCancelled
+        ? 'unpaid'
+        : 'pending';
+      const slotPrice = b.slot && b.slot.price ? b.slot.price : 2500;
+      const cName =
+        b.courtName || (b.slot && b.slot.courtName) || 'Badminton Court 1';
+      const sDate = (b.slot && b.slot.date) || 'Tomorrow';
+      const sTime = (b.slot && (b.slot.durationRange || b.slot.time)) || '6:00 PM – 7:00 PM';
+
+      if (!pv) {
+        const playerInfo = await getPlayerDetails(b, i);
+        saves.push(
+          PaymentVerification.create({
+            bookingId: b.bookingId,
+            bookingRef: b._id,
+            courtName: cName,
+            facilityName: 'Colombo Sports Centre',
+            slotDate: sDate,
+            slotTime: sTime,
+            playerName: playerInfo.playerName,
+            playerPhone: playerInfo.playerPhone,
+            playerEmail: playerInfo.playerEmail,
+            amount: slotPrice,
+            paymentMethod: b.paymentMethod || 'card',
+            paymentRef:
+              b.paymentIntentId ||
+              `PMT-${
+                b.bookingId.replace(/\D/g, '') ||
+                Math.floor(10000 + Math.random() * 90000)
+              }`,
+            paymentStatus: pStatus,
+            slipUrl: b.slipUrl || null,
+          })
+        );
+      } else {
+        let changed = false;
+        if (pv.playerName === 'Kasun Perera') {
+          const playerInfo = await getPlayerDetails(b, i);
+          pv.playerName = playerInfo.playerName;
+          pv.playerEmail = playerInfo.playerEmail;
+          pv.playerPhone = playerInfo.playerPhone;
+          changed = true;
+        }
+        if (b.slipUrl && pv.slipUrl !== b.slipUrl) {
+          pv.slipUrl = b.slipUrl;
+          changed = true;
+        }
+        if (!pv.bookingRef) {
+          pv.bookingRef = b._id;
+          changed = true;
+        }
+        if (!pv.slotDate || pv.slotDate !== sDate) {
+          pv.slotDate = sDate;
+          changed = true;
+        }
+        if (!pv.slotTime || pv.slotTime !== sTime) {
+          pv.slotTime = sTime;
+          changed = true;
+        }
+        if (!pv.facilityName) {
+          pv.facilityName = 'Colombo Sports Centre';
+          changed = true;
+        }
+        if (
+          pv.paymentStatus !== pStatus &&
+          (b.status === 'pending_verification' || b.status === 'cancelled')
+        ) {
+          pv.paymentStatus = pStatus;
+          changed = true;
+        }
+        if (changed) {
+          saves.push(pv.save());
+        }
+      }
+    }
+    if (saves.length > 0) {
+      await Promise.all(saves);
+    }
+  } catch (err) {
+    console.error('Error syncing bookings with payment verifications:', err);
+  }
 };
 
 // GET /api/payment-verifications
 exports.getPaymentVerifications = async (req, res) => {
   try {
+    await syncBookingsWithPaymentVerifications();
     const { paymentStatus, courtName, bookingId } = req.query;
     const query = {};
 
@@ -73,21 +244,28 @@ exports.getVerificationStatus = async (req, res) => {
     const { id } = req.params;
     let doc = await findVerification(id);
 
-    // If not found yet, check if there's a booking with this bookingId and create initial record
+    // If not found yet, sync with bookings and retry
+    if (!doc) {
+      await syncBookingsWithPaymentVerifications();
+      doc = await findVerification(id);
+    }
+
     if (!doc) {
       const booking = await Booking.findOne({ bookingId: id });
       if (booking) {
+        const playerInfo = await getPlayerDetails(booking);
         doc = await PaymentVerification.create({
           bookingId: booking.bookingId,
           bookingRef: booking._id,
           courtName: booking.courtName || 'Badminton Court 1',
-          playerName: 'Kasun Perera',
-          playerPhone: '077 123 4567',
-          playerEmail: 'kasun.p@email.com',
+          playerName: playerInfo.playerName,
+          playerPhone: playerInfo.playerPhone,
+          playerEmail: playerInfo.playerEmail,
           amount: 2500,
           paymentMethod: booking.paymentMethod || 'card',
           paymentRef: `PMT-${Math.floor(10000 + Math.random() * 90000)}`,
-          paymentStatus: 'pending',
+          paymentStatus: booking.status === 'pending_verification' ? 'pending' : (booking.status === 'confirmed' ? 'verified' : 'pending'),
+          slipUrl: booking.slipUrl || null,
         });
       }
     }
@@ -114,10 +292,13 @@ exports.verifyPayment = async (req, res) => {
     let doc = await findVerification(id);
 
     if (!doc) {
-      // Auto-create verification record for this booking if not yet created
+      const booking = await Booking.findOne({ bookingId: id });
       doc = await PaymentVerification.create({
         bookingId: id,
-        courtName: 'Badminton Court 1',
+        bookingRef: booking ? booking._id : null,
+        courtName: booking ? booking.courtName : 'Badminton Court 1',
+        paymentMethod: booking ? booking.paymentMethod : 'card',
+        slipUrl: booking ? booking.slipUrl : null,
         paymentStatus: 'pending',
       });
     }
@@ -127,11 +308,42 @@ exports.verifyPayment = async (req, res) => {
     doc.verifiedBy = verifiedBy;
     doc.verificationNotes = notes || 'Payment verified by Manager';
 
-    await doc.save();
+    const bookingIdToMatch = doc.bookingId;
+    const bookingRefToMatch = doc.bookingRef && doc.bookingRef._id ? doc.bookingRef._id : doc.bookingRef;
+    let slotIdToUpdate = null;
+    if (doc.bookingRef && doc.bookingRef.slot) {
+      slotIdToUpdate = doc.bookingRef.slot._id || doc.bookingRef.slot;
+    }
+
+    const tasks = [doc.save()];
+
+    if (bookingIdToMatch || bookingRefToMatch) {
+      const bFilter = [];
+      if (bookingIdToMatch) bFilter.push({ bookingId: bookingIdToMatch });
+      if (bookingRefToMatch) bFilter.push({ _id: bookingRefToMatch });
+      tasks.push(
+        Booking.findOneAndUpdate(
+          { $or: bFilter },
+          { $set: { status: 'confirmed' } },
+          { new: true }
+        ).exec()
+      );
+    }
+
+    if (slotIdToUpdate) {
+      tasks.push(Slot.updateOne({ _id: slotIdToUpdate }, { $set: { status: 'booked' } }).exec());
+    }
+
+    const [savedDoc, updatedBooking] = await Promise.all(tasks);
+
+    if (!slotIdToUpdate && updatedBooking && updatedBooking.slot) {
+      Slot.updateOne({ _id: updatedBooking.slot }, { $set: { status: 'booked' } }).exec().catch(() => {});
+    }
 
     res.status(200).json({
       message: 'Payment Confirmed! Booking status updated to Paid.',
-      verification: formatVerification(doc),
+      verification: formatVerification(savedDoc || doc),
+      booking: updatedBooking || doc.bookingRef,
     });
   } catch (error) {
     res.status(500).json({
@@ -150,9 +362,13 @@ exports.markPaymentUnpaid = async (req, res) => {
     let doc = await findVerification(id);
 
     if (!doc) {
+      const booking = await Booking.findOne({ bookingId: id });
       doc = await PaymentVerification.create({
         bookingId: id,
-        courtName: 'Badminton Court 1',
+        bookingRef: booking ? booking._id : null,
+        courtName: booking ? booking.courtName : 'Badminton Court 1',
+        paymentMethod: booking ? booking.paymentMethod : 'card',
+        slipUrl: booking ? booking.slipUrl : null,
         paymentStatus: 'pending',
       });
     }
@@ -162,11 +378,42 @@ exports.markPaymentUnpaid = async (req, res) => {
     doc.verifiedBy = verifiedBy;
     doc.verificationNotes = notes || 'Marked as unpaid by Manager';
 
-    await doc.save();
+    const bookingIdToMatch = doc.bookingId;
+    const bookingRefToMatch = doc.bookingRef && doc.bookingRef._id ? doc.bookingRef._id : doc.bookingRef;
+    let slotIdToUpdate = null;
+    if (doc.bookingRef && doc.bookingRef.slot) {
+      slotIdToUpdate = doc.bookingRef.slot._id || doc.bookingRef.slot;
+    }
+
+    const tasks = [doc.save()];
+
+    if (bookingIdToMatch || bookingRefToMatch) {
+      const bFilter = [];
+      if (bookingIdToMatch) bFilter.push({ bookingId: bookingIdToMatch });
+      if (bookingRefToMatch) bFilter.push({ _id: bookingRefToMatch });
+      tasks.push(
+        Booking.findOneAndUpdate(
+          { $or: bFilter },
+          { $set: { status: 'cancelled' } },
+          { new: true }
+        ).exec()
+      );
+    }
+
+    if (slotIdToUpdate) {
+      tasks.push(Slot.updateOne({ _id: slotIdToUpdate }, { $set: { status: 'available' } }).exec());
+    }
+
+    const [savedDoc, updatedBooking] = await Promise.all(tasks);
+
+    if (!slotIdToUpdate && updatedBooking && updatedBooking.slot) {
+      Slot.updateOne({ _id: updatedBooking.slot }, { $set: { status: 'available' } }).exec().catch(() => {});
+    }
 
     res.status(200).json({
       message: 'Booking payment marked as Unpaid.',
-      verification: formatVerification(doc),
+      verification: formatVerification(savedDoc || doc),
+      booking: updatedBooking || doc.bookingRef,
     });
   } catch (error) {
     res.status(500).json({
@@ -183,12 +430,12 @@ exports.createPaymentVerification = async (req, res) => {
       bookingId,
       bookingRef,
       courtName = 'Badminton Court 1',
-      playerName = 'Kasun Perera',
-      playerPhone = '077 123 4567',
-      playerEmail = 'kasun.p@email.com',
+      playerName,
+      playerPhone,
+      playerEmail,
       amount = 2500,
       paymentMethod = 'card',
-      paymentRef = 'PMT-88213',
+      paymentRef,
       paymentStatus = 'pending',
       notes,
     } = req.body;
@@ -197,16 +444,18 @@ exports.createPaymentVerification = async (req, res) => {
       return res.status(400).json({ message: 'bookingId is required' });
     }
 
+    const defaultPlayer = await getPlayerDetails({ bookingId });
+
     const doc = await PaymentVerification.create({
       bookingId,
       bookingRef,
       courtName,
-      playerName,
-      playerPhone,
-      playerEmail,
+      playerName: playerName || defaultPlayer.playerName,
+      playerPhone: playerPhone || defaultPlayer.playerPhone,
+      playerEmail: playerEmail || defaultPlayer.playerEmail,
       amount,
       paymentMethod,
-      paymentRef,
+      paymentRef: paymentRef || `PMT-${Math.floor(10000 + Math.random() * 90000)}`,
       paymentStatus,
       verificationNotes: notes,
     });

@@ -13,9 +13,11 @@ class ManagerMainScreen extends StatefulWidget {
   const ManagerMainScreen({
     super.key,
     this.initialIndex = 0,
+    this.isApproved = false,
   });
 
   final int initialIndex;
+  final bool isApproved;
 
   @override
   State<ManagerMainScreen> createState() => _ManagerMainScreenState();
@@ -23,6 +25,8 @@ class ManagerMainScreen extends StatefulWidget {
 
 class _ManagerMainScreenState extends State<ManagerMainScreen> {
   late int _currentIndex;
+  final GlobalKey<ManagerDashboardScreenState> _dashboardKey = GlobalKey();
+  final GlobalKey<ManagerBookingDetailsScreenState> _bookingKey = GlobalKey();
 
   @override
   void initState() {
@@ -34,6 +38,11 @@ class _ManagerMainScreenState extends State<ManagerMainScreen> {
     setState(() {
       _currentIndex = index;
     });
+    if (index == 0) {
+      _dashboardKey.currentState?.reload();
+    } else if (index == 2) {
+      _bookingKey.currentState?.reload();
+    }
   }
 
   @override
@@ -54,9 +63,16 @@ class _ManagerMainScreenState extends State<ManagerMainScreen> {
           child: IndexedStack(
             index: _currentIndex,
             children: [
-              ManagerDashboardScreen(onNavigateTab: _onTabSelected),
-              const ManagerScheduleScreen(),
-              const ManagerBookingDetailsScreen(),
+              ManagerDashboardScreen(
+                key: _dashboardKey,
+                onNavigateTab: _onTabSelected,
+                isApproved: widget.isApproved,
+              ),
+              ManagerScheduleScreen(isApproved: widget.isApproved),
+              ManagerBookingDetailsScreen(
+                key: _bookingKey,
+                onBackTap: () => _onTabSelected(0),
+              ),
               const ManagerMaintenanceScreen(),
               const ManagerProfileScreen(),
             ],

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
   courtName: { type: String, required: true },
   slot: { type: mongoose.Schema.Types.ObjectId, ref: 'Slot', required: true },
   status: { type: String, enum: ['confirmed', 'cancelled', 'rescheduled', 'pending_verification'], default: 'confirmed' },

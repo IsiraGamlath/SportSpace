@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/api_service.dart';
 import '../../theme/manager_colors.dart';
@@ -43,13 +44,19 @@ class _ManagerLoginScreenState extends State<ManagerLoginScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final res = await ApiService.login(email: email, password: password);
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final res = await ApiService.fetchUserProfile();
       final user = res['user'] as Map<String, dynamic>?;
       final role = user?['role']?.toString();
 
       if (role != 'Facility Manager') {
         if (!mounted) return;
         setState(() => _isLoading = false);
+        await FirebaseAuth.instance.signOut();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -61,13 +68,32 @@ class _ManagerLoginScreenState extends State<ManagerLoginScreen> {
         return;
       }
 
+      final bool isApproved = user?['isApproved'] ?? false;
+
       if (!mounted) return;
       setState(() => _isLoading = false);
 
       // Navigate to Manager Dashboard
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => const ManagerMainScreen(),
+          builder: (_) => ManagerMainScreen(isApproved: isApproved),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      
+      String errStr = 'Login failed';
+      if (e.code == 'invalid-credential' || e.code == 'user-not-found' || e.code == 'wrong-password') {
+        errStr = 'Invalid email or password.';
+      } else {
+        errStr = e.message ?? errStr;
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errStr),
+          backgroundColor: Colors.redAccent,
         ),
       );
     } catch (e) {
