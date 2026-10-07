@@ -197,7 +197,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       'Payments are simulated for this prototype and are secured & encrypted.',
                       style: TextStyle(
                         fontSize: 12.5,
-                        color: AppColors.textSecondary.withOpacity(0.8),
+                        color: AppColors.textSecondary.withValues(alpha: 0.8),
                         height: 1.4,
                       ),
                     ),
@@ -213,7 +213,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border(
-            top: BorderSide(color: AppColors.borderLight.withOpacity(0.6)),
+            top: BorderSide(
+              color: AppColors.borderLight.withValues(alpha: 0.6),
+            ),
           ),
         ),
         child: SizedBox(
@@ -230,7 +232,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       await Future.delayed(
                         const Duration(milliseconds: 800),
                       ); // fake delay
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       setState(() => _isProcessing = false);
 
                       // Push Conflict Screen
@@ -254,7 +256,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                       if (_selectedPaymentMethod == 0) {
                         if (kIsWeb) {
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           setState(() => _isProcessing = false);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -303,7 +305,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         paymentMethod: paymentMethod,
                         slipFilePath: _selectedSlipPath,
                       );
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       setState(() => _isProcessing = false);
 
                       if (_selectedPaymentMethod == 1) {
@@ -328,7 +330,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         );
                       }
                     } catch (e) {
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       setState(() => _isProcessing = false);
 
                       if (e.toString().contains('conflict')) {
@@ -371,7 +373,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   )
                 : const Text(
                     'Proceed to Pay',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -403,10 +405,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight.withOpacity(0.6)),
+        border: Border.all(color: AppColors.borderLight.withValues(alpha: 0.6)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -536,7 +538,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         hintText: hintText,
         hintStyle: TextStyle(
           fontSize: 15,
-          color: AppColors.textSecondary.withOpacity(0.5),
+          color: AppColors.textSecondary.withValues(alpha: 0.5),
         ),
         filled: true,
         fillColor: Colors.white,

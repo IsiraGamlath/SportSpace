@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import 'google_role_selecter_screen.dart';
 import 'home_screen.dart';
+import 'manager/manager_main_screen.dart';
 import 'registration_screen.dart';
+import 'tertiary/home_view.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,9 +49,28 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (!mounted) return;
+    final profile = await _loadProfile();
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => _destinationForRole(profile?['role'] as String?),
+      ),
     );
+  }
+
+  Future<Map<String, dynamic>?> _loadProfile() async {
+    return ApiService.fetchUserProfile();
+  }
+
+  Widget _destinationForRole(String? role) {
+    switch (role) {
+      case 'Facility Manager':
+        return const ManagerMainScreen();
+      case 'Community / Public User':
+        return const TertiaryHomeView();
+      default:
+        return const HomeScreen();
+    }
   }
 
   String _loginErrorMessage(FirebaseAuthException error) {

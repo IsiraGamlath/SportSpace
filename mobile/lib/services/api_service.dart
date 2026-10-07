@@ -150,11 +150,7 @@ class ApiService {
       ).replace(queryParameters: queryParams);
       return await http
           .get(uri, headers: headers)
-<<<<<<< Updated upstream
           .timeout(const Duration(milliseconds: 7000));
-=======
-          .timeout(const Duration(milliseconds: 2500));
->>>>>>> Stashed changes
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -165,11 +161,7 @@ class ApiService {
         ).replace(queryParameters: queryParams);
         final res = await http
             .get(uri, headers: headers)
-<<<<<<< Updated upstream
             .timeout(const Duration(milliseconds: 6000));
-=======
-            .timeout(const Duration(milliseconds: 2500));
->>>>>>> Stashed changes
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}

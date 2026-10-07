@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import 'home_screen.dart';
 import 'manager/manager_main_screen.dart';
+import 'tertiary/home_view.dart';
 
 class GoogleRoleSelecterScreen extends StatefulWidget {
   const GoogleRoleSelecterScreen({super.key});
@@ -105,9 +106,14 @@ class _GoogleRoleSelecterScreenState extends State<GoogleRoleSelecterScreen> {
   }
 
   Widget _destinationForRole(String role) {
-    return role == 'Facility Manager'
-        ? const ManagerMainScreen()
-        : const HomeScreen();
+    switch (role) {
+      case 'Facility Manager':
+        return const ManagerMainScreen();
+      case 'Community / Public User':
+        return const TertiaryHomeView();
+      default:
+        return const HomeScreen();
+    }
   }
 
   void _showSignInError(String message) {

@@ -43,10 +43,6 @@ async function syncProfile(req, res) {
 
 async function getProfile(req, res) {
   const email = (req.firebaseUser.email || '').trim().toLowerCase();
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
   const user = await User.findOne({
     $or: [{ firebaseUid: req.firebaseUser.uid }, { email }],
   });
@@ -62,16 +58,9 @@ async function getProfile(req, res) {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
-<<<<<<< Updated upstream
       isApproved: user.isApproved,
-=======
->>>>>>> Stashed changes
     },
   });
 }
 
-<<<<<<< Updated upstream
 module.exports = { syncProfile, getProfile };
-=======
-module.exports = { getProfile, syncProfile };
->>>>>>> Stashed changes
