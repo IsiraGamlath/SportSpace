@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
 import '../models/review.dart';
+import '../models/facility.dart';
 
 class ApiService {
   static const String _webUrl = 'http://localhost:5000/api';
@@ -304,6 +305,17 @@ class ApiService {
     } catch (e) {
       throw Exception('Error fetching slots: $e');
     }
+  }
+
+  static Future<List<Facility>> fetchFacilities() async {
+    final response = await _get('/slots/facilities/list');
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load facilities');
+    }
+    final data = json.decode(response.body) as List<dynamic>;
+    return data
+        .map((item) => Facility.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   static Future<List<Map<String, dynamic>>> fetchManagerSlots({
@@ -648,7 +660,8 @@ class ApiService {
       '/reviews',
       headers: {
         'Content-Type': 'application/json',
-        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (token != null && token.isNotEmpty)
+          'Authorization': 'Bearer ' + token,
       },
       body: json.encode({
         'facilityName': facilityName,
@@ -673,7 +686,8 @@ class ApiService {
       '/reviews/$reviewId',
       headers: {
         'Content-Type': 'application/json',
-        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (token != null && token.isNotEmpty)
+          'Authorization': 'Bearer ' + token,
       },
       body: json.encode({'rating': rating, 'comment': comment}),
     );
@@ -689,7 +703,8 @@ class ApiService {
     final response = await _delete(
       '/reviews/$reviewId',
       headers: {
-        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (token != null && token.isNotEmpty)
+          'Authorization': 'Bearer ' + token,
       },
     );
     if (response.statusCode != 204) {
