@@ -10,6 +10,15 @@ exports.getBookings = async (req, res) => {
   }
 };
 
+exports.getAllBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find().populate('slot').sort({ createdAt: -1 });
+    res.status(200).json(bookings);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching all bookings', error: error.message });
+  }
+};
+
 exports.createBooking = async (req, res) => {
   try {
     const { slotId, courtName, paymentMethod, paymentIntentId } = req.body;
