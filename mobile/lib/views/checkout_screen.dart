@@ -5,7 +5,7 @@ import '../models/time_slot.dart';
 import '../utils/app_colors.dart';
 
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:file_picker/file_picker.dart';
+
 import '../services/api_service.dart';
 import 'booking_confirmation_screen.dart';
 import 'booking_pending_screen.dart';
@@ -135,31 +135,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final result = await FilePicker.platform.pickFiles(
-                        type: FileType.custom,
-                        allowedExtensions: ['jpg', 'png', 'pdf'],
-                      );
-                      if (result != null && result.files.isNotEmpty) {
-                        final file = result.files.first;
-                        setState(() {
-                          _selectedSlipPath = file.path;
-                          _selectedSlipName = file.name;
-                        });
-                      }
-                    },
-                    icon: Icon(_selectedSlipPath != null ? Icons.check_circle : Icons.upload_file),
-                    label: Text(_selectedSlipName ?? 'Upload Transfer Slip'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: _selectedSlipPath != null ? AppColors.availableText : AppColors.primaryTeal),
-                      foregroundColor: _selectedSlipPath != null ? AppColors.availableText : AppColors.primaryTeal,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
+                           onPressed: () {
+                             if (kIsWeb) {
+                               ScaffoldMessenger.of(context).showSnackBar(
+                                 const SnackBar(
+                                   content: Text(
+                                     'Bank transfer slip upload is available in the mobile app.',
+                                   ),
+                                 ),
+                               );
+                               return;
+                             }
+                         
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               const SnackBar(
+                                 content: Text(
+                                   'Please use the mobile app to upload your transfer slip.',
+                                 ),
+                               ),
+                             );
+                           },
+                           icon: Icon(
+                             _selectedSlipPath != null
+                                 ? Icons.check_circle
+                                 : Icons.upload_file,
+                           ),
+                           label: Text(
+                             _selectedSlipName ?? 'Upload Transfer Slip',
+                           ),
+                           style: OutlinedButton.styleFrom(
+                             padding: const EdgeInsets.symmetric(vertical: 16),
+                             side: BorderSide(
+                               color: _selectedSlipPath != null
+                                   ? AppColors.availableText
+                                   : AppColors.primaryTeal,
+                             ),
+                             foregroundColor: _selectedSlipPath != null
+                                 ? AppColors.availableText
+                                 : AppColors.primaryTeal,
+                             shape: RoundedRectangleBorder(
+                               borderRadius: BorderRadius.circular(12),
+                             ),
+                           ),
+                         ),
+                )
               ] else if (_selectedPaymentMethod == 2) ...[
                 _buildSectionTitle('Mobile Wallet Details'),
                 const SizedBox(height: 12),
