@@ -79,6 +79,31 @@ class ApiService {
     }
   }
 
+  static Future<void> syncGoogleProfile({
+    required String fullName,
+    required String role,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('You must be signed in to sync your profile.');
+    }
+
+    final token = await user.getIdToken();
+    final response = await _post(
+      '/users/profile',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({'fullName': fullName, 'role': role}),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Unable to save profile to MongoDB');
+    }
+  }
+
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
   static Future<http.Response> _get(
@@ -244,7 +269,6 @@ class ApiService {
     }
   }
 
-
   static Future<List<Map<String, dynamic>>> fetchManagerSlots({
     String? date,
     String? courtName,
@@ -340,20 +364,30 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> bookSlot(String id, {String? paymentIntentId, String paymentMethod = 'card', String? slipFilePath}) async {
+  static Future<Map<String, dynamic>> bookSlot(
+    String id, {
+    String? paymentIntentId,
+    String paymentMethod = 'card',
+    String? slipFilePath,
+  }) async {
     try {
       if (slipFilePath != null) {
-        var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/slots/$id/book'));
+        var request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$baseUrl/slots/$id/book'),
+        );
         request.fields['paymentMethod'] = paymentMethod;
         if (paymentIntentId != null) {
           request.fields['paymentIntentId'] = paymentIntentId;
         }
-        
-        request.files.add(await http.MultipartFile.fromPath('slip', slipFilePath));
-        
+
+        request.files.add(
+          await http.MultipartFile.fromPath('slip', slipFilePath),
+        );
+
         var streamedResponse = await request.send();
         var response = await http.Response.fromStream(streamedResponse);
-        
+
         if (response.statusCode == 200) {
           return json.decode(response.body);
         } else if (response.statusCode == 409) {
