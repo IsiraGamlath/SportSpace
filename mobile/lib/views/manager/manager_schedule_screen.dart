@@ -19,10 +19,21 @@ class ManagerScheduleScreen extends StatefulWidget {
 }
 
 class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
-  bool _daySelected = true;
+  bool _isWeekView = false;
+  int _selectedDayIndex = 0;
   int _selectedCourt = 0;
   bool _isLoading = true;
   List<Map<String, dynamic>> _slots = [];
+
+  final List<String> _days = [
+    'Today',
+    'Tomorrow',
+    'Wed 23',
+    'Thu 24',
+    'Fri 25',
+    'Sat 26',
+    'Sun 27',
+  ];
 
   final List<String> _courts = [
     'All Courts',
@@ -42,7 +53,7 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
     setState(() => _isLoading = true);
     try {
       final courtFilter = _selectedCourt == 0 ? null : _courts[_selectedCourt];
-      final dateFilter = _daySelected ? 'Tomorrow' : 'Today';
+      final dateFilter = _isWeekView ? null : _days[_selectedDayIndex];
 
       final slots = await ApiService.fetchManagerSlots(
         date: dateFilter,
@@ -62,10 +73,12 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
     }
   }
 
-  void _openBookingDetails() {
+  void _openBookingDetails([String? bookingId]) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => const ManagerBookingDetailsScreen(),
+        builder: (_) => ManagerBookingDetailsScreen(
+          bookingId: bookingId ?? 'SS-20481',
+        ),
       ),
     ).then((_) => _loadSlots());
   }
@@ -78,7 +91,7 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
     );
   }
 
-  void _showAddSlotModal() {
+void _showAddSlotModal({String? initialDate}) {
     if (!widget.isApproved) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -88,8 +101,8 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
       );
       return;
     }
-
     String selectedCourtName = _courts[1];
+    String selectedDate = initialDate ?? _days[_selectedDayIndex];
     TimeOfDay startTime = const TimeOfDay(hour: 17, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
     final priceController = TextEditingController(text: '2500');
@@ -146,6 +159,38 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                   ),
                   const SizedBox(height: 14),
 
+                  const Text(
+                    'Schedule Date',
+                    style: TextStyle(
+                      color: ManagerColors.navy,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: ManagerColors.border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: selectedDate,
+                        items: _days
+                            .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setModalState(() => selectedDate = val);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
                   const Text(
                     'Facility Court',
                     style: TextStyle(
@@ -358,14 +403,14 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                                 'time': startFormatted,
                                 'durationRange': durationRangeStr,
                                 'price': priceVal,
-                                'date': _daySelected ? 'Tomorrow' : 'Today',
+                                'date': selectedDate,
                                 'status': 'available',
                               });
                               _loadSlots();
                               if (mounted) {
                                 ScaffoldMessenger.of(this.context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Added slot for $selectedCourtName ($durationRangeStr)'),
+                                    content: Text('Added slot for $selectedCourtName on $selectedDate ($durationRangeStr)'),
                                     backgroundColor: ManagerColors.green,
                                   ),
                                 );
@@ -399,7 +444,7 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                                 'time': startFormatted,
                                 'durationRange': durationRangeStr,
                                 'price': priceVal,
-                                'date': _daySelected ? 'Tomorrow' : 'Today',
+                                'date': selectedDate,
                                 'status': 'blocked',
                                 'blockedReason': reasonController.text.trim().isNotEmpty
                                     ? reasonController.text.trim()
@@ -606,62 +651,23 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                     _buildHeader(),
                     const SizedBox(height: 16),
                     _buildDayWeekSwitch(),
-                    const SizedBox(height: 18),
-                    _buildDateRow(),
-                    const SizedBox(height: 14),
-                    _buildCourtFilters(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
 
-                    if (_isLoading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 36),
-                        child: Center(
-                          child: CircularProgressIndicator(color: ManagerColors.navy),
-                        ),
-                      )
-                    else if (_slots.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'No facility slots found for the selected filter.',
-                          style: TextStyle(
-                            color: ManagerColors.secondaryText,
-                            fontSize: 14,
-                          ),
-                        ),
-                      )
-                    else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _slots.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final slot = _slots[index];
-                          final time = slot['time'] as String? ?? '5:00 PM';
-                          final courtName = slot['courtName'] as String? ?? 'Court';
-                          final statusStr = slot['status'] as String? ?? 'available';
-                          final blockedReason = slot['blockedReason'] as String?;
-
-                          if (statusStr == 'blocked') {
-                            return _BlockedScheduleCard(
-                              time: time,
-                              title: '$courtName — ${blockedReason ?? "Under Maintenance"}',
-                              onTap: () => _showSlotActionModal(slot),
-                            );
-                          }
-
-                          return ScheduleCard(
-                            time: time,
-                            title: courtName,
-                            status: _resolveStatus(statusStr),
-                            onTap: statusStr == 'booked'
-                                ? _openBookingDetails
-                                : () => _showSlotActionModal(slot),
-                          );
-                        },
-                      ),
+                    if (!_isWeekView) ...[
+                      _buildDaySelector(),
+                      const SizedBox(height: 14),
+                      _buildDateRow(),
+                      const SizedBox(height: 14),
+                      _buildCourtFilters(),
+                      const SizedBox(height: 18),
+                      _buildDayViewBody(),
+                    ] else ...[
+                      _buildCourtFilters(),
+                      const SizedBox(height: 16),
+                      _buildWeekSummary(_slots),
+                      const SizedBox(height: 18),
+                      _buildWeekViewBody(),
+                    ],
 
                     const SizedBox(height: 24),
 
@@ -669,7 +675,7 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                       width: double.infinity,
                       height: 48,
                       child: OutlinedButton(
-                        onPressed: _showAddSlotModal,
+                        onPressed: () => _showAddSlotModal(),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: ManagerColors.navy,
                           backgroundColor: Colors.transparent,
@@ -697,6 +703,403 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDaySelector() {
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _days.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final isSelected = index == _selectedDayIndex;
+          final dayName = _days[index];
+
+          return InkWell(
+            borderRadius: BorderRadius.circular(19),
+            onTap: () {
+              setState(() => _selectedDayIndex = index);
+              _loadSlots();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSelected ? ManagerColors.navy : Colors.white,
+                borderRadius: BorderRadius.circular(19),
+                border: Border.all(
+                  color: isSelected ? ManagerColors.navy : ManagerColors.chipBorder,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: ManagerColors.navy.withValues(alpha: 0.15),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Text(
+                dayName,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : ManagerColors.navyDark,
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDayViewBody() {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 36),
+        child: Center(
+          child: CircularProgressIndicator(color: ManagerColors.navy),
+        ),
+      );
+    }
+
+    if (_slots.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.center,
+        child: Text(
+          'No facility slots found for ${_days[_selectedDayIndex]}.',
+          style: const TextStyle(
+            color: ManagerColors.secondaryText,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _slots.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final slot = _slots[index];
+        final time = slot['time'] as String? ?? '5:00 PM';
+        final courtName = slot['courtName'] as String? ?? 'Court';
+        final statusStr = slot['status'] as String? ?? 'available';
+        final blockedReason = slot['blockedReason'] as String?;
+
+        if (statusStr == 'blocked') {
+          return _BlockedScheduleCard(
+            time: time,
+            title: '$courtName — ${blockedReason ?? "Under Maintenance"}',
+            onTap: () => _showSlotActionModal(slot),
+          );
+        }
+
+        return ScheduleCard(
+          time: time,
+          title: courtName,
+          status: _resolveStatus(statusStr),
+          onTap: statusStr == 'booked'
+              ? () => _openBookingDetails(slot['bookingId'] as String?)
+              : () => _showSlotActionModal(slot),
+        );
+      },
+    );
+  }
+
+  Widget _buildWeekSummary(List<Map<String, dynamic>> slots) {
+    final total = slots.length;
+    final available = slots.where((s) => s['status'] == 'available').length;
+    final booked = slots.where((s) => s['status'] == 'booked').length;
+    final blocked = slots.where((s) => s['status'] == 'blocked').length;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ManagerColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.date_range_rounded, size: 18, color: ManagerColors.navy),
+              const SizedBox(width: 8),
+              const Text(
+                '7-Day Weekly Summary',
+                style: TextStyle(
+                  color: ManagerColors.navyDark,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$total total slots',
+                style: const TextStyle(
+                  color: ManagerColors.secondaryText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildStatBadge('Available', available, ManagerColors.green, const Color(0xFFE8F5E9)),
+              const SizedBox(width: 8),
+              _buildStatBadge('Booked', booked, ManagerColors.blue, const Color(0xFFE3F2FD)),
+              const SizedBox(width: 8),
+              _buildStatBadge('Blocked', blocked, ManagerColors.red, const Color(0xFFFFEBEE)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatBadge(String label, int count, Color textColor, Color bgColor) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '$count',
+              style: TextStyle(
+                color: textColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeekViewBody() {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 36),
+        child: Center(
+          child: CircularProgressIndicator(color: ManagerColors.navy),
+        ),
+      );
+    }
+
+    // Group slots by day
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (final day in _days) {
+      grouped[day] = [];
+    }
+    for (final slot in _slots) {
+      final slotDate = (slot['date'] as String?) ?? 'Tomorrow';
+      grouped.putIfAbsent(slotDate, () => []).add(slot);
+    }
+
+    return Column(
+      children: [
+        for (final day in _days)
+          _buildWeekDayCard(day, grouped[day] ?? []),
+      ],
+    );
+  }
+
+  Widget _buildWeekDayCard(String dayName, List<Map<String, dynamic>> daySlots) {
+    final availCount = daySlots.where((s) => s['status'] == 'available').length;
+    final bookedCount = daySlots.where((s) => s['status'] == 'booked').length;
+    final blockedCount = daySlots.where((s) => s['status'] == 'blocked').length;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ManagerColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Day Header Card
+          InkWell(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            onTap: () {
+              final idx = _days.indexOf(dayName);
+              if (idx != -1) {
+                setState(() {
+                  _isWeekView = false;
+                  _selectedDayIndex = idx;
+                });
+                _loadSlots();
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                border: Border(bottom: BorderSide(color: ManagerColors.border.withValues(alpha: 0.6))),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    dayName,
+                    style: const TextStyle(
+                      color: ManagerColors.navyDark,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: ManagerColors.navy.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${daySlots.length} slots',
+                      style: const TextStyle(
+                        color: ManagerColors.navy,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (availCount > 0)
+                    Text(
+                      '$availCount avail  ',
+                      style: const TextStyle(
+                        color: ManagerColors.green,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  if (bookedCount > 0)
+                    Text(
+                      '$bookedCount booked  ',
+                      style: const TextStyle(
+                        color: ManagerColors.blue,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  if (blockedCount > 0)
+                    Text(
+                      '$blockedCount blocked  ',
+                      style: const TextStyle(
+                        color: ManagerColors.red,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 13,
+                    color: ManagerColors.secondaryText,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Day Content
+          if (daySlots.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'No slots scheduled',
+                    style: TextStyle(
+                      color: ManagerColors.secondaryText,
+                      fontSize: 12.5,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _showAddSlotModal(initialDate: dayName),
+                    icon: const Icon(Icons.add, size: 15, color: ManagerColors.navy),
+                    label: const Text(
+                      'Add Slot',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: ManagerColors.navy,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                children: [
+                  ...daySlots.map((slot) {
+                    final time = slot['time'] as String? ?? '5:00 PM';
+                    final courtName = slot['courtName'] as String? ?? 'Court';
+                    final statusStr = slot['status'] as String? ?? 'available';
+                    final blockedReason = slot['blockedReason'] as String?;
+
+                    if (statusStr == 'blocked') {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _BlockedScheduleCard(
+                          time: time,
+                          title: '$courtName — ${blockedReason ?? "Under Maintenance"}',
+                          onTap: () => _showSlotActionModal(slot),
+                        ),
+                      );
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: ScheduleCard(
+                        time: time,
+                        title: courtName,
+                        status: _resolveStatus(statusStr),
+                        onTap: statusStr == 'booked'
+                            ? () => _openBookingDetails(slot['bookingId'] as String?)
+                            : () => _showSlotActionModal(slot),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -736,7 +1139,7 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
 
   Widget _buildDayWeekSwitch() {
     return Container(
-      height: 38,
+      height: 40,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: const Color(0xFFEBF1F6),
@@ -746,22 +1149,28 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
         children: [
           Expanded(
             child: _SegmentButton(
-              label: 'Tomorrow',
-              selected: _daySelected,
+              label: 'Day View',
+              icon: Icons.view_day_rounded,
+              selected: !_isWeekView,
               onTap: () {
-                setState(() => _daySelected = true);
-                _loadSlots();
+                if (_isWeekView) {
+                  setState(() => _isWeekView = false);
+                  _loadSlots();
+                }
               },
             ),
           ),
           const SizedBox(width: 6),
           Expanded(
             child: _SegmentButton(
-              label: 'Today',
-              selected: !_daySelected,
+              label: 'Week View',
+              icon: Icons.calendar_view_week_rounded,
+              selected: _isWeekView,
               onTap: () {
-                setState(() => _daySelected = false);
-                _loadSlots();
+                if (!_isWeekView) {
+                  setState(() => _isWeekView = true);
+                  _loadSlots();
+                }
               },
             ),
           ),
@@ -775,7 +1184,7 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
       children: [
         Expanded(
           child: Text(
-            _daySelected ? 'Tomorrow Schedule' : 'Today Schedule',
+            '${_days[_selectedDayIndex]} Schedule',
             style: const TextStyle(
               color: ManagerColors.navyDark,
               fontSize: 15,
@@ -852,11 +1261,13 @@ class _SegmentButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.icon,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -869,13 +1280,26 @@ class _SegmentButton extends StatelessWidget {
           color: selected ? ManagerColors.navy : Colors.transparent,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : ManagerColors.navyDark,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? Colors.white : ManagerColors.navyDark,
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : ManagerColors.navyDark,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );

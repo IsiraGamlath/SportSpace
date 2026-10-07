@@ -7,12 +7,13 @@ import '../models/time_slot.dart';
 class ApiService {
   static const String _webUrl = 'http://localhost:5000/api';
   static const String _usbUrl = 'http://127.0.0.1:5000/api';
-  static const String _wifiUrl = 'http://192.168.8.100:5000/api';
+  static const String _wifiUrl = 'http://10.137.39.116:5000/api';
+  static const String _altWifiUrl = 'http://192.168.8.100:5000/api';
   static const String _emulatorUrl = 'http://10.0.2.2:5000/api';
   static String? _activeBaseUrl;
 
   static String get baseUrl =>
-      _activeBaseUrl ?? (kIsWeb ? _webUrl : _emulatorUrl);
+      _activeBaseUrl ?? (kIsWeb ? _webUrl : _wifiUrl);
 
   static Future<Map<String, dynamic>> register({
     required String fullName,
@@ -78,8 +79,7 @@ class ApiService {
       throw Exception(body['message'] ?? 'Unable to save profile to MongoDB');
     }
   }
-
-  static Future<Map<String, dynamic>> fetchUserProfile() async {
+static Future<Map<String, dynamic>> fetchUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       throw Exception('You must be signed in to fetch your profile.');
@@ -101,7 +101,12 @@ class ApiService {
     }
   }
 
-  static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
+  static final List<String> _candidates = [
+    _wifiUrl,
+    _usbUrl,
+    _altWifiUrl,
+    _emulatorUrl,
+  ];
 
   static Future<http.Response> _get(
     String path, {
@@ -112,7 +117,9 @@ class ApiService {
       final uri = Uri.parse(
         '$baseUrl$path',
       ).replace(queryParameters: queryParams);
-      return await http.get(uri, headers: headers).timeout(const Duration(milliseconds: 2500));
+      return await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(milliseconds: 7000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -123,7 +130,7 @@ class ApiService {
         ).replace(queryParameters: queryParams);
         final res = await http
             .get(uri, headers: headers)
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 6000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -139,7 +146,7 @@ class ApiService {
     try {
       return await http
           .post(Uri.parse('$baseUrl$path'), headers: headers, body: body)
-          .timeout(const Duration(milliseconds: 2500));
+          .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -147,7 +154,7 @@ class ApiService {
       try {
         final res = await http
             .post(Uri.parse('$candidate$path'), headers: headers, body: body)
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -163,7 +170,7 @@ class ApiService {
     try {
       return await http
           .put(Uri.parse('$baseUrl$path'), headers: headers, body: body)
-          .timeout(const Duration(milliseconds: 2500));
+          .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -171,7 +178,7 @@ class ApiService {
       try {
         final res = await http
             .put(Uri.parse('$candidate$path'), headers: headers, body: body)
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -187,7 +194,7 @@ class ApiService {
     try {
       return await http
           .patch(Uri.parse('$baseUrl$path'), headers: headers, body: body)
-          .timeout(const Duration(milliseconds: 2500));
+          .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -195,7 +202,7 @@ class ApiService {
       try {
         final res = await http
             .patch(Uri.parse('$candidate$path'), headers: headers, body: body)
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -210,7 +217,7 @@ class ApiService {
     try {
       return await http
           .delete(Uri.parse('$baseUrl$path'), headers: headers)
-          .timeout(const Duration(milliseconds: 2500));
+          .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -218,7 +225,7 @@ class ApiService {
       try {
         final res = await http
             .delete(Uri.parse('$candidate$path'), headers: headers)
-            .timeout(const Duration(milliseconds: 2500));
+            .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
       } catch (_) {}
@@ -569,6 +576,19 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error fetching bookings: $e');
+    }
+  }
+
+  static Future<List<dynamic>> fetchAllBookings() async {
+    try {
+      final response = await _get('/bookings/all');
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching all bookings: $e');
+      return [];
     }
   }
 
