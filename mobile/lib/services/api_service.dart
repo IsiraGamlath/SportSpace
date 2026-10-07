@@ -96,7 +96,9 @@ class ApiService {
       final uri = Uri.parse(
         '$baseUrl$path',
       ).replace(queryParameters: queryParams);
-      return await http.get(uri).timeout(const Duration(milliseconds: 7000));
+      return await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(milliseconds: 7000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
@@ -106,7 +108,7 @@ class ApiService {
           '$candidate$path',
         ).replace(queryParameters: queryParams);
         final res = await http
-            .get(uri)
+            .get(uri, headers: headers)
             .timeout(const Duration(milliseconds: 6000));
         _activeBaseUrl = candidate;
         return res;
@@ -553,6 +555,19 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error fetching bookings: $e');
+    }
+  }
+
+  static Future<List<dynamic>> fetchAllBookings() async {
+    try {
+      final response = await _get('/bookings/all');
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching all bookings: $e');
+      return [];
     }
   }
 

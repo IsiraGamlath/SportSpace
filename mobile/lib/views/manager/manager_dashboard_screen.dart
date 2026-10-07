@@ -43,22 +43,30 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
-        ApiService.fetchBookings().catchError((_) => <dynamic>[]),
-        ApiService.fetchPaymentVerifications(paymentStatus: 'pending')
-            .catchError((_) => <dynamic>[]),
+        ApiService.fetchPaymentVerifications().catchError((_) => <dynamic>[]),
+        ApiService.fetchAllBookings().catchError((_) => <dynamic>[]),
         ApiService.fetchMaintenanceSummary().catchError((_) => <String, dynamic>{}),
         ApiService.fetchManagerSlots(date: 'Tomorrow')
             .catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
-      final bookings = results[0] as List<dynamic>;
-      final pendingPayments = results[1] as List<dynamic>;
+      final allVerifications = results[0] as List<dynamic>;
+      final allBookings = results[1] as List<dynamic>;
       final maintenanceSummary = results[2] as Map<String, dynamic>;
       final slots = results[3] as List<Map<String, dynamic>>;
 
+      final pendingPayments = allVerifications
+          .whereType<Map>()
+          .where((p) => p['paymentStatus']?.toString() == 'pending')
+          .toList();
+
+      final totalBookings = allBookings.length >= allVerifications.length
+          ? allBookings.length
+          : allVerifications.length;
+
       if (mounted) {
         setState(() {
-          _bookingsCount = bookings.length;
+          _bookingsCount = totalBookings;
           _pendingPaymentsCount = pendingPayments.length;
           _pendingPaymentsList = pendingPayments;
           final requiredCount = (maintenanceSummary['required'] as num?)?.toInt() ?? 0;
