@@ -40,6 +40,7 @@ app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/payments", require("./routes/payments"));
 app.use("/api/maintenance", require("./routes/maintenance"));
 app.use("/api/payment-verifications", require("./routes/paymentVerifications"));
+app.use("/api/reviews", require("./routes/reviews"));
 
 // admin routes
 app.use("/api/admin", adminRoutes);

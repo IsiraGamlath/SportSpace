@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
+import '../models/review.dart';
 
 class ApiService {
   static const String _webUrl = 'http://localhost:5000/api';
@@ -615,6 +616,85 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error fetching bookings: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> fetchReviews(String facilityName) async {
+    final response = await _get(
+      '/reviews',
+      queryParams: {'facilityName': facilityName},
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load facility reviews');
+    }
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    return {
+      'averageRating': (body['averageRating'] as num?)?.toDouble() ?? 0,
+      'reviewCount': (body['reviewCount'] as num?)?.toInt() ?? 0,
+      'reviews': (body['reviews'] as List<dynamic>? ?? [])
+          .map((item) => Review.fromJson(item as Map<String, dynamic>))
+          .toList(),
+    };
+  }
+
+  static Future<void> submitReview({
+    required String facilityName,
+    required int rating,
+    required String comment,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final token = user != null ? await user.getIdToken() : '';
+    final response = await _post(
+      '/reviews',
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'facilityName': facilityName,
+        'rating': rating,
+        'comment': comment,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Failed to save review');
+    }
+  }
+
+  static Future<void> updateReview({
+    required String reviewId,
+    required int rating,
+    required String comment,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final token = user != null ? await user.getIdToken() : '';
+    final response = await _put(
+      '/reviews/$reviewId',
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+      body: json.encode({'rating': rating, 'comment': comment}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Failed to update review');
+    }
+  }
+
+  static Future<void> deleteReview(String reviewId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final token = user != null ? await user.getIdToken() : '';
+    final response = await _delete(
+      '/reviews/$reviewId',
+      headers: {
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode != 204) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Failed to delete review');
     }
   }
 
