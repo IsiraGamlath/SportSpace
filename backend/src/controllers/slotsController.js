@@ -324,6 +324,7 @@ exports.bookSlot = async (req, res) => {
     // Create the booking record
     const Booking = require('../models/Booking');
     const newBooking = await Booking.create({
+      userId: req.firebaseUser.uid,
       slot: slot._id,
       courtName: slot.courtName || 'Badminton Court 1',
       paymentMethod,
