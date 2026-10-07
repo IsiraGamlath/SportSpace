@@ -16,16 +16,22 @@ class ManagerDashboardScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigateTab;
 
   @override
-  State<ManagerDashboardScreen> createState() => _ManagerDashboardScreenState();
+  State<ManagerDashboardScreen> createState() => ManagerDashboardScreenState();
 }
 
-class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
+class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   bool _isLoading = true;
+
+  void reload() {
+    _loadDashboardData();
+  }
   int _bookingsCount = 0;
   int _pendingPaymentsCount = 0;
   int _maintenanceIssuesCount = 0;
   int _availableSlotsCount = 0;
   List<Map<String, dynamic>> _recentSlots = [];
+
+  List<dynamic> _pendingPaymentsList = [];
 
   @override
   void initState() {
@@ -54,6 +60,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         setState(() {
           _bookingsCount = bookings.length;
           _pendingPaymentsCount = pendingPayments.length;
+          _pendingPaymentsList = pendingPayments;
           final requiredCount = (maintenanceSummary['required'] as num?)?.toInt() ?? 0;
           final scheduledCount = (maintenanceSummary['scheduled'] as num?)?.toInt() ?? 0;
           _maintenanceIssuesCount = requiredCount + scheduledCount;
@@ -69,10 +76,155 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     }
   }
 
-  void _openBookingDetails(BuildContext context) {
+  void _openPendingPayments(BuildContext context) {
+    if (_pendingPaymentsList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No pending payments requiring verification.'),
+          backgroundColor: ManagerColors.navy,
+        ),
+      );
+      return;
+    }
+
+    if (_pendingPaymentsList.length == 1) {
+      final bId = _pendingPaymentsList.first['bookingId']?.toString() ?? 'SS-20481';
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ManagerBookingDetailsScreen(bookingId: bId),
+        ),
+      ).then((_) => _loadDashboardData());
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.payment_rounded, color: ManagerColors.amber, size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Pending Payments (${_pendingPaymentsList.length})',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: ManagerColors.navyDark,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * 0.5,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _pendingPaymentsList.length,
+                    separatorBuilder: (_, index) => const Divider(height: 1),
+                    itemBuilder: (_, index) {
+                      final item = _pendingPaymentsList[index];
+                      final bId = item['bookingId']?.toString() ?? 'Unknown';
+                      final court = item['courtName']?.toString() ?? 'Badminton Court 1';
+                      final amt = item['amount']?.toString() ?? '2500';
+                      final method = item['paymentMethod']?.toString() ?? 'card';
+                      final hasSlip = item['slipUrl'] != null;
+
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                        leading: CircleAvatar(
+                          backgroundColor: ManagerColors.amber.withValues(alpha: 0.15),
+                          child: Icon(
+                            method == 'bank' ? Icons.account_balance_rounded : Icons.credit_card_rounded,
+                            color: ManagerColors.amber,
+                            size: 20,
+                          ),
+                        ),
+                        title: Row(
+                          children: [
+                            Text(
+                              bId,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: ManagerColors.navyDark,
+                              ),
+                            ),
+                            if (hasSlip) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: ManagerColors.teal.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'Slip Attached',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: ManagerColors.teal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text('$court · LKR $amt'),
+                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ManagerBookingDetailsScreen(bookingId: bId),
+                            ),
+                          ).then((_) => _loadDashboardData());
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openBookingDetails(BuildContext context, [String? bookingId]) {
+    final targetId = bookingId ??
+        (_pendingPaymentsList.isNotEmpty
+            ? _pendingPaymentsList.first['bookingId']?.toString()
+            : null) ??
+        'SS-20481';
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => const ManagerBookingDetailsScreen(),
+        builder: (_) => ManagerBookingDetailsScreen(bookingId: targetId),
       ),
     ).then((_) => _loadDashboardData());
   }
@@ -151,7 +303,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                             value: _isLoading ? '...' : '$_bookingsCount',
                             label: "Total Bookings",
                             valueColor: ManagerColors.navy,
-                            onTap: () => widget.onNavigateTab?.call(1),
+                            onTap: () => widget.onNavigateTab?.call(2),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -160,7 +312,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                             value: _isLoading ? '...' : '$_pendingPaymentsCount',
                             label: 'Pending Payments',
                             valueColor: ManagerColors.amber,
-                            onTap: () => _openBookingDetails(context),
+                            onTap: () => _openPendingPayments(context),
                           ),
                         ),
                       ],
@@ -324,7 +476,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       width: double.infinity,
                       height: 48,
                       child: OutlinedButton(
-                        onPressed: () => _openBookingDetails(context),
+                        onPressed: () => widget.onNavigateTab?.call(2),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: ManagerColors.navy,
                           side: const BorderSide(
