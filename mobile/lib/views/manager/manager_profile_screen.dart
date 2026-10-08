@@ -4,7 +4,7 @@ import '../../theme/manager_colors.dart';
 import '../../widgets/manager/settings_tile.dart';
 import '../onboarding_screen.dart';
 import 'manager_facilities_screen.dart';
-import 'manager_login_screen.dart';
+import '../login_screen.dart';
 
 class ManagerProfileScreen extends StatefulWidget {
   const ManagerProfileScreen({super.key});

@@ -268,7 +268,9 @@ class ApiService {
 
   // ================= FACILITY MANAGEMENT ================= //
 
-  static Future<List<Map<String, dynamic>>> fetchFacilities({
+  // ================= FACILITY MANAGEMENT (Manager Portal) ================= //
+
+  static Future<List<Map<String, dynamic>>> fetchManagerFacilities({
     String? type,
     String? status,
     String? search,
@@ -337,6 +339,55 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error updating facility: $e');
+    }
+  }
+
+  static Future<String?> uploadFacilityPhoto({
+    Uint8List? fileBytes,
+    String? fileName,
+    String? base64Data,
+  }) async {
+    try {
+      if (fileBytes != null && fileBytes.isNotEmpty) {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$baseUrl/facilities/upload-photo'),
+        );
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'photo',
+            fileBytes,
+            filename: fileName ?? 'facility_photo.jpg',
+          ),
+        );
+        final streamedResponse =
+            await request.send().timeout(const Duration(seconds: 25));
+        final response = await http.Response.fromStream(streamedResponse);
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final data = json.decode(response.body);
+          return data['url'] as String?;
+        } else {
+          final err = json.decode(response.body);
+          throw Exception(err['message'] ?? 'Failed to upload photo');
+        }
+      } else if (base64Data != null && base64Data.isNotEmpty) {
+        final response = await _post(
+          '/facilities/upload-photo',
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'photoData': base64Data}),
+        );
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final data = json.decode(response.body);
+          return data['url'] as String?;
+        } else {
+          final err = json.decode(response.body);
+          throw Exception(err['message'] ?? 'Failed to upload photo');
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error uploading facility photo: $e');
+      rethrow;
     }
   }
 

@@ -54,7 +54,7 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
 
   Future<void> _loadFacilitiesAndSlots() async {
     try {
-      final facilities = await ApiService.fetchFacilities();
+      final facilities = await ApiService.fetchManagerFacilities();
       if (mounted && facilities.isNotEmpty) {
         setState(() {
           _facilityList = facilities;

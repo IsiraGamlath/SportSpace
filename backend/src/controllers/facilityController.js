@@ -1,15 +1,32 @@
 const Facility = require('../models/Facility');
 const Slot = require('../models/Slot');
+const cloudinary = require('cloudinary').v2;
 
-// Initial default facilities to seed if none exist
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Initial default facilities with rich data and photos
 const DEFAULT_FACILITIES = [
   {
     name: 'Badminton Court 1',
     type: 'Badminton',
-    description: 'BWF-standard indoor synthetic mat court with LED lighting.',
-    hourlyRate: 2500,
+    location: 'Colombo 07, Reid Avenue (Main Sports Arena)',
+    description: 'BWF-standard indoor synthetic mat court with tournament-grade LED lighting and spectator seating.',
+    openTime: '06:00 AM – 10:00 PM',
     openingTime: '06:00 AM',
     closingTime: '10:00 PM',
+    availableSports: ['Badminton'],
+    amenities: ['Free Parking', 'Changing Rooms', 'Hot Showers', 'Secure Lockers', 'LED Lighting', 'Pro Shop Equipment Rental'],
+    accessibility: ['Wheelchair Accessible Entrance', 'Ground Floor Access', 'Accessible Restroom'],
+    contactNumber: '+94 11 269 1111',
+    photoUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1000&q=80',
+    photos: [
+      'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1000&q=80',
+    ],
+    hourlyRate: 2500,
     status: 'active',
     capacity: 4,
     surface: 'Synthetic Mat',
@@ -18,10 +35,20 @@ const DEFAULT_FACILITIES = [
   {
     name: 'Badminton Court 2',
     type: 'Badminton',
-    description: 'Indoor wooden parquet court suited for training and matches.',
-    hourlyRate: 2500,
+    location: 'Colombo 07, Reid Avenue (Hall B)',
+    description: 'Indoor wooden parquet court designed for fast rallies, regular training sessions, and club tournaments.',
+    openTime: '06:00 AM – 10:00 PM',
     openingTime: '06:00 AM',
     closingTime: '10:00 PM',
+    availableSports: ['Badminton', 'Table Tennis'],
+    amenities: ['Free Parking', 'Changing Rooms', 'Showers', 'Lockers', 'Spectator Gallery'],
+    accessibility: ['Ground Floor Access', 'Accessible Ramp'],
+    contactNumber: '+94 11 269 1112',
+    photoUrl: 'https://images.unsplash.com/photo-1613918431703-aa632128a31e?auto=format&fit=crop&w=1000&q=80',
+    photos: [
+      'https://images.unsplash.com/photo-1613918431703-aa632128a31e?auto=format&fit=crop&w=1000&q=80',
+    ],
+    hourlyRate: 2500,
     status: 'active',
     capacity: 4,
     surface: 'Wooden Parquet',
@@ -30,10 +57,20 @@ const DEFAULT_FACILITIES = [
   {
     name: 'Tennis Court 1',
     type: 'Tennis',
-    description: 'Outdoor acrylic hard court with professional floodlights.',
-    hourlyRate: 3500,
+    location: 'Colombo 07, Reid Avenue (Outdoor Arena)',
+    description: 'Championship-grade acrylic hard court equipped with high-intensity night floodlights and ball boy shelters.',
+    openTime: '06:00 AM – 09:00 PM',
     openingTime: '06:00 AM',
     closingTime: '09:00 PM',
+    availableSports: ['Tennis'],
+    amenities: ['Floodlights (Night Play)', 'Racket Stringing Service', 'Parking', 'Clubhouse Cafe', 'Changing Rooms'],
+    accessibility: ['Wheelchair Accessible Pathways', 'Step-free Court Access'],
+    contactNumber: '+94 11 269 1113',
+    photoUrl: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1000&q=80',
+    photos: [
+      'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1000&q=80',
+    ],
+    hourlyRate: 3500,
     status: 'active',
     capacity: 4,
     surface: 'Hard Court (Acrylic)',
@@ -42,10 +79,20 @@ const DEFAULT_FACILITIES = [
   {
     name: 'Basketball Court',
     type: 'Basketball',
-    description: 'Full-court indoor FIBA standard basketball arena.',
-    hourlyRate: 3000,
+    location: 'Colombo 07, Reid Avenue (Indoor Stadium)',
+    description: 'Full-court indoor FIBA standard basketball arena with electronic scoreboard, glass backboards, and maple flooring.',
+    openTime: '07:00 AM – 10:00 PM',
     openingTime: '07:00 AM',
     closingTime: '10:00 PM',
+    availableSports: ['Basketball', 'Volleyball'],
+    amenities: ['Electronic Scoreboard', 'Spectator Bleachers (150 seats)', 'Lockers', 'Water Dispenser', 'First Aid Station'],
+    accessibility: ['Elevator Access', 'Wheelchair Seating Zone', 'Accessible Restrooms'],
+    contactNumber: '+94 11 269 1114',
+    photoUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1000&q=80',
+    photos: [
+      'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1000&q=80',
+    ],
+    hourlyRate: 3000,
     status: 'active',
     capacity: 10,
     surface: 'Hardwood Maple',
@@ -54,10 +101,20 @@ const DEFAULT_FACILITIES = [
   {
     name: 'Futsal Pitch',
     type: 'Futsal',
-    description: 'Enclosed artificial turf 5-a-side football arena.',
-    hourlyRate: 4000,
+    location: 'Colombo 07, Reid Avenue (Pitch 1)',
+    description: 'Enclosed 5-a-side artificial turf arena with shock-absorbing underlay, rebound boards, and overhead netting.',
+    openTime: '07:00 AM – 11:00 PM',
     openingTime: '07:00 AM',
     closingTime: '11:00 PM',
+    availableSports: ['Futsal', 'Football'],
+    amenities: ['Night Floodlighting', 'Match Balls & Bibs Included', 'Showers', 'Locker Rooms', 'Refreshment Kiosk'],
+    accessibility: ['Ramp Access to Pitch', 'Accessible Parking Space'],
+    contactNumber: '+94 11 269 1115',
+    photoUrl: 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=1000&q=80',
+    photos: [
+      'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=1000&q=80',
+    ],
+    hourlyRate: 4000,
     status: 'active',
     capacity: 10,
     surface: 'Artificial Turf',
@@ -69,16 +126,62 @@ const DEFAULT_FACILITIES = [
 const formatFacility = (f) => {
   const obj = f.toObject ? f.toObject() : { ...f };
   obj.id = obj._id ? obj._id.toString() : obj.id;
+  if (!obj.photoUrl && obj.photos && obj.photos.length > 0) {
+    obj.photoUrl = obj.photos[0];
+  }
+  if (!obj.openTime && (obj.openingTime || obj.closingTime)) {
+    obj.openTime = `${obj.openingTime || '06:00 AM'} – ${obj.closingTime || '10:00 PM'}`;
+  }
   return obj;
 };
 
-// Seed default facilities on startup if collection is empty
+// Seed default facilities on startup or backfill missing fields
 exports.seedFacilities = async () => {
   try {
     const count = await Facility.countDocuments();
     if (count === 0) {
       await Facility.insertMany(DEFAULT_FACILITIES);
-      console.log('Seeded default sports facilities');
+      console.log('Seeded default sports facilities with photos and details');
+    } else {
+      // Backfill missing photos/details for existing facilities
+      for (const def of DEFAULT_FACILITIES) {
+        const existing = await Facility.findOne({ name: def.name });
+        if (existing) {
+          let updated = false;
+          if (!existing.photoUrl || existing.photoUrl.trim() === '') {
+            existing.photoUrl = def.photoUrl;
+            existing.photos = def.photos;
+            updated = true;
+          }
+          if (!existing.location || existing.location.trim() === '') {
+            existing.location = def.location;
+            updated = true;
+          }
+          if (!existing.availableSports || existing.availableSports.length === 0) {
+            existing.availableSports = def.availableSports;
+            updated = true;
+          }
+          if (!existing.amenities || existing.amenities.length === 0) {
+            existing.amenities = def.amenities;
+            updated = true;
+          }
+          if (!existing.accessibility || existing.accessibility.length === 0) {
+            existing.accessibility = def.accessibility;
+            updated = true;
+          }
+          if (!existing.contactNumber || existing.contactNumber.trim() === '') {
+            existing.contactNumber = def.contactNumber;
+            updated = true;
+          }
+          if (!existing.openTime || existing.openTime.trim() === '') {
+            existing.openTime = def.openTime;
+            updated = true;
+          }
+          if (updated) {
+            await existing.save();
+          }
+        }
+      }
     }
   } catch (err) {
     console.error('Error seeding facilities:', err.message);
@@ -93,7 +196,7 @@ exports.getFacilities = async (req, res) => {
     const query = {};
 
     if (type && type !== 'All') {
-      query.type = type;
+      query.$or = [{ type: type }, { availableSports: type }];
     }
 
     if (status && status !== 'All') {
@@ -101,7 +204,11 @@ exports.getFacilities = async (req, res) => {
     }
 
     if (search && search.trim()) {
-      query.name = { $regex: search.trim(), $options: 'i' };
+      query.$or = [
+        { name: { $regex: search.trim(), $options: 'i' } },
+        { location: { $regex: search.trim(), $options: 'i' } },
+        { type: { $regex: search.trim(), $options: 'i' } },
+      ];
     }
 
     const facilities = await Facility.find(query).sort({ createdAt: -1 });
@@ -133,16 +240,67 @@ exports.getFacilityById = async (req, res) => {
   }
 };
 
+// POST /api/facilities/upload-photo (Upload facility photo to Cloudinary)
+exports.uploadPhoto = async (req, res) => {
+  try {
+    let fileToUpload = null;
+
+    if (req.file) {
+      // If multer already uploaded to Cloudinary
+      if (req.file.path) {
+        return res.status(200).json({
+          url: req.file.path,
+          message: 'Photo uploaded successfully',
+        });
+      }
+      // If in buffer
+      if (req.file.buffer) {
+        fileToUpload = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
+    } else if (req.body && req.body.photoData) {
+      fileToUpload = req.body.photoData;
+    }
+
+    if (!fileToUpload) {
+      return res.status(400).json({ message: 'No photo provided for upload' });
+    }
+
+    const result = await cloudinary.uploader.upload(fileToUpload, {
+      folder: 'sportspace_facilities',
+      allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+    });
+
+    res.status(200).json({
+      url: result.secure_url,
+      message: 'Photo uploaded successfully',
+    });
+  } catch (error) {
+    console.error('Error uploading facility photo:', error);
+    res.status(500).json({
+      message: 'Photo upload failed',
+      error: error.message,
+    });
+  }
+};
+
 // POST /api/facilities (Create new facility)
 exports.createFacility = async (req, res) => {
   try {
     const {
       name,
-      type,
+      location,
       description,
-      hourlyRate,
+      openTime,
       openingTime,
       closingTime,
+      availableSports,
+      amenities,
+      accessibility,
+      contactNumber,
+      photos,
+      photoUrl,
+      hourlyRate,
+      type,
       status,
       capacity,
       surface,
@@ -154,28 +312,63 @@ exports.createFacility = async (req, res) => {
       return res.status(400).json({ message: 'Facility name is required' });
     }
 
-    if (!type || !type.trim()) {
-      return res.status(400).json({ message: 'Facility type is required' });
-    }
+    const trimmedName = name.trim();
 
     // Check for existing facility with same name
     const existing = await Facility.findOne({
-      name: { $regex: `^${name.trim()}$`, $options: 'i' },
+      name: { $regex: `^${trimmedName}$`, $options: 'i' },
     });
 
     if (existing) {
       return res.status(409).json({
-        message: `A facility named "${name.trim()}" already exists`,
+        message: `A facility named "${trimmedName}" already exists`,
       });
     }
 
+    const sportsList = Array.isArray(availableSports)
+      ? availableSports
+      : typeof availableSports === 'string' && availableSports.trim()
+      ? availableSports.split(',').map((s) => s.trim()).filter(Boolean)
+      : [type || 'Badminton'];
+
+    const amenitiesList = Array.isArray(amenities)
+      ? amenities
+      : typeof amenities === 'string' && amenities.trim()
+      ? amenities.split(',').map((s) => s.trim()).filter(Boolean)
+      : ['Parking', 'Changing Rooms', 'Showers'];
+
+    const accessibilityList = Array.isArray(accessibility)
+      ? accessibility
+      : typeof accessibility === 'string' && accessibility.trim()
+      ? accessibility.split(',').map((s) => s.trim()).filter(Boolean)
+      : ['Wheelchair Accessible'];
+
+    const photosList = Array.isArray(photos)
+      ? photos
+      : photoUrl
+      ? [photoUrl]
+      : [];
+
+    const primaryPhoto = photoUrl || (photosList.length > 0 ? photosList[0] : '');
+
+    const resolvedOpenTime =
+      openTime || `${openingTime || '06:00 AM'} – ${closingTime || '10:00 PM'}`;
+
     const newFacility = await Facility.create({
-      name: name.trim(),
-      type: type.trim(),
+      name: trimmedName,
+      location: location ? location.trim() : 'Colombo 07, Reid Avenue',
       description: description || '',
-      hourlyRate: Number(hourlyRate) || 2500,
+      openTime: resolvedOpenTime,
       openingTime: openingTime || '06:00 AM',
       closingTime: closingTime || '10:00 PM',
+      availableSports: sportsList,
+      amenities: amenitiesList,
+      accessibility: accessibilityList,
+      contactNumber: contactNumber ? contactNumber.trim() : '+94 11 269 1111',
+      photos: photosList,
+      photoUrl: primaryPhoto,
+      hourlyRate: Number(hourlyRate) || 2500,
+      type: type || (sportsList.length > 0 ? sportsList[0] : 'Badminton'),
       status: status || 'active',
       capacity: Number(capacity) || 4,
       surface: surface || 'Synthetic',
@@ -201,11 +394,19 @@ exports.updateFacility = async (req, res) => {
     const { id } = req.params;
     const {
       name,
-      type,
+      location,
       description,
-      hourlyRate,
+      openTime,
       openingTime,
       closingTime,
+      availableSports,
+      amenities,
+      accessibility,
+      contactNumber,
+      photos,
+      photoUrl,
+      hourlyRate,
+      type,
       status,
       capacity,
       surface,
@@ -234,11 +435,37 @@ exports.updateFacility = async (req, res) => {
       facility.name = name.trim();
     }
 
-    if (type !== undefined) facility.type = type.trim();
+    if (location !== undefined) facility.location = location.trim();
     if (description !== undefined) facility.description = description;
-    if (hourlyRate !== undefined) facility.hourlyRate = Number(hourlyRate) || facility.hourlyRate;
+    if (openTime !== undefined) facility.openTime = openTime;
     if (openingTime !== undefined) facility.openingTime = openingTime;
     if (closingTime !== undefined) facility.closingTime = closingTime;
+    if (contactNumber !== undefined) facility.contactNumber = contactNumber.trim();
+    if (photoUrl !== undefined) facility.photoUrl = photoUrl;
+    if (photos !== undefined) {
+      facility.photos = Array.isArray(photos) ? photos : [photos];
+      if (!facility.photoUrl && facility.photos.length > 0) {
+        facility.photoUrl = facility.photos[0];
+      }
+    }
+    if (availableSports !== undefined) {
+      facility.availableSports = Array.isArray(availableSports)
+        ? availableSports
+        : availableSports.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    if (amenities !== undefined) {
+      facility.amenities = Array.isArray(amenities)
+        ? amenities
+        : amenities.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    if (accessibility !== undefined) {
+      facility.accessibility = Array.isArray(accessibility)
+        ? accessibility
+        : accessibility.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+
+    if (type !== undefined) facility.type = type.trim();
+    if (hourlyRate !== undefined) facility.hourlyRate = Number(hourlyRate) || facility.hourlyRate;
     if (status !== undefined) facility.status = status;
     if (capacity !== undefined) facility.capacity = Number(capacity) || facility.capacity;
     if (surface !== undefined) facility.surface = surface;
