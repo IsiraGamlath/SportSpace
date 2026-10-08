@@ -8,7 +8,12 @@ import 'manager_facilities_screen.dart';
 import 'manager_notifications_screen.dart';
 
 class ManagerScheduleScreen extends StatefulWidget {
-  const ManagerScheduleScreen({super.key});
+  const ManagerScheduleScreen({
+    super.key,
+    this.isApproved = false,
+  });
+
+  final bool isApproved;
 
   @override
   State<ManagerScheduleScreen> createState() => _ManagerScheduleScreenState();
@@ -561,6 +566,16 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
   }
 
   void _showSlotActionModal(Map<String, dynamic> slot) {
+    if (!widget.isApproved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pending Approval: You cannot manage slots until an admin verifies your account.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     final slotId = slot['id'] ?? slot['_id'] ?? '';
     final courtName = slot['courtName'] ?? 'Court';
     final time = slot['time'] ?? '';

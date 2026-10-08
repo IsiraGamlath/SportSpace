@@ -41,4 +41,26 @@ async function syncProfile(req, res) {
   });
 }
 
-module.exports = { syncProfile };
+async function getProfile(req, res) {
+  const email = (req.firebaseUser.email || '').trim().toLowerCase();
+  const user = await User.findOne({
+    $or: [{ firebaseUid: req.firebaseUser.uid }, { email }],
+  });
+
+  if (!user) {
+    return res.status(404).json({ message: 'User profile not found' });
+  }
+
+  return res.status(200).json({
+    user: {
+      id: user._id,
+      firebaseUid: user.firebaseUid,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      isApproved: user.isApproved,
+    },
+  });
+}
+
+module.exports = { syncProfile, getProfile };

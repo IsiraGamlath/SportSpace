@@ -136,24 +136,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final result = await FilePicker.platform.pickFiles(
+                      final file = await FilePicker.pickFile(
                         type: FileType.custom,
                         allowedExtensions: ['jpg', 'png', 'pdf'],
                       );
-                      if (result != null && result.files.isNotEmpty) {
-                        final file = result.files.first;
+                      if (file != null) {
                         setState(() {
                           _selectedSlipPath = file.path;
                           _selectedSlipName = file.name;
                         });
                       }
                     },
-                    icon: Icon(_selectedSlipPath != null ? Icons.check_circle : Icons.upload_file),
+                    icon: Icon(
+                      _selectedSlipPath != null
+                          ? Icons.check_circle
+                          : Icons.upload_file,
+                    ),
                     label: Text(_selectedSlipName ?? 'Upload Transfer Slip'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: _selectedSlipPath != null ? AppColors.availableText : AppColors.primaryTeal),
-                      foregroundColor: _selectedSlipPath != null ? AppColors.availableText : AppColors.primaryTeal,
+                      side: BorderSide(
+                        color: _selectedSlipPath != null
+                            ? AppColors.availableText
+                            : AppColors.primaryTeal,
+                      ),
+                      foregroundColor: _selectedSlipPath != null
+                          ? AppColors.availableText
+                          : AppColors.primaryTeal,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -187,7 +196,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       'Payments are simulated for this prototype and are secured & encrypted.',
                       style: TextStyle(
                         fontSize: 12.5,
-                        color: AppColors.textSecondary.withOpacity(0.8),
+                        color: AppColors.textSecondary.withValues(alpha: 0.8),
                         height: 1.4,
                       ),
                     ),
@@ -203,7 +212,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border(
-            top: BorderSide(color: AppColors.borderLight.withOpacity(0.6)),
+            top: BorderSide(
+              color: AppColors.borderLight.withValues(alpha: 0.6),
+            ),
           ),
         ),
         child: SizedBox(
@@ -220,7 +231,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       await Future.delayed(
                         const Duration(milliseconds: 800),
                       ); // fake delay
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       setState(() => _isProcessing = false);
 
                       // Push Conflict Screen
@@ -238,13 +249,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       return;
                     }
 
-                      try {
+                    try {
                       String? paymentIntentId;
                       String paymentMethod = 'card';
 
                       if (_selectedPaymentMethod == 0) {
                         if (kIsWeb) {
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           setState(() => _isProcessing = false);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -279,7 +290,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       } else if (_selectedPaymentMethod == 1) {
                         paymentMethod = 'bank';
                         if (_selectedSlipPath == null) {
-                          throw Exception('Please upload a bank transfer slip first.');
+                          throw Exception(
+                            'Please upload a bank transfer slip first.',
+                          );
                         }
                       } else if (_selectedPaymentMethod == 2) {
                         paymentMethod = 'wallet';
@@ -291,7 +304,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         paymentMethod: paymentMethod,
                         slipFilePath: _selectedSlipPath,
                       );
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       setState(() => _isProcessing = false);
 
                       if (_selectedPaymentMethod == 1) {
@@ -316,7 +329,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         );
                       }
                     } catch (e) {
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       setState(() => _isProcessing = false);
 
                       if (e.toString().contains('conflict')) {
@@ -359,7 +372,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   )
                 : const Text(
                     'Proceed to Pay',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -391,10 +404,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight.withOpacity(0.6)),
+        border: Border.all(color: AppColors.borderLight.withValues(alpha: 0.6)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -524,7 +537,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         hintText: hintText,
         hintStyle: TextStyle(
           fontSize: 15,
-          color: AppColors.textSecondary.withOpacity(0.5),
+          color: AppColors.textSecondary.withValues(alpha: 0.5),
         ),
         filled: true,
         fillColor: Colors.white,
