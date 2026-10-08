@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
 import '../../services/api_service.dart';
 import '../../theme/manager_colors.dart';
@@ -193,6 +194,7 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
 
     bool isUploadingPhoto = false;
     bool isSubmitting = false;
+    Uint8List? pickedPhotoBytes;
 
     showModalBottomSheet<void>(
       context: context,
@@ -386,16 +388,18 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                               );
                                               return;
                                             }
-                                            final file =
-                                                await FilePicker.pickFile(
+                                            final result = await FilePicker
+                                                .platform
+                                                .pickFiles(
                                                   type: FileType.image,
+                                                  withData: true,
                                                 );
+                                            final file = result?.files.single;
                                             if (file != null) {
-                                              final bytes = await file
-                                                  .readAsBytes();
+                                              final bytes = file.bytes;
+                                              if (bytes == null) return;
                                               setModalState(() {
                                                 pickedPhotoBytes = bytes;
-                                                pickedPhotoName = file.name;
                                                 isUploadingPhoto = true;
                                               });
 

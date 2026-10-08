@@ -8,15 +8,10 @@ import '../../utils/tertiary_navigation.dart';
 import '../../widgets/tertiary/nav_bar.dart';
 import '../../widgets/tertiary/category_quick_select.dart';
 import '../../widgets/tertiary/nearby_event_card.dart';
-<<<<<<< Updated upstream
 import 'events_view.dart';
 import 'event_details_view.dart';
 import 'my_requests_view.dart';
 import 'profile_view.dart';
-=======
-import 'placeholder_view.dart';
-import '../account_profile_screen.dart';
->>>>>>> Stashed changes
 
 class TertiaryHomeView extends StatefulWidget {
   const TertiaryHomeView({super.key});
@@ -87,32 +82,11 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
   }
 
   void _onNavItemSelected(int index) {
-<<<<<<< Updated upstream
     handleTertiaryNavTap(
       context: context,
       tappedIndex: index,
       currentIndex: _currentIndex,
     );
-=======
-    if (index == _currentIndex) return;
-
-    const labels = ['Home', 'Events', 'Facilities', 'Notifications', 'Profile'];
-
-    setState(() => _currentIndex = index);
-
-    final destination = index == 4
-        ? const UserProfileScreen(communityMode: true)
-        : TertiaryPlaceholderView(title: labels[index]);
-    Navigator.of(context)
-        .push(
-      MaterialPageRoute(
-        builder: (_) => destination,
-      ),
-    )
-        .then((_) {
-      if (mounted) setState(() => _currentIndex = 0);
-    });
->>>>>>> Stashed changes
   }
 
   @override
