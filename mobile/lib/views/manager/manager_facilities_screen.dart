@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -158,8 +157,18 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
       selectedAccessibility = ['Wheelchair Accessible'];
     }
 
-    Uint8List? pickedPhotoBytes;
-    String? pickedPhotoName;
+    // Multi-photo list (up to 3 photos)
+    List<String> uploadedPhotos = [];
+    if (isEditing && facilityToEdit['photos'] is List) {
+      uploadedPhotos = (facilityToEdit['photos'] as List)
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    if (uploadedPhotos.isEmpty && photoUrlController.text.trim().isNotEmpty) {
+      uploadedPhotos.add(photoUrlController.text.trim());
+    }
+
     bool isUploadingPhoto = false;
     bool isSubmitting = false;
 
@@ -173,8 +182,6 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final hasPhoto = (pickedPhotoBytes != null) || photoUrlController.text.trim().isNotEmpty;
-
             return Padding(
               padding: EdgeInsets.fromLTRB(
                 20,
@@ -211,156 +218,222 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // 1. PHOTO UPLOAD SECTION
-                      const Text(
-                        'Facility Photo *',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: ManagerColors.navy),
+                      // 1. PHOTO UPLOAD SECTION (UP TO 3 PHOTOS)
+                      Row(
+                        children: [
+                          const Text(
+                            'Facility Photos (Up to 3 Photos) *',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: ManagerColors.navy),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: uploadedPhotos.length == 3 ? ManagerColors.greenSoft : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${uploadedPhotos.length} / 3 Uploaded',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: uploadedPhotos.length == 3 ? ManagerColors.green : ManagerColors.navy,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      Container(
-                        width: double.infinity,
-                        height: 160,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: ManagerColors.border, width: 1.2),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              if (pickedPhotoBytes != null)
-                                Image.memory(
-                                  pickedPhotoBytes!,
-                                  fit: BoxFit.cover,
-                                )
-                              else if (photoUrlController.text.trim().isNotEmpty)
-                                Image.network(
-                                  photoUrlController.text.trim(),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => const Center(
-                                    child: Icon(Icons.broken_image_rounded, size: 40, color: Colors.grey),
-                                  ),
-                                )
-                              else
-                                Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: ManagerColors.teal.withValues(alpha: 0.1),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.add_a_photo_outlined,
-                                          size: 28,
-                                          color: ManagerColors.teal,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'Upload Facility Photo',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                          color: ManagerColors.navy,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      const Text(
-                                        'Works on Chrome & Mobile (JPG, PNG, WebP)',
-                                        style: TextStyle(fontSize: 11, color: Colors.grey),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                      const SizedBox(height: 8),
 
-                              if (isUploadingPhoto)
-                                Container(
-                                  color: Colors.black.withValues(alpha: 0.45),
-                                  child: const Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        CircularProgressIndicator(color: Colors.white),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          'Uploading to Cloud...',
-                                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                      // 3 Photo Slots Row
+                      Row(
+                        children: List.generate(3, (index) {
+                          final hasImage = index < uploadedPhotos.length;
+                          final isNextSlot = index == uploadedPhotos.length;
 
-                              // Pick / Change Button Overlay
-                              Positioned(
-                                bottom: 10,
-                                right: 10,
-                                child: ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: hasPhoto ? Colors.black87 : ManagerColors.teal,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    elevation: 2,
-                                  ),
-                                  onPressed: isUploadingPhoto
-                                      ? null
-                                      : () async {
-                                          try {
-                                            final result = await FilePicker.platform.pickFiles(
-                                              type: FileType.image,
-                                              withData: true, // Guarantees bytes are available in Chrome Web!
-                                            );
-                                            if (result != null && result.files.isNotEmpty) {
-                                              final file = result.files.first;
-                                              if (file.bytes != null) {
-                                                setModalState(() {
-                                                  pickedPhotoBytes = file.bytes;
-                                                  pickedPhotoName = file.name;
-                                                  isUploadingPhoto = true;
-                                                });
-
-                                                // Upload to Cloudinary backend
-                                                final cloudUrl = await ApiService.uploadFacilityPhoto(
-                                                  fileBytes: file.bytes,
-                                                  fileName: file.name,
-                                                );
-
-                                                if (cloudUrl != null && cloudUrl.isNotEmpty) {
-                                                  setModalState(() {
-                                                    photoUrlController.text = cloudUrl;
-                                                    isUploadingPhoto = false;
-                                                  });
-                                                } else {
-                                                  setModalState(() => isUploadingPhoto = false);
-                                                }
-                                              }
-                                            }
-                                          } catch (e) {
-                                            setModalState(() => isUploadingPhoto = false);
-                                            if (ctx.mounted) {
-                                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                                SnackBar(content: Text('Photo upload failed: $e')),
-                                              );
-                                            }
-                                          }
-                                        },
-                                  icon: Icon(hasPhoto ? Icons.edit : Icons.upload_file, size: 16),
-                                  label: Text(
-                                    hasPhoto ? 'Change Photo' : 'Choose Photo',
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                                  ),
+                          return Expanded(
+                            child: Container(
+                              margin: EdgeInsets.only(right: index < 2 ? 8.0 : 0.0),
+                              height: 120,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: hasImage
+                                      ? ManagerColors.teal
+                                      : (isNextSlot ? ManagerColors.navy : const Color(0xFFE2E8F0)),
+                                  width: hasImage ? 1.5 : (isNextSlot ? 1.2 : 1.0),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(11),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    if (hasImage) ...[
+                                      Image.network(
+                                        uploadedPhotos[index],
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => const Center(
+                                          child: Icon(Icons.broken_image_rounded, size: 28, color: Colors.grey),
+                                        ),
+                                      ),
+                                      // Top gradient for contrast
+                                      Align(
+                                        alignment: Alignment.topCenter,
+                                        child: Container(
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [Colors.black.withValues(alpha: 0.55), Colors.transparent],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // Badge (Cover / Photo #)
+                                      Positioned(
+                                        bottom: 6,
+                                        left: 6,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(alpha: 0.75),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            index == 0 ? 'Cover' : 'Photo ${index + 1}',
+                                            style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ),
+                                      // Delete button top right
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: InkWell(
+                                          onTap: () {
+                                            setModalState(() {
+                                              uploadedPhotos.removeAt(index);
+                                              photoUrlController.text = uploadedPhotos.isNotEmpty ? uploadedPhotos.first : '';
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.redAccent,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ] else if (isNextSlot) ...[
+                                      if (isUploadingPhoto) ...[
+                                        const Center(
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              SizedBox(
+                                                width: 22,
+                                                height: 22,
+                                                child: CircularProgressIndicator(strokeWidth: 2.2, color: ManagerColors.teal),
+                                              ),
+                                              SizedBox(height: 6),
+                                              Text(
+                                                'Uploading...',
+                                                style: TextStyle(fontSize: 10, color: ManagerColors.secondaryText, fontWeight: FontWeight.w600),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        InkWell(
+                                          onTap: () async {
+                                            try {
+                                              final result = await FilePicker.platform.pickFiles(
+                                                type: FileType.image,
+                                                withData: true, // Guarantees bytes are available in Chrome Web!
+                                              );
+                                              if (result != null && result.files.isNotEmpty) {
+                                                final file = result.files.first;
+                                                if (file.bytes != null) {
+                                                  setModalState(() => isUploadingPhoto = true);
+                                                  final cloudUrl = await ApiService.uploadFacilityPhoto(
+                                                    fileBytes: file.bytes,
+                                                    fileName: file.name,
+                                                  );
+                                                  if (cloudUrl != null && cloudUrl.isNotEmpty) {
+                                                    setModalState(() {
+                                                      uploadedPhotos.add(cloudUrl);
+                                                      photoUrlController.text = uploadedPhotos.first;
+                                                      isUploadingPhoto = false;
+                                                    });
+                                                  } else {
+                                                    setModalState(() => isUploadingPhoto = false);
+                                                  }
+                                                }
+                                              }
+                                            } catch (e) {
+                                              setModalState(() => isUploadingPhoto = false);
+                                              if (ctx.mounted) {
+                                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                                  SnackBar(content: Text('Photo upload failed: $e')),
+                                                );
+                                              }
+                                            }
+                                          },
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(7),
+                                                decoration: BoxDecoration(
+                                                  color: ManagerColors.teal.withValues(alpha: 0.12),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.add_a_photo, size: 18, color: ManagerColors.teal),
+                                              ),
+                                              const SizedBox(height: 5),
+                                              Text(
+                                                index == 0 ? '+ Cover' : '+ Photo ${index + 1}',
+                                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ManagerColors.navy),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              const Text('Tap to upload', style: TextStyle(fontSize: 9.5, color: Colors.grey)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ] else ...[
+                                      // Disabled slot waiting for previous photo
+                                      Center(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.image_outlined, size: 24, color: Colors.grey.shade400),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Photo ${index + 1}',
+                                              style: TextStyle(fontSize: 10, color: Colors.grey.shade400, fontWeight: FontWeight.w600),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
                       ),
+                      const SizedBox(height: 6),
+                        const Text(
+                          'Upload up to 3 photos of the facility. The first photo serves as the primary cover.',
+                          style: TextStyle(fontSize: 11, color: ManagerColors.secondaryText),
+                        ),
                       const SizedBox(height: 14),
 
                       // 2. FACILITY NAME
@@ -727,7 +800,12 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                   final rate = double.tryParse(rateController.text.trim()) ?? 2500.0;
                                   setModalState(() => isSubmitting = true);
 
-                                  final finalPhoto = photoUrlController.text.trim();
+                                  final finalPhotos = uploadedPhotos.isNotEmpty
+                                      ? List<String>.from(uploadedPhotos)
+                                      : (photoUrlController.text.trim().isNotEmpty
+                                          ? [photoUrlController.text.trim()]
+                                          : <String>[]);
+                                  final primaryPhoto = finalPhotos.isNotEmpty ? finalPhotos.first : '';
 
                                   final facilityData = {
                                     'name': name,
@@ -740,8 +818,8 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                     'amenities': selectedAmenities,
                                     'accessibility': selectedAccessibility,
                                     'contactNumber': contactController.text.trim(),
-                                    'photoUrl': finalPhoto,
-                                    'photos': finalPhoto.isNotEmpty ? [finalPhoto] : [],
+                                    'photoUrl': primaryPhoto,
+                                    'photos': finalPhotos,
                                     'hourlyRate': rate,
                                     'type': selectedSports.isNotEmpty ? selectedSports.first : 'Badminton',
                                     'status': selectedStatus,
@@ -1056,6 +1134,9 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                               final status = f['status']?.toString() ?? 'active';
                               final desc = f['description']?.toString() ?? '';
                               final photoUrl = f['photoUrl']?.toString() ?? '';
+                              final List<String> photosList = (f['photos'] is List && (f['photos'] as List).isNotEmpty)
+                                  ? (f['photos'] as List).map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList()
+                                  : (photoUrl.isNotEmpty ? [photoUrl] : <String>[]);
 
                               // Sports list
                               final sportsList = (f['availableSports'] is List)
@@ -1114,28 +1195,10 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                         child: Stack(
                                           fit: StackFit.expand,
                                           children: [
-                                            if (photoUrl.isNotEmpty)
-                                              Image.network(
-                                                photoUrl,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (context, error, stackTrace) => Container(
-                                                  color: const Color(0xFFE2E8F0),
-                                                  child: Icon(
-                                                    _getSportIcon(sportsList.isNotEmpty ? sportsList.first : 'sports'),
-                                                    size: 48,
-                                                    color: ManagerColors.navy,
-                                                  ),
-                                                ),
-                                              )
-                                            else
-                                              Container(
-                                                color: const Color(0xFFE2E8F0),
-                                                child: Icon(
-                                                  _getSportIcon(sportsList.isNotEmpty ? sportsList.first : 'sports'),
-                                                  size: 48,
-                                                  color: ManagerColors.navy,
-                                                ),
-                                              ),
+                                            _FacilityPhotoCarousel(
+                                              photos: photosList,
+                                              fallbackIcon: _getSportIcon(sportsList.isNotEmpty ? sportsList.first : 'sports'),
+                                            ),
 
                                             // Top Gradient Overlay
                                             Container(
@@ -1387,6 +1450,105 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
         icon: const Icon(Icons.add_rounded),
         label: const Text('Add Facility', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
+    );
+  }
+}
+
+class _FacilityPhotoCarousel extends StatefulWidget {
+  final List<String> photos;
+  final IconData fallbackIcon;
+
+  const _FacilityPhotoCarousel({
+    required this.photos,
+    required this.fallbackIcon,
+  });
+
+  @override
+  State<_FacilityPhotoCarousel> createState() => _FacilityPhotoCarouselState();
+}
+
+class _FacilityPhotoCarouselState extends State<_FacilityPhotoCarousel> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.photos.isEmpty) {
+      return Container(
+        color: const Color(0xFFE2E8F0),
+        child: Icon(widget.fallbackIcon, size: 48, color: ManagerColors.navy),
+      );
+    }
+
+    if (widget.photos.length == 1) {
+      return Image.network(
+        widget.photos.first,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: const Color(0xFFE2E8F0),
+          child: Icon(widget.fallbackIcon, size: 48, color: ManagerColors.navy),
+        ),
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          itemCount: widget.photos.length,
+          onPageChanged: (idx) => setState(() => _currentPage = idx),
+          itemBuilder: (context, idx) {
+            return Image.network(
+              widget.photos[idx],
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: const Color(0xFFE2E8F0),
+                child: Icon(widget.fallbackIcon, size: 48, color: ManagerColors.navy),
+              ),
+            );
+          },
+        ),
+        // Dots / Counter Badge at bottom-left
+        Positioned(
+          bottom: 10,
+          left: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.photo_library_rounded, size: 11, color: Colors.white),
+                const SizedBox(width: 4),
+                Text(
+                  '${_currentPage + 1}/${widget.photos.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

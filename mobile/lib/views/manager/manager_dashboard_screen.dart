@@ -288,7 +288,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: ManagerColors.amber.withOpacity(0.15),
+                          color: ManagerColors.amber.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: ManagerColors.amberBorder),
                         ),
@@ -300,7 +300,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                               child: Text(
                                 'Your account is pending admin approval. You can view the dashboard but cannot manage venues yet.',
                                 style: TextStyle(
-                                  color: ManagerColors.amber.withOpacity(0.9),
+                                  color: ManagerColors.amber.withValues(alpha: 0.9),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -604,21 +604,12 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(
-          Icons.location_on_outlined,
-          size: 20,
-          color: ManagerColors.navy,
+        Image.asset(
+          'assets/Sport Space logo 2.png',
+          height: 32,
+          fit: BoxFit.contain,
         ),
-        const SizedBox(width: 6),
-        const Text(
-          'SportSpace',
-          style: TextStyle(
-            color: ManagerColors.navy,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
