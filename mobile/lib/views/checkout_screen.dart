@@ -30,7 +30,7 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   int _selectedPaymentMethod = 0; // 0: Card, 1: Bank, 2: Wallet
   bool _isProcessing = false;
-  String? _selectedSlipPath;
+  Uint8List? _selectedSlipBytes;
   String? _selectedSlipName;
 
   @override
@@ -136,20 +136,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final result = await FilePicker.platform.pickFiles(
+                      final file = await FilePicker.pickFile(
                         type: FileType.custom,
                         allowedExtensions: ['jpg', 'png', 'pdf'],
                       );
-                      if (result != null && result.files.isNotEmpty) {
-                        final file = result.files.first;
+                      if (file != null) {
+                        final bytes = await file.readAsBytes();
                         setState(() {
-                          _selectedSlipPath = file.path;
+                          _selectedSlipBytes = bytes;
                           _selectedSlipName = file.name;
                         });
                       }
                     },
                     icon: Icon(
-                      _selectedSlipPath != null
+                      _selectedSlipBytes != null
                           ? Icons.check_circle
                           : Icons.upload_file,
                     ),
@@ -157,11 +157,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(
-                        color: _selectedSlipPath != null
+                        color: _selectedSlipBytes != null
                             ? AppColors.availableText
                             : AppColors.primaryTeal,
                       ),
-                      foregroundColor: _selectedSlipPath != null
+                      foregroundColor: _selectedSlipBytes != null
                           ? AppColors.availableText
                           : AppColors.primaryTeal,
                       shape: RoundedRectangleBorder(
@@ -290,7 +290,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         await Stripe.instance.presentPaymentSheet();
                       } else if (_selectedPaymentMethod == 1) {
                         paymentMethod = 'bank';
-                        if (_selectedSlipPath == null) {
+                        if (_selectedSlipBytes == null) {
                           throw Exception(
                             'Please upload a bank transfer slip first.',
                           );
@@ -303,7 +303,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         widget.slot.id,
                         paymentIntentId: paymentIntentId,
                         paymentMethod: paymentMethod,
-                        slipFilePath: _selectedSlipPath,
+                        slipBytes: _selectedSlipBytes,
+                        slipFileName: _selectedSlipName,
                       );
                       if (!context.mounted) return;
                       setState(() => _isProcessing = false);

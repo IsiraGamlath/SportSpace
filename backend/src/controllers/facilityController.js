@@ -359,6 +359,10 @@ exports.createFacility = async (req, res) => {
       ? [photoUrl]
       : [];
 
+    if (photosList.length > 5) {
+      return res.status(400).json({ message: 'A facility can have up to 5 photos' });
+    }
+
     const primaryPhoto = photoUrl || (photosList.length > 0 ? photosList[0] : '');
 
     const resolvedOpenTime =
@@ -430,6 +434,10 @@ exports.updateFacility = async (req, res) => {
     }
 
     const oldName = facility.name;
+
+    if (photos !== undefined && (Array.isArray(photos) ? photos.length : 1) > 5) {
+      return res.status(400).json({ message: 'A facility can have up to 5 photos' });
+    }
 
     // Check duplicate name if name changed
     if (name && name.trim().toLowerCase() !== oldName.toLowerCase()) {

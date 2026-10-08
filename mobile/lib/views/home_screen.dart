@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/facility.dart';
 import '../services/api_service.dart';
+import '../services/favorites_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'explore_screen.dart';
@@ -19,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
   String? _selectedSport;
+  Set<String> _favoriteNames = {};
   late Future<List<Facility>> _facilitiesFuture;
 
   static const _events = [
@@ -42,6 +44,34 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _facilitiesFuture = ApiService.fetchFacilities();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    final favorites = await FavoritesService.loadFavorites();
+    if (mounted) setState(() => _favoriteNames = favorites);
+  }
+
+  Future<void> _toggleFavorite(String facilityName) async {
+    final isFavorite = await FavoritesService.toggleFavorite(facilityName);
+    if (!mounted) return;
+    setState(() {
+      if (isFavorite) {
+        _favoriteNames.add(facilityName);
+      } else {
+        _favoriteNames.remove(facilityName);
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isFavorite
+              ? '$facilityName added to your favourites'
+              : '$facilityName removed from your favourites',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   String _greeting() {
@@ -125,20 +155,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       (facility) => [
                         _FacilityCard.fromFacility(
                           facility,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => FacilityProfileScreen(
-                                name: facility.name,
-                                sport: facility.sport,
-                                distance: 'Colombo',
-                                rating: '—',
-                                price: facility.price,
-                                color: _sportColor(facility.sport),
-                                icon: _sportIcon(facility.sport),
+                          isFavorite: _favoriteNames.contains(facility.name),
+                          onFavoriteTap: () => _toggleFavorite(facility.name),
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FacilityProfileScreen(
+                                  name: facility.name,
+                                  sport: facility.sport,
+                                  distance: 'Colombo',
+                                  rating: '—',
+                                  price: facility.price,
+                                  color: _sportColor(facility.sport),
+                                  icon: _sportIcon(facility.sport),
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                            await _loadFavorites();
+                          },
                         ),
                         if (facility != facilities.last)
                           const SizedBox(height: 12),
@@ -371,15 +406,23 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _FacilityCard extends StatelessWidget {
-  _FacilityCard.fromFacility(Facility facility, {required VoidCallback onTap})
+  _FacilityCard.fromFacility(
+    Facility facility, {
+    required VoidCallback onTap,
+    required bool isFavorite,
+    required VoidCallback onFavoriteTap,
+  })
     : this(
         name: facility.name,
         sport: facility.sport,
         distance: 'Colombo',
         color: _facilityColor(facility.sport),
         icon: _facilityIcon(facility.sport),
-        rating: '—',
+        rate: 'Rs. ${facility.price}/hr',
+        imageUrl: facility.photoUrl,
         imagePath: null,
+        isFavorite: isFavorite,
+        onFavoriteTap: onFavoriteTap,
         onTap: onTap,
       );
 
@@ -390,8 +433,9 @@ class _FacilityCard extends StatelessWidget {
         distance: data.distance,
         color: data.color,
         icon: data.icon,
-        rating: data.rating,
+        rate: data.rating,
         imagePath: data.imagePath,
+        isFavorite: false,
         onTap: onTap,
       );
 
@@ -401,8 +445,11 @@ class _FacilityCard extends StatelessWidget {
     required this.distance,
     required this.color,
     required this.icon,
-    required this.rating,
+    required this.rate,
+    this.imageUrl,
     required this.imagePath,
+    this.isFavorite = false,
+    this.onFavoriteTap,
     required this.onTap,
   });
 
@@ -411,8 +458,11 @@ class _FacilityCard extends StatelessWidget {
   final String distance;
   final Color color;
   final IconData icon;
-  final String rating;
+  final String rate;
+  final String? imageUrl;
   final String? imagePath;
+  final bool isFavorite;
+  final VoidCallback? onFavoriteTap;
   final VoidCallback onTap;
 
   static Color _facilityColor(String sport) =>
@@ -462,7 +512,21 @@ class _FacilityCard extends StatelessWidget {
                         end: Alignment.bottomRight,
                       ),
                     ),
-                    child: imagePath == null
+                    child: imageUrl != null
+                        ? Image.network(
+                            imageUrl!,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Icon(
+                                icon,
+                                color: Colors.white.withValues(alpha: 0.8),
+                                size: 54,
+                              ),
+                            ),
+                          )
+                        : imagePath == null
                         ? Center(
                             child: Icon(
                               icon,
@@ -483,11 +547,21 @@ class _FacilityCard extends StatelessWidget {
                     child: CircleAvatar(
                       radius: 13,
                       backgroundColor: Colors.white.withValues(alpha: 0.9),
-                      child: const Icon(
-                        Icons.favorite_border,
-                        size: 16,
-                        color: AppColors.textSecondary,
+                    child: IconButton(
+                      onPressed: onFavoriteTap,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 26,
+                        height: 26,
                       ),
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        size: 16,
+                        color: isFavorite
+                            ? Colors.redAccent
+                            : AppColors.textSecondary,
+                      ),
+                    ),
                     ),
                   ),
                 ],
@@ -508,7 +582,7 @@ class _FacilityCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '$sport   •   Colombo   •   $distance',
+                    '$sport   •   $distance',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -517,14 +591,8 @@ class _FacilityCard extends StatelessWidget {
                   const SizedBox(height: 7),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.star,
-                        color: Color(0xFFF4A340),
-                        size: 15,
-                      ),
-                      const SizedBox(width: 3),
                       Text(
-                        rating,
+                        rate,
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 12,

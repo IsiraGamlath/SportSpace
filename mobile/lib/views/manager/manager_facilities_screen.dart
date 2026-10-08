@@ -107,6 +107,18 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
     final photoUrlController = TextEditingController(
       text: isEditing ? (facilityToEdit['photoUrl']?.toString() ?? '') : '',
     );
+    final photoUrls = <String>[];
+    if (isEditing && facilityToEdit['photos'] is List) {
+      photoUrls.addAll(
+        (facilityToEdit['photos'] as List)
+            .map((photo) => photo.toString().trim())
+            .where((photo) => photo.isNotEmpty)
+            .take(5),
+      );
+    }
+    if (photoUrls.isEmpty && photoUrlController.text.trim().isNotEmpty) {
+      photoUrls.add(photoUrlController.text.trim());
+    }
 
     String openTime = isEditing
         ? (facilityToEdit['openTime']?.toString() ?? '06:00 AM – 10:00 PM')
@@ -173,7 +185,7 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final hasPhoto = (pickedPhotoBytes != null) || photoUrlController.text.trim().isNotEmpty;
+            final hasPhoto = pickedPhotoBytes != null || photoUrls.isNotEmpty;
 
             return Padding(
               padding: EdgeInsets.fromLTRB(
@@ -213,7 +225,7 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
 
                       // 1. PHOTO UPLOAD SECTION
                       const Text(
-                        'Facility Photo *',
+                        'Facility Photos (up to 5)',
                         style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: ManagerColors.navy),
                       ),
                       const SizedBox(height: 6),
@@ -235,9 +247,9 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                   pickedPhotoBytes!,
                                   fit: BoxFit.cover,
                                 )
-                              else if (photoUrlController.text.trim().isNotEmpty)
+                              else if (photoUrls.isNotEmpty)
                                 Image.network(
-                                  photoUrlController.text.trim(),
+                                  photoUrls.first,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => const Center(
                                     child: Icon(Icons.broken_image_rounded, size: 40, color: Colors.grey),
@@ -312,33 +324,37 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                       ? null
                                       : () async {
                                           try {
-                                            final result = await FilePicker.platform.pickFiles(
+                                            if (photoUrls.length >= 5) {
+                                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                                const SnackBar(content: Text('A facility can have up to 5 photos')),
+                                              );
+                                              return;
+                                            }
+                                            final file = await FilePicker.pickFile(
                                               type: FileType.image,
-                                              withData: true, // Guarantees bytes are available in Chrome Web!
                                             );
-                                            if (result != null && result.files.isNotEmpty) {
-                                              final file = result.files.first;
-                                              if (file.bytes != null) {
+                                            if (file != null) {
+                                              final bytes = await file.readAsBytes();
+                                              setModalState(() {
+                                                pickedPhotoBytes = bytes;
+                                                pickedPhotoName = file.name;
+                                                isUploadingPhoto = true;
+                                              });
+
+                                              // Upload to Cloudinary backend
+                                              final cloudUrl = await ApiService.uploadFacilityPhoto(
+                                                fileBytes: bytes,
+                                                fileName: file.name,
+                                              );
+
+                                              if (cloudUrl != null && cloudUrl.isNotEmpty) {
                                                 setModalState(() {
-                                                  pickedPhotoBytes = file.bytes;
-                                                  pickedPhotoName = file.name;
-                                                  isUploadingPhoto = true;
+                                                  photoUrls.add(cloudUrl);
+                                                  photoUrlController.text = photoUrls.first;
+                                                  isUploadingPhoto = false;
                                                 });
-
-                                                // Upload to Cloudinary backend
-                                                final cloudUrl = await ApiService.uploadFacilityPhoto(
-                                                  fileBytes: file.bytes,
-                                                  fileName: file.name,
-                                                );
-
-                                                if (cloudUrl != null && cloudUrl.isNotEmpty) {
-                                                  setModalState(() {
-                                                    photoUrlController.text = cloudUrl;
-                                                    isUploadingPhoto = false;
-                                                  });
-                                                } else {
-                                                  setModalState(() => isUploadingPhoto = false);
-                                                }
+                                              } else {
+                                                setModalState(() => isUploadingPhoto = false);
                                               }
                                             }
                                           } catch (e) {
@@ -352,7 +368,7 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                         },
                                   icon: Icon(hasPhoto ? Icons.edit : Icons.upload_file, size: 16),
                                   label: Text(
-                                    hasPhoto ? 'Change Photo' : 'Choose Photo',
+                                    'Add Photo (${photoUrls.length}/5)',
                                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                                   ),
                                 ),
@@ -727,7 +743,10 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                   final rate = double.tryParse(rateController.text.trim()) ?? 2500.0;
                                   setModalState(() => isSubmitting = true);
 
-                                  final finalPhoto = photoUrlController.text.trim();
+                                  final finalPhotos = photoUrls.take(5).toList();
+                                  final finalPhoto = finalPhotos.isNotEmpty
+                                      ? finalPhotos.first
+                                      : photoUrlController.text.trim();
 
                                   final facilityData = {
                                     'name': name,
@@ -741,7 +760,9 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                     'accessibility': selectedAccessibility,
                                     'contactNumber': contactController.text.trim(),
                                     'photoUrl': finalPhoto,
-                                    'photos': finalPhoto.isNotEmpty ? [finalPhoto] : [],
+                                    'photos': finalPhotos.isNotEmpty
+                                        ? finalPhotos
+                                        : (finalPhoto.isNotEmpty ? [finalPhoto] : []),
                                     'hourlyRate': rate,
                                     'type': selectedSports.isNotEmpty ? selectedSports.first : 'Badminton',
                                     'status': selectedStatus,
