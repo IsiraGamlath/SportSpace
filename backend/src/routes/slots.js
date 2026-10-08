@@ -6,6 +6,7 @@ const { requireFirebaseUser } = require('../middlewares/firebaseAuth');
 
 // Facility Slot CRUD & Management Routes
 router.get('/', slotsController.getSlots);
+router.get('/facilities/list', slotsController.getFacilities);
 router.post('/', slotsController.createSlot);
 router.get('/:id', slotsController.getSlotById);
 router.put('/:id', slotsController.updateSlot);

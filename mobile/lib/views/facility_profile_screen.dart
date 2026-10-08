@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../models/review.dart';
+import '../services/api_service.dart';
 import '../utils/app_colors.dart';
+import 'review_screen.dart';
 import 'slot_selection_screen.dart';
 
 class FacilityProfileScreen extends StatelessWidget {
@@ -353,94 +356,148 @@ class FacilityProfileScreen extends StatelessWidget {
   }
 
   Widget _buildReviews() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return FutureBuilder<Map<String, dynamic>>(
+      future: ApiService.fetchReviews(name),
+      builder: (context, snapshot) {
+        final reviews = snapshot.data?['reviews'] as List<Review>? ?? [];
+        final count = snapshot.data?['reviewCount'] as int? ?? 0;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Reviews',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Reviews',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ReviewScreen(facilityName: name),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 3,
+                    ),
+                    child: Text(
+                      'See all ($count)',
+                      style: const TextStyle(
+                        color: AppColors.primaryTeal,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (snapshot.connectionState == ConnectionState.waiting)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else if (snapshot.hasError || reviews.isEmpty)
+              _reviewContainer(
+                const Text(
+                  'No reviews yet. Be the first player to share your experience.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                  ),
+                ),
+              )
+            else
+              ...reviews.take(3).map(_reviewCard),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _reviewContainer(Widget child) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _reviewCard(Review review) {
+    final initials = review.userName.trim().isEmpty
+        ? 'P'
+        : review.userName
+              .trim()
+              .split(RegExp(r'\s+'))
+              .take(2)
+              .map((part) => part[0].toUpperCase())
+              .join();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: _reviewContainer(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: AppColors.darkNavy,
+              child: Text(
+                initials,
+                style: const TextStyle(color: Colors.white, fontSize: 10),
               ),
             ),
-            Text(
-              'See all (126)',
-              style: const TextStyle(
-                color: AppColors.primaryTeal,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    review.userName,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${'★' * review.rating}${'☆' * (5 - review.rating)}',
+                    style: const TextStyle(
+                      color: Color(0xFFF4A340),
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    review.comment,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(11),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 17,
-                backgroundColor: AppColors.darkNavy,
-                child: Text(
-                  'NR',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Nadeesha R.',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      '2 weeks ago',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 9,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      '★★★★★',
-                      style: TextStyle(color: Color(0xFFF4A340), fontSize: 11),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'Great badminton courts and very clean facilities. Booking was easy and staff were welcoming.',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 10,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
