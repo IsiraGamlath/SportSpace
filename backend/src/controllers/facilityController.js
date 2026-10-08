@@ -307,6 +307,9 @@ exports.createFacility = async (req, res) => {
       amenities,
       accessibility,
       contactNumber,
+      email,
+      facebookUrl,
+      tiktokUrl,
       photos,
       photoUrl,
       hourlyRate,
@@ -320,6 +323,11 @@ exports.createFacility = async (req, res) => {
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Facility name is required' });
+    }
+
+    const trimmedEmail = typeof email === 'string' ? email.trim() : '';
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      return res.status(400).json({ message: 'A valid facility email address is required' });
     }
 
     const trimmedName = name.trim();
@@ -379,6 +387,9 @@ exports.createFacility = async (req, res) => {
       amenities: amenitiesList,
       accessibility: accessibilityList,
       contactNumber: contactNumber ? contactNumber.trim() : '+94 11 269 1111',
+      email: trimmedEmail,
+      facebookUrl: typeof facebookUrl === 'string' ? facebookUrl.trim() : '',
+      tiktokUrl: typeof tiktokUrl === 'string' ? tiktokUrl.trim() : '',
       photos: photosList,
       photoUrl: primaryPhoto,
       hourlyRate: Number(hourlyRate) || 2500,
@@ -417,6 +428,9 @@ exports.updateFacility = async (req, res) => {
       amenities,
       accessibility,
       contactNumber,
+      email,
+      facebookUrl,
+      tiktokUrl,
       photos,
       photoUrl,
       hourlyRate,
@@ -459,6 +473,15 @@ exports.updateFacility = async (req, res) => {
     if (openingTime !== undefined) facility.openingTime = openingTime;
     if (closingTime !== undefined) facility.closingTime = closingTime;
     if (contactNumber !== undefined) facility.contactNumber = contactNumber.trim();
+    if (email !== undefined) {
+      const trimmedEmail = typeof email === 'string' ? email.trim() : '';
+      if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        return res.status(400).json({ message: 'A valid facility email address is required' });
+      }
+      facility.email = trimmedEmail;
+    }
+    if (facebookUrl !== undefined) facility.facebookUrl = facebookUrl.trim();
+    if (tiktokUrl !== undefined) facility.tiktokUrl = tiktokUrl.trim();
     if (photoUrl !== undefined) facility.photoUrl = photoUrl;
     if (photos !== undefined) {
       facility.photos = Array.isArray(photos) ? photos : [photos];

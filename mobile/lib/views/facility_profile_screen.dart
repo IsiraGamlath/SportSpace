@@ -125,9 +125,12 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
       final reviewPayload = await ApiService.fetchReviews(facilityName);
       return _FacilityProfileData(
         facility: facility,
-        averageRating: (reviewPayload['averageRating'] as num?)?.toDouble() ?? 0,
+        averageRating:
+            (reviewPayload['averageRating'] as num?)?.toDouble() ?? 0,
         reviewCount: (reviewPayload['reviewCount'] as num?)?.toInt() ?? 0,
-        reviews: (reviewPayload['reviews'] as List?)?.whereType<Review>().toList() ?? [],
+        reviews:
+            (reviewPayload['reviews'] as List?)?.whereType<Review>().toList() ??
+            [],
       );
     } catch (error) {
       return _FacilityProfileData(
@@ -179,18 +182,12 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : CustomScrollView(
                     slivers: [
-                      SliverToBoxAdapter(
-                        child: _buildHero(context, facility),
-                      ),
+                      SliverToBoxAdapter(child: _buildHero(context, facility)),
                       SliverPadding(
                         padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
                         sliver: SliverList(
                           delegate: SliverChildListDelegate([
-                            _buildSummary(
-                              facility,
-                              averageRating,
-                              reviewCount,
-                            ),
+                            _buildSummary(facility, averageRating, reviewCount),
                             const SizedBox(height: 16),
                             _buildDescription(facility),
                             const SizedBox(height: 16),
@@ -295,7 +292,10 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
               right: 0,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black54,
                     borderRadius: BorderRadius.circular(12),
@@ -343,7 +343,10 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
     final urls = photos is List
         ? photos
               .map((photo) => photo.toString().trim())
-              .where((photo) => photo.startsWith('http://') || photo.startsWith('https://'))
+              .where(
+                (photo) =>
+                    photo.startsWith('http://') || photo.startsWith('https://'),
+              )
               .take(5)
               .toList()
         : <String>[];
@@ -408,8 +411,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
     double averageRating,
     int reviewCount,
   ) {
-    final location =
-        facility?['location']?.toString().trim().isNotEmpty == true
+    final location = facility?['location']?.toString().trim().isNotEmpty == true
         ? facility!['location'].toString()
         : widget.distance;
     final contact =
@@ -559,11 +561,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
     }
     return _section(
       'Sports available',
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: sports.map(_tag).toList(),
-      ),
+      Wrap(spacing: 8, runSpacing: 8, children: sports.map(_tag).toList()),
     );
   }
 
@@ -584,9 +582,7 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
         runSpacing: 11,
         spacing: 8,
         children: amenities
-            .map(
-              (item) => _FeatureItem(Icons.check_circle_outline, item),
-            )
+            .map((item) => _FeatureItem(Icons.check_circle_outline, item))
             .toList(),
       ),
     );
@@ -654,45 +650,198 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
   }
 
   Widget _buildDetailsLink(Map<String, dynamic>? facility) {
-    final centre = facility?['centreName']?.toString();
-    final surface = facility?['surface']?.toString();
-    final subtitle = [
-      if (centre != null && centre.isNotEmpty) centre,
-      if (surface != null && surface.isNotEmpty) surface,
-    ].join(' · ');
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(11),
+      child: InkWell(
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              subtitle.isNotEmpty
-                  ? subtitle
-                  : 'Full contact & accessibility details',
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+        onTap: () => _showContactDetails(facility),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: AppColors.borderLight),
           ),
-          const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 17),
-        ],
+          child: const Row(
+            children: [
+              Icon(
+                Icons.contact_mail_outlined,
+                color: AppColors.primaryTeal,
+                size: 18,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'More contact details',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: AppColors.textSecondary,
+                size: 19,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildReviews(
-    List<Review> reviews,
-    int reviewCount, {
-    String? error,
+  void _showContactDetails(Map<String, dynamic>? facility) {
+    final phone = facility?['contactNumber']?.toString().trim() ?? '';
+    final email = facility?['email']?.toString().trim() ?? '';
+    final facebookUrl = facility?['facebookUrl']?.toString().trim() ?? '';
+    final tiktokUrl = facility?['tiktokUrl']?.toString().trim() ?? '';
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.72,
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.borderLight,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  _displayName(facility),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'More contact details',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _contactDetailRow(
+                  icon: Icons.phone_outlined,
+                  label: 'Phone',
+                  value: phone.isEmpty ? 'Not provided' : phone,
+                ),
+                const SizedBox(height: 12),
+                _contactDetailRow(
+                  icon: Icons.email_outlined,
+                  label: 'Email',
+                  value: email.isEmpty ? 'Not provided' : email,
+                ),
+                if (facebookUrl.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _contactDetailRow(
+                    label: 'Facebook',
+                    value: facebookUrl,
+                    leading: _socialLogo(facebook: true),
+                  ),
+                ],
+                if (tiktokUrl.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _contactDetailRow(
+                    label: 'TikTok',
+                    value: tiktokUrl,
+                    leading: _socialLogo(facebook: false),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _contactDetailRow({
+    required String label,
+    required String value,
+    IconData? icon,
+    Widget? leading,
   }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        leading ?? Icon(icon, color: AppColors.primaryTeal, size: 21),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 2),
+              SelectableText(
+                value,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _socialLogo({required bool facebook}) {
+    return Container(
+      width: 23,
+      height: 23,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: facebook ? const Color(0xFF1877F2) : Colors.black,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: facebook
+          ? const Text(
+              'f',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                height: 1,
+              ),
+            )
+          : const Icon(Icons.music_note_rounded, color: Colors.white, size: 17),
+    );
+  }
+
+  Widget _buildReviews(List<Review> reviews, int reviewCount, {String? error}) {
     final displayName = widget.name;
 
     return Column(

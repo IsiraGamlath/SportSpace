@@ -109,6 +109,15 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
           ? (facilityToEdit['contactNumber']?.toString() ?? '+94 11 269 1111')
           : '+94 11 269 1111',
     );
+    final emailController = TextEditingController(
+      text: isEditing ? (facilityToEdit['email']?.toString() ?? '') : '',
+    );
+    final facebookController = TextEditingController(
+      text: isEditing ? (facilityToEdit['facebookUrl']?.toString() ?? '') : '',
+    );
+    final tiktokController = TextEditingController(
+      text: isEditing ? (facilityToEdit['tiktokUrl']?.toString() ?? '') : '',
+    );
     final rateController = TextEditingController(
       text: isEditing
           ? (facilityToEdit['hourlyRate']?.toString() ?? '2500')
@@ -767,6 +776,75 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                       ),
                       const SizedBox(height: 14),
 
+                      const Text(
+                        'Email Address *',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: ManagerColors.navy,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          hintText: 'facility@example.com',
+                          prefixIcon: const Icon(Icons.email_outlined),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Social Media Links (Optional)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: ManagerColors.navy,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: facebookController,
+                        keyboardType: TextInputType.url,
+                        decoration: InputDecoration(
+                          labelText: 'Facebook page link',
+                          hintText: 'https://facebook.com/yourpage',
+                          prefixIcon: const Icon(Icons.facebook),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: tiktokController,
+                        keyboardType: TextInputType.url,
+                        decoration: InputDecoration(
+                          labelText: 'TikTok link',
+                          hintText: 'https://tiktok.com/@yourpage',
+                          prefixIcon: const Icon(Icons.music_note_rounded),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
                       // 7. ADDITIONAL AMENITIES
                       const Text(
                         'Additional Amenities',
@@ -994,6 +1072,23 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                     return;
                                   }
 
+                                  final email = emailController.text.trim();
+                                  if (email.isEmpty ||
+                                      !RegExp(
+                                        r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                                      ).hasMatch(email)) {
+                                    if (ctx.mounted) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Please enter a valid facility email address',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+
                                   final rate =
                                       double.tryParse(
                                         rateController.text.trim(),
@@ -1020,6 +1115,10 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                     'accessibility': selectedAccessibility,
                                     'contactNumber': contactController.text
                                         .trim(),
+                                    'email': email,
+                                    'facebookUrl': facebookController.text
+                                        .trim(),
+                                    'tiktokUrl': tiktokController.text.trim(),
                                     'photoUrl': finalPhoto,
                                     'photos': finalPhotos.isNotEmpty
                                         ? finalPhotos
