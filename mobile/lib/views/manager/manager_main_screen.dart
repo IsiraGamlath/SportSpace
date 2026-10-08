@@ -74,7 +74,7 @@ class _ManagerMainScreenState extends State<ManagerMainScreen> {
                 onBackTap: () => _onTabSelected(0),
               ),
               const ManagerMaintenanceScreen(),
-              const ManagerProfileScreen(),
+              ManagerProfileScreen(onOpenBookings: () => _onTabSelected(2)),
             ],
           ),
         ),

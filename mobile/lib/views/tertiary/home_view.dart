@@ -1,22 +1,17 @@
-// lib/views/tertiary/home_view.dart
-//
-// Tertiary Stakeholder (Viewer / Public User) Home screen.
-//
-// Accurately matching the prototype UI layout:
-// - Header with user greeting, emoji, and avatar initials ("SS")
-// - Rounded search bar
-// - Popular Events horizontal quick select cards
-// - Nearby & Recommended section with View All
-// - Rich event cards with title, status pill badge, date/time, and venue location
-// - Bottom Navigation Bar with Home, Events, Facilities, Notifications, Profile
+
 
 import 'package:flutter/material.dart';
 
 import '../../models/sport_event_model.dart';
+import '../../services/app_services.dart';
+import '../../utils/tertiary_navigation.dart';
 import '../../widgets/tertiary/nav_bar.dart';
 import '../../widgets/tertiary/category_quick_select.dart';
 import '../../widgets/tertiary/nearby_event_card.dart';
-import 'placeholder_view.dart';
+import 'events_view.dart';
+import 'event_details_view.dart';
+import 'my_requests_view.dart';
+import 'profile_view.dart';
 
 class TertiaryHomeView extends StatefulWidget {
   const TertiaryHomeView({super.key});
@@ -26,78 +21,72 @@ class TertiaryHomeView extends StatefulWidget {
 }
 
 class _TertiaryHomeViewState extends State<TertiaryHomeView> {
-  int _currentIndex = 0;
-  String _selectedCategory = 'Badminton';
+  // Home corresponds to index 0 in TertiaryNavBar
+  // (Home, Events, Facilities, Notifications, Profile).
+  final int _currentIndex = 0;
 
-  // Palette matching the prototype
-  static const Color _background = Color(0xFFF7F8FA);
-  static const Color _heading = Color(0xFF0F2641);
+  // Local constants — replace with your app theme if available.
+  static const Color _background = Color(0xFFF5F6F8);
+  static const Color _heading = Color(0xFF0F2A44);
   static const Color _subtext = Color(0xFF8A93A3);
-  static const Color _viewAllBlue = Color(0xFF1E75D8);
-  static const Color _avatarBg = Color(0xFF0E4C75);
+  static const Color _accent = Color(0xFF2E8B57);
 
-  // Categories matching the prototype icons & labels
   final List<_CategoryItem> _categories = const [
-    _CategoryItem(
-      icon: Icons.grid_view_rounded,
-      label: 'Badminton',
-    ),
-    _CategoryItem(
-      icon: Icons.explore_outlined,
-      label: 'Football',
-    ),
-    _CategoryItem(
-      icon: Icons.star_rounded,
-      label: 'Basketball',
-    ),
-    _CategoryItem(
-      icon: Icons.calendar_today_outlined,
-      label: 'Tennis',
-    ),
-    _CategoryItem(
-      icon: Icons.access_time_rounded,
-      label: 'Swimming',
-    ),
+    _CategoryItem(icon: Icons.sports_handball, label: 'Badminton'),
+    _CategoryItem(icon: Icons.sports_soccer, label: 'Football'),
+    _CategoryItem(icon: Icons.sports_basketball, label: 'Basketball'),
+    _CategoryItem(icon: Icons.sports_tennis, label: 'Tennis'),
+    _CategoryItem(icon: Icons.pool, label: 'Swim'),
   ];
 
-  // Events matching the prototype cards
-  final List<NearbyEvent> _nearbyEvents = const [
-    NearbyEvent(
-      title: 'Colombo Community\nBadminton Open',
-      sport: 'Badminton',
-      date: '20 Sep 2026',
-      time: '9:00 AM–5:00 PM',
-      location: 'Colombo Sports Hub',
-      status: 'Open',
-      imageUrl: 'assets/images/badminton.jpg',
-    ),
-    NearbyEvent(
-      title: 'Youth Football Training\nDay',
-      sport: 'Football',
-      date: '22 Sep 2026',
-      time: '4:00 PM–7:00 PM',
-      location: 'City Sports Ground',
-      status: 'Confirmed',
-      imageUrl: 'assets/images/football.jpg',
-    ),
-  ];
+  bool _isLoading = true;
+  List<NearbyEvent> _nearbyEvents = [];
+  List<NearbyEvent> _allEvents = [];
+
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadEvents() async {
+    final events = await appServices.eventRepository.getEvents();
+    if (!mounted) return;
+    setState(() {
+      _allEvents = events;
+      _nearbyEvents = events.take(2).toList();
+      _isLoading = false;
+    });
+  }
+
+  List<NearbyEvent> get _displayedNearbyEvents {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return _nearbyEvents;
+    }
+    return _allEvents.where((e) {
+      return e.title.toLowerCase().contains(query) ||
+          e.sport.toLowerCase().contains(query) ||
+          e.location.toLowerCase().contains(query) ||
+          e.facility.toLowerCase().contains(query);
+    }).toList();
+  }
 
   void _onNavItemSelected(int index) {
-    if (index == _currentIndex) return;
-
-    const labels = ['Home', 'Events', 'Facilities', 'Notifications', 'Profile'];
-
-    setState(() => _currentIndex = index);
-
-    Navigator.of(context)
-        .push(
-      MaterialPageRoute(
-        builder: (_) => TertiaryPlaceholderView(title: labels[index]),
-      ),
-    )
-        .then((_) {
-      if (mounted) setState(() => _currentIndex = 0);
-    });
+    handleTertiaryNavTap(
+      context: context,
+      tappedIndex: index,
+      currentIndex: _currentIndex,
+    );
   }
 
   @override
@@ -106,40 +95,90 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
       backgroundColor: _background,
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: _buildHeader()),
-            SliverToBoxAdapter(child: _buildSearchBar()),
-            SliverToBoxAdapter(child: _buildPopularEvents()),
-            SliverToBoxAdapter(child: _buildNearbyHeader()),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final event = _nearbyEvents[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 18),
-                      child: NearbyEventCard(
-                        event: event,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => TertiaryPlaceholderView(
-                              title: event.title.replaceAll('\n', ' '),
-                            ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _buildHeader()),
+                  SliverToBoxAdapter(child: _buildSearchBar()),
+                  SliverToBoxAdapter(child: _buildPopularEvents()),
+                  SliverToBoxAdapter(child: _buildNearbyHeader()),
+                  if (_displayedNearbyEvents.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE7EAF0)),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.search_off_rounded,
+                                  size: 34, color: Color(0xFF9AA4B2)),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No events match "$_searchQuery"',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _heading,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Try another sport, location or view full schedules.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 12, color: _subtext),
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          EventsView(initialQuery: _searchQuery),
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                    'Search in all Events & Schedules →'),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    );
-                  },
-                  childCount: _nearbyEvents.length,
-                ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final event = _displayedNearbyEvents[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: NearbyEventCard(
+                                event: event,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        EventDetailsView(event: event),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          childCount: _displayedNearbyEvents.length,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
+      // --- Reused global nav bar, not re-implemented here -----------------
       bottomNavigationBar: TertiaryNavBar(
         currentIndex: _currentIndex,
         onItemSelected: _onNavItemSelected,
@@ -149,61 +188,83 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Good morning, Saantha',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: _heading,
-                        letterSpacing: -0.3,
+                    Flexible(
+                      child: Text(
+                        'Good morning, Saantha',
+                        style: const TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
+                          color: _heading,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      '👋',
-                      style: TextStyle(fontSize: 19),
-                    ),
+                    const Text('👋', style: TextStyle(fontSize: 18)),
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 const Text(
                   'Ready to play?',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    color: _subtext,
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: TextStyle(fontSize: 13.5, color: _subtext),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: _avatarBg,
-              shape: BoxShape.circle,
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MyRequestsView()),
             ),
-            child: const Center(
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE7EAF0)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.assignment_outlined, size: 15, color: _heading),
+                  SizedBox(width: 4),
+                  Text(
+                    'My Requests',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _heading,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileView()),
+            ),
+            child: const CircleAvatar(
+              radius: 20,
+              backgroundColor: _heading,
               child: Text(
                 'SS',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  letterSpacing: 0.5,
+                  fontSize: 13,
                 ),
               ),
             ),
@@ -215,36 +276,62 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12.5),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E9F0), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: const Color(0xFFE7EAF0)),
         ),
-        child: const Row(
-          children: [
-            Icon(Icons.search, size: 21, color: Color(0xFF8A93A3)),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Search facilities, sports or locations',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  color: Color(0xFF8A93A3),
-                  fontWeight: FontWeight.w400,
-                ),
+        child: TextField(
+          controller: _searchController,
+          onChanged: (value) => setState(() => _searchQuery = value),
+          onSubmitted: (value) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => EventsView(initialQuery: value),
               ),
-            ),
-          ],
+            );
+          },
+          style: const TextStyle(fontSize: 13.5),
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            prefixIcon:
+                const Icon(Icons.search, size: 20, color: Color(0xFF9AA4B2)),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.close,
+                            size: 18, color: Color(0xFF9AA4B2)),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      ),
+                      IconButton(
+                        tooltip: 'View in Events',
+                        icon: const Icon(Icons.arrow_forward_rounded,
+                            size: 18, color: _accent),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  EventsView(initialQuery: _searchQuery),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  )
+                : null,
+            hintText: 'Search facilities, sports or locations',
+            hintStyle: const TextStyle(fontSize: 13.5, color: _subtext),
+            border: InputBorder.none,
+          ),
         ),
       ),
     );
@@ -259,36 +346,34 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
           child: Text(
             'Popular Events',
             style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
               color: _heading,
-              letterSpacing: -0.2,
             ),
           ),
         ),
         SizedBox(
-          height: 94,
+          height: 100,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: _categories.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 14),
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemBuilder: (context, index) {
               final category = _categories[index];
               return CategoryQuickSelect(
                 icon: category.icon,
                 label: category.label,
-                isSelected: _selectedCategory == category.label,
-                onTap: () {
-                  setState(() {
-                    _selectedCategory = category.label;
-                  });
-                },
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => EventsView(initialQuery: category.label),
+                  ),
+                ),
               );
             },
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
       ],
     );
   }
@@ -298,29 +383,25 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const Text(
             'Nearby & Recommended',
             style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
               color: _heading,
-              letterSpacing: -0.2,
             ),
           ),
-          InkWell(
-            onTap: () {},
-            borderRadius: BorderRadius.circular(4),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Text(
-                'View All',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: _viewAllBlue,
-                ),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const EventsView()),
+            ),
+            child: const Text(
+              'View All',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _accent,
               ),
             ),
           ),

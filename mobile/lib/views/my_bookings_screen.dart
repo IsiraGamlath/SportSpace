@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../models/booking.dart';
 import 'slot_selection_screen.dart';
 import 'home_screen.dart';
+import 'account_profile_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -352,6 +353,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               context,
               MaterialPageRoute(builder: (context) => const HomeScreen()),
               (route) => false,
+            );
+          } else if (index == 4) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const UserProfileScreen()),
             );
           }
         },

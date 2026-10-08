@@ -6,6 +6,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 
 import 'firebase_options.dart';
 import 'utils/app_colors.dart';
+import 'services/account_settings_service.dart';
 import 'views/launch_screen.dart';
 
 void main() async {
@@ -14,6 +15,7 @@ void main() async {
 
   // 2. Initialize Firebase for authentication and other Firebase services.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await AccountSettingsService.loadDarkMode();
 
   // 3. Configure system UI overlay
   SystemChrome.setSystemUIOverlayStyle(
@@ -38,18 +40,30 @@ class SportSpaceApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SportSpace',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: AppColors.scaffoldBackground,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primaryTeal,
-          primary: AppColors.primaryTeal,
+    return ValueListenableBuilder<bool>(
+      valueListenable: AccountSettingsService.darkModeEnabled,
+      builder: (context, darkMode, _) => MaterialApp(
+        title: 'SportSpace',
+        debugShowCheckedModeBanner: false,
+        themeMode: darkMode ? ThemeMode.dark : ThemeMode.light,
+        theme: ThemeData(
+          useMaterial3: true,
+          scaffoldBackgroundColor: AppColors.scaffoldBackground,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: AppColors.primaryTeal,
+            primary: AppColors.primaryTeal,
+          ),
         ),
+        darkTheme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.dark,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: AppColors.primaryTeal,
+            brightness: Brightness.dark,
+          ),
+        ),
+        home: const LaunchScreen(),
       ),
-      home: const LaunchScreen(),
     );
   }
 }
