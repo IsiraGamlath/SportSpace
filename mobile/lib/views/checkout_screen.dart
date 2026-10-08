@@ -5,11 +5,12 @@ import '../models/time_slot.dart';
 import '../utils/app_colors.dart';
 
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:file_picker/file_picker.dart';
+
 import '../services/api_service.dart';
 import 'booking_confirmation_screen.dart';
 import 'booking_pending_screen.dart';
 import 'conflict_resolution_screen.dart';
+import 'package:file_picker/file_picker.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final TimeSlot slot;
