@@ -25,6 +25,8 @@ const DEFAULT_FACILITIES = [
     photoUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1000&q=80',
     photos: [
       'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1613918431703-aa632128a31e?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?auto=format&fit=crop&w=1000&q=80',
     ],
     hourlyRate: 2500,
     status: 'active',
@@ -47,6 +49,8 @@ const DEFAULT_FACILITIES = [
     photoUrl: 'https://images.unsplash.com/photo-1613918431703-aa632128a31e?auto=format&fit=crop&w=1000&q=80',
     photos: [
       'https://images.unsplash.com/photo-1613918431703-aa632128a31e?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=1000&q=80',
     ],
     hourlyRate: 2500,
     status: 'active',
@@ -69,6 +73,8 @@ const DEFAULT_FACILITIES = [
     photoUrl: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1000&q=80',
     photos: [
       'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1531315630201-bb15abeb1653?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=1000&q=80',
     ],
     hourlyRate: 3500,
     status: 'active',
@@ -91,6 +97,8 @@ const DEFAULT_FACILITIES = [
     photoUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1000&q=80',
     photos: [
       'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1519861531473-9200262188bf?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1000&q=80',
     ],
     hourlyRate: 3000,
     status: 'active',
@@ -113,6 +121,8 @@ const DEFAULT_FACILITIES = [
     photoUrl: 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=1000&q=80',
     photos: [
       'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1000&q=80',
     ],
     hourlyRate: 4000,
     status: 'active',
@@ -148,9 +158,9 @@ exports.seedFacilities = async () => {
         const existing = await Facility.findOne({ name: def.name });
         if (existing) {
           let updated = false;
-          if (!existing.photoUrl || existing.photoUrl.trim() === '') {
-            existing.photoUrl = def.photoUrl;
+          if (!existing.photos || existing.photos.length < 3) {
             existing.photos = def.photos;
+            existing.photoUrl = def.photoUrl;
             updated = true;
           }
           if (!existing.location || existing.location.trim() === '') {
