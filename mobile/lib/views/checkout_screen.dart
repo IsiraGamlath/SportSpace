@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import 'booking_confirmation_screen.dart';
 import 'booking_pending_screen.dart';
 import 'conflict_resolution_screen.dart';
+import 'package:file_picker/file_picker.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final TimeSlot slot;
