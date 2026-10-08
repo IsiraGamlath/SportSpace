@@ -60,7 +60,10 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
 
       final pendingPayments = allVerifications
           .whereType<Map>()
-          .where((p) => p['paymentStatus']?.toString() == 'pending')
+          .where((p) {
+            final st = p['paymentStatus']?.toString().toLowerCase().trim();
+            return st == 'pending' || st == 'unpaid' || st == 'pending_verification';
+          })
           .toList();
 
       final totalBookings = allBookings.length >= allVerifications.length
@@ -164,14 +167,20 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       final amt = item['amount']?.toString() ?? '2500';
                       final method = item['paymentMethod']?.toString() ?? 'card';
                       final hasSlip = item['slipUrl'] != null;
+                      final status = item['paymentStatus']?.toString().toLowerCase().trim() ?? 'pending';
+                      final isUnpaid = status == 'unpaid';
 
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                         leading: CircleAvatar(
-                          backgroundColor: ManagerColors.amber.withValues(alpha: 0.15),
+                          backgroundColor: isUnpaid
+                              ? Colors.red.withValues(alpha: 0.12)
+                              : ManagerColors.amber.withValues(alpha: 0.15),
                           child: Icon(
-                            method == 'bank' ? Icons.account_balance_rounded : Icons.credit_card_rounded,
-                            color: ManagerColors.amber,
+                            isUnpaid
+                                ? Icons.money_off_rounded
+                                : (method == 'bank' ? Icons.account_balance_rounded : Icons.credit_card_rounded),
+                            color: isUnpaid ? Colors.red.shade700 : ManagerColors.amber,
                             size: 20,
                           ),
                         ),
@@ -183,6 +192,30 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                                 fontWeight: FontWeight.w800,
                                 fontSize: 14,
                                 color: ManagerColors.navyDark,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isUnpaid
+                                    ? Colors.red.shade50
+                                    : ManagerColors.amber.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isUnpaid
+                                      ? Colors.red.shade200
+                                      : ManagerColors.amber.withValues(alpha: 0.3),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                isUnpaid ? 'Unpaid' : 'Pending',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isUnpaid ? Colors.red.shade700 : ManagerColors.amber,
+                                ),
                               ),
                             ),
                             if (hasSlip) ...[

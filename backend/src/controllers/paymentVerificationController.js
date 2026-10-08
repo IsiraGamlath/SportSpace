@@ -124,18 +124,18 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
       if (!b.bookingId) continue;
       let pv = pvMap.get(b.bookingId);
 
-      const isPending =
-        b.status === 'pending_verification' ||
-        (b.paymentMethod === 'bank' && b.status !== 'confirmed');
       const isCancelled = b.status === 'cancelled';
       const isVerified = b.status === 'confirmed';
+      const isPending =
+        !isCancelled &&
+        !isVerified &&
+        (b.status === 'pending_verification' ||
+          (b.paymentMethod === 'bank' && b.status !== 'confirmed'));
 
-      const pStatus = isPending
-        ? 'pending'
+      const pStatus = isCancelled
+        ? 'unpaid'
         : isVerified
         ? 'verified'
-        : isCancelled
-        ? 'unpaid'
         : 'pending';
       const slotPrice = b.slot && b.slot.price ? b.slot.price : 2500;
       const cName =
@@ -264,7 +264,11 @@ exports.getVerificationStatus = async (req, res) => {
           amount: 2500,
           paymentMethod: booking.paymentMethod || 'card',
           paymentRef: `PMT-${Math.floor(10000 + Math.random() * 90000)}`,
-          paymentStatus: booking.status === 'pending_verification' ? 'pending' : (booking.status === 'confirmed' ? 'verified' : 'pending'),
+          paymentStatus: booking.status === 'pending_verification'
+            ? 'pending'
+            : (booking.status === 'confirmed'
+              ? 'verified'
+              : (booking.status === 'cancelled' ? 'unpaid' : 'pending')),
           slipUrl: booking.slipUrl || null,
         });
       }
