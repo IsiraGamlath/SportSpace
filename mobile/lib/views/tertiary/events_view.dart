@@ -3,15 +3,20 @@ import 'package:flutter/material.dart';
 
 import '../../models/sport_event_model.dart';
 import '../../services/app_services.dart';
+import '../../utils/tertiary_navigation.dart';
 import '../../widgets/tertiary/nav_bar.dart';
 import '../../widgets/tertiary/nearby_event_card.dart';
 import '../../widgets/tertiary/filter_chip.dart';
 import '../../widgets/tertiary/date_selector.dart';
 import 'event_details_view.dart';
-import 'placeholder_view.dart';
+import '../../models/contact_request_model.dart';
+import 'my_requests_view.dart';
+import 'notifications_view.dart';
 
 class EventsView extends StatefulWidget {
-  const EventsView({super.key});
+  final String? initialQuery;
+
+  const EventsView({super.key, this.initialQuery});
 
   @override
   State<EventsView> createState() => _EventsViewState();
@@ -31,6 +36,7 @@ class _EventsViewState extends State<EventsView> {
   String? _selectedSport;
   String? _selectedLocation;
   String? _selectedEventType;
+  bool _onlySaved = false;
   bool _dateFilterEnabled = true;
 
   bool _isLoading = true;
@@ -48,7 +54,16 @@ class _EventsViewState extends State<EventsView> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+      _searchController.text = widget.initialQuery!;
+      _searchQuery = widget.initialQuery!;
+    }
+    appServices.bookmarkService.addListener(_onBookmarksChanged);
     _loadEvents();
+  }
+
+  void _onBookmarksChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadEvents() async {
@@ -87,6 +102,8 @@ class _EventsViewState extends State<EventsView> {
           _selectedLocation == null || event.location == _selectedLocation;
       final matchesType =
           _selectedEventType == null || event.eventType == _selectedEventType;
+      final matchesSaved =
+          !_onlySaved || appServices.bookmarkService.isSaved(event.id);
       final matchesDate =
           !_dateFilterEnabled || _isSameDay(event.eventDate, _selectedDate);
 
@@ -94,11 +111,13 @@ class _EventsViewState extends State<EventsView> {
           matchesSport &&
           matchesLocation &&
           matchesType &&
+          matchesSaved &&
           matchesDate;
     }).toList();
   }
 
   bool get _hasActiveFilters =>
+      _onlySaved ||
       _selectedSport != null ||
       _selectedLocation != null ||
       _selectedEventType != null ||
@@ -106,6 +125,7 @@ class _EventsViewState extends State<EventsView> {
 
   void _resetFilters() {
     setState(() {
+      _onlySaved = false;
       _selectedSport = null;
       _selectedLocation = null;
       _selectedEventType = null;
@@ -175,25 +195,16 @@ class _EventsViewState extends State<EventsView> {
   }
 
   void _onNavTap(int index) {
-    if (index == _tabIndex) return;
-    const labels = ['Home', 'Events', 'Facilities', 'Notifications', 'Profile'];
-
-    if (index == 0) {
-      // Home pushed this screen, so Home is directly below it on the
-      // stack — just pop back instead of pushing a second Home.
-      Navigator.of(context).pop();
-      return;
-    }
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => TertiaryPlaceholderView(title: labels[index]),
-      ),
+    handleTertiaryNavTap(
+      context: context,
+      tappedIndex: index,
+      currentIndex: _tabIndex,
     );
   }
 
   @override
   void dispose() {
+    appServices.bookmarkService.removeListener(_onBookmarksChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -260,29 +271,96 @@ class _EventsViewState extends State<EventsView> {
   }
 
   Widget _buildHeader() {
+    final canPop = Navigator.of(context).canPop();
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Events & Schedules',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: _heading,
-            ),
+          Row(
+            children: [
+              if (canPop) ...[
+                IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 18,
+                    color: _heading,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 8),
+              ],
+              const Text(
+                'Events & Schedules',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: _heading,
+                ),
+              ),
+            ],
           ),
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFE7EAF0)),
-            ),
-            child: const Icon(Icons.notifications_none_rounded,
-                size: 19, color: _heading),
+          Row(
+            children: [
+              InkWell(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MyRequestsView()),
+                ),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE7EAF0)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.assignment_outlined,
+                        size: 15,
+                        color: _heading,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'View requests',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _heading,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const NotificationsView()),
+                ),
+                borderRadius: BorderRadius.circular(19),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFE7EAF0)),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_none_rounded,
+                    size: 19,
+                    color: _heading,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -345,6 +423,56 @@ class _EventsViewState extends State<EventsView> {
               current: _selectedSport,
               onSelected: (value) => setState(() => _selectedSport = value),
             ),
+          ),
+          const SizedBox(width: 10),
+          ListenableBuilder(
+            listenable: appServices.contactRequestService,
+            builder: (context, _) {
+              final requests = appServices.contactRequestService.myRequests;
+              final count = requests.length;
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  EventFilterChip(
+                    label: count > 0 ? 'My Requests ($count)' : 'My Requests',
+                    icon: Icons.assignment_outlined,
+                    isActive: false,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const MyRequestsView()),
+                    ),
+                  ),
+                  if (requests.isNotEmpty) ...[
+                    for (final req in requests) ...[
+                      const SizedBox(width: 10),
+                      EventFilterChip(
+                        label: req.message.length > 20
+                            ? '${req.message.substring(0, 18)}...'
+                            : req.message,
+                        icon: req.type == ContactRequestType.accessibilityRequest
+                            ? Icons.accessible_rounded
+                            : Icons.chat_bubble_outline_rounded,
+                        isActive: false,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                MyRequestsView(initialRequestId: req.id),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 10),
+          EventFilterChip(
+            label: 'Saved only',
+            icon: _onlySaved
+                ? Icons.bookmark_rounded
+                : Icons.bookmark_border_rounded,
+            isActive: _onlySaved,
+            onTap: () => setState(() => _onlySaved = !_onlySaved),
           ),
           const SizedBox(width: 10),
           EventFilterChip(

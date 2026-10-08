@@ -1,11 +1,12 @@
 
 import 'package:flutter/material.dart';
 
+import '../../models/facility_info_model.dart';
 import '../../models/sport_event_model.dart';
 import '../../services/app_services.dart';
 import '../../widgets/tertiary/event_image.dart';
 import 'facility_details_view.dart';
-import 'placeholder_view.dart';
+import 'notifications_view.dart';
 
 class EventDetailsView extends StatelessWidget {
   final NearbyEvent event;
@@ -110,8 +111,7 @@ class EventDetailsView extends StatelessWidget {
               icon: Icons.notifications_none_rounded,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) =>
-                      const TertiaryPlaceholderView(title: 'Notifications'),
+                  builder: (_) => const NotificationsView(),
                 ),
               ),
             ),
@@ -332,32 +332,31 @@ class EventDetailsView extends StatelessWidget {
   /// repository yet, so these are mocked here for now. Replace with a
   /// real facility lookup (by event.facility) once one exists.
   void _openFacility(BuildContext context) {
+    final facilityName =
+        event.facility.isNotEmpty ? event.facility : event.location;
+    final facilityData = findFacilityByName(facilityName);
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => FacilityDetailsView(
-          title: event.title,
-          imageUrl: event.imageUrl,
-          status: event.status,
-          cityLocation: 'Colombo, Sri Lanka',
+          title: facilityData.name,
+          imageUrl: facilityData.imageUrl.isNotEmpty
+              ? facilityData.imageUrl
+              : event.imageUrl,
+          status: event.status.isNotEmpty ? event.status : facilityData.status,
+          cityLocation: facilityData.cityLocation,
           scheduleTimeRange: event.time,
           scheduleEventTitle: event.title,
-          openingHours: '8AM – 10PM',
-          availableSports: const ['Badminton', 'Basketball', 'Tennis'],
-          amenities: const [
-            FacilityAmenity(
-                icon: Icons.local_parking_outlined, label: 'Parking'),
-            FacilityAmenity(
-                icon: Icons.checkroom_outlined, label: 'Changing rooms'),
-            FacilityAmenity(
-                icon: Icons.local_cafe_outlined, label: 'Refreshments'),
-            FacilityAmenity(
-                icon: Icons.inventory_2_outlined, label: 'Equipment rental'),
-          ],
-          upcomingEvents: const [
-            'Colombo Community Badminton Open',
-            'Youth Training Session',
-          ],
-          accessibilityNote: 'Accessible entrance & parking on site',
+          openingHours: facilityData.openingHours,
+          availableSports: facilityData.availableSports,
+          amenities: facilityData.amenities,
+          upcomingEvents: facilityData.upcomingEvents,
+          accessibilityNote: facilityData.accessibilityNote,
+          facilityId: facilityData.id,
+          facilityName: facilityData.name,
+          phone: facilityData.phone,
+          email: facilityData.email,
+          address: facilityData.address,
         ),
       ),
     );
