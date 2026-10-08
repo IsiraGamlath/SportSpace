@@ -5,7 +5,7 @@
 import FlutterMacOS
 import Foundation
 
-import file_picker_darwin
+import file_picker
 import firebase_auth
 import firebase_core
 import google_sign_in_ios
