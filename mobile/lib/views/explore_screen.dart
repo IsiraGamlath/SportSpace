@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../models/facility.dart';
+import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'home_screen.dart';
@@ -18,92 +20,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
   String? _sport;
   String? _location;
   String? _price;
+  late Future<List<Facility>> _facilitiesFuture;
 
-  static const _facilities = [
-    _ExploreFacility(
-      'Colombo Cricket Grounds',
-      'Cricket',
-      '3.6 km',
-      '4.8',
-      1200,
-      Color(0xFF6B8E5B),
-      Icons.sports_cricket,
-    ),
-    _ExploreFacility(
-      'Lanka Cricket Academy',
-      'Cricket',
-      '5.4 km',
-      '4.6',
-      1800,
-      Color(0xFF4E7891),
-      Icons.sports_cricket,
-    ),
-    _ExploreFacility(
-      'Colombo Sports Hub',
-      'Basketball',
-      '2.5 km',
-      '4.8',
-      1500,
-      Color(0xFFC9A878),
-      Icons.sports_basketball,
-      imagePath: 'assets/bas.png',
-    ),
-    _ExploreFacility(
-      'City Sports Complex',
-      'Badminton',
-      '4.1 km',
-      '4.7',
-      2000,
-      Color(0xFF477D82),
-      Icons.sports_tennis,
-      imagePath: 'assets/badminton.png',
-    ),
-    _ExploreFacility(
-      'Elite Football Arena',
-      'Football',
-      '3.2 km',
-      '4.6',
-      1600,
-      Color(0xFF5E8C61),
-      Icons.sports_soccer,
-    ),
-    _ExploreFacility(
-      'Ace Tennis Club',
-      'Tennis',
-      '5.0 km',
-      '4.9',
-      2200,
-      Color(0xFFB77B64),
-      Icons.sports_tennis,
-    ),
-    _ExploreFacility(
-      'Aqua Life Centre',
-      'Swimming',
-      '6.3 km',
-      '4.5',
-      2500,
-      Color(0xFF4F91B5),
-      Icons.pool,
-    ),
-    _ExploreFacility(
-      'Riverside Badminton Hall',
-      'Badminton',
-      '3.8 km',
-      '4.4',
-      1400,
-      Color(0xFF806A9B),
-      Icons.sports_tennis,
-    ),
-    _ExploreFacility(
-      'Navy Basketball Court',
-      'Basketball',
-      '7.1 km',
-      '4.3',
-      1300,
-      Color(0xFF55718D),
-      Icons.sports_basketball,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _facilitiesFuture = ApiService.fetchFacilities();
+  }
 
   @override
   void dispose() {
@@ -114,121 +37,141 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     final query = _searchController.text.trim().toLowerCase();
-    final facilities = _facilities.where((facility) {
-      final searchable =
-          '${facility.name} ${facility.sport} Colombo ${facility.distance}'
+    return FutureBuilder<List<Facility>>(
+      future: _facilitiesFuture,
+      builder: (context, snapshot) {
+        final facilities = (snapshot.data ?? []).where((facility) {
+          final searchable = '${facility.name} ${facility.sport} Colombo'
               .toLowerCase();
-      return (_sport == null || facility.sport == _sport) &&
-          (_location == null || _location == 'Colombo') &&
-          _matchesPrice(facility.price) &&
-          (query.isEmpty || searchable.contains(query));
-    }).toList();
+          return (_sport == null || facility.sport == _sport) &&
+              (_location == null || _location == 'Colombo') &&
+              _matchesPrice(facility.price) &&
+              (query.isEmpty || searchable.contains(query));
+        }).toList();
 
-    return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-          children: [
-            Row(
+        return Scaffold(
+          backgroundColor: AppColors.scaffoldBackground,
+          body: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
               children: [
-                Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(
-                    side: BorderSide(color: AppColors.borderLight),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () => Navigator.pop(context),
-                    customBorder: const CircleBorder(),
-                    child: const SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: Icon(
-                        Icons.chevron_left_rounded,
-                        color: AppColors.textPrimary,
-                        size: 25,
+                Row(
+                  children: [
+                    Material(
+                      color: Colors.white,
+                      shape: const CircleBorder(
+                        side: BorderSide(color: AppColors.borderLight),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(context),
+                        customBorder: const CircleBorder(),
+                        child: const SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Icon(
+                            Icons.chevron_left_rounded,
+                            color: AppColors.textPrimary,
+                            size: 25,
+                          ),
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Explore Facilities',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildSearchField(),
+                const SizedBox(height: 10),
+                _buildFilterChips(),
+                const SizedBox(height: 14),
+                Text(
+                  '${facilities.length} facilities found near Colombo',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Explore Facilities',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildSearchField(),
-            const SizedBox(height: 10),
-            _buildFilterChips(),
-            const SizedBox(height: 14),
-            Text(
-              '${facilities.length} facilities found near Colombo',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (facilities.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Center(
-                  child: Text(
-                    'No facilities found',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ),
-              )
-            else
-              ...facilities.map(
-                (facility) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _FacilityCard(
-                    facility: facility,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FacilityProfileScreen(
-                          name: facility.name,
-                          sport: facility.sport,
-                          distance: facility.distance,
-                          rating: facility.rating,
-                          price: facility.price,
-                          color: facility.color,
-                          icon: facility.icon,
-                          imagePath: facility.imagePath,
+                const SizedBox(height: 8),
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (snapshot.hasError)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 48),
+                    child: Center(
+                      child: Text(
+                        'Unable to load facilities: ${snapshot.error}',
+                      ),
+                    ),
+                  )
+                else if (facilities.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(
+                      child: Text(
+                        'No facilities found',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  )
+                else
+                  ...facilities.map(
+                    (facility) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _FacilityCard(
+                        facility: _ExploreFacility.fromFacility(facility),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FacilityProfileScreen(
+                              name: facility.name,
+                              sport: facility.sport,
+                              distance: 'Colombo',
+                              rating: '—',
+                              price: facility.price,
+                              color: _ExploreFacility._sportColor(
+                                facility.sport,
+                              ),
+                              icon: _ExploreFacility._sportIcon(facility.sport),
+                              imagePath: null,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: 1,
-        onItemSelected: (index) {
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
-            );
-          } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-            );
-          }
-        },
-      ),
+              ],
+            ),
+          ),
+          bottomNavigationBar: AppBottomNav(
+            currentIndex: 1,
+            onItemSelected: (index) {
+              if (index == 0) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              } else if (index == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                );
+              }
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -585,6 +528,18 @@ class _FacilityCard extends StatelessWidget {
 }
 
 class _ExploreFacility {
+  factory _ExploreFacility.fromFacility(Facility facility) {
+    return _ExploreFacility(
+      facility.name,
+      facility.sport,
+      'Colombo',
+      '—',
+      facility.price,
+      _sportColor(facility.sport),
+      _sportIcon(facility.sport),
+    );
+  }
+
   const _ExploreFacility(
     this.name,
     this.sport,
@@ -604,4 +559,24 @@ class _ExploreFacility {
   final Color color;
   final IconData icon;
   final String? imagePath;
+
+  static Color _sportColor(String sport) =>
+      const {
+        'Badminton': Color(0xFF477D82),
+        'Tennis': Color(0xFFB77B64),
+        'Basketball': Color(0xFFC9A878),
+        'Football': Color(0xFF5E8C61),
+      }[sport] ??
+      const Color(0xFF55718D);
+
+  static IconData _sportIcon(String sport) =>
+      const {
+        'Badminton': Icons.sports_tennis,
+        'Tennis': Icons.sports_tennis,
+        'Basketball': Icons.sports_basketball,
+        'Football': Icons.sports_soccer,
+        'Swimming': Icons.pool,
+        'Cricket': Icons.sports_cricket,
+      }[sport] ??
+      Icons.sports;
 }

@@ -137,12 +137,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final result = await FilePicker.pickFiles(
+                      final result = await FilePicker.platform.pickFiles(
                         type: FileType.custom,
                         allowedExtensions: ['jpg', 'png', 'pdf'],
                       );
-                      if (result.isNotEmpty) {
-                        final file = result.first;
+                      if (result != null && result.files.isNotEmpty) {
+                        final file = result.files.first;
                         setState(() {
                           _selectedSlipPath = file.path;
                           _selectedSlipName = file.name;

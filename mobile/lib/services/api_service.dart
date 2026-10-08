@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/time_slot.dart';
+import '../models/review.dart';
+import '../models/facility.dart';
 
 class ApiService {
   static const String _webUrl = 'http://localhost:5000/api';
@@ -264,6 +266,145 @@ class ApiService {
     throw Exception('Failed to connect to backend on any host');
   }
 
+  // ================= FACILITY MANAGEMENT ================= //
+
+  // ================= FACILITY MANAGEMENT (Manager Portal) ================= //
+
+  static Future<List<Map<String, dynamic>>> fetchManagerFacilities({
+    String? type,
+    String? status,
+    String? search,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (type != null && type != 'All') queryParams['type'] = type;
+      if (status != null && status != 'All') queryParams['status'] = status;
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+
+      final response = await _get(
+        '/facilities',
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      } else {
+        throw Exception('Failed to load facilities');
+      }
+    } catch (e) {
+      debugPrint('Error fetching facilities: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> createFacility(
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await _post(
+        '/facilities',
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(data),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return json.decode(response.body);
+      } else {
+        final err = json.decode(response.body);
+        throw Exception(err['message'] ?? 'Failed to create facility');
+      }
+    } catch (e) {
+      throw Exception('Error creating facility: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateFacility(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await _put(
+        '/facilities/$id',
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(data),
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        final err = json.decode(response.body);
+        throw Exception(err['message'] ?? 'Failed to update facility');
+      }
+    } catch (e) {
+      throw Exception('Error updating facility: $e');
+    }
+  }
+
+  static Future<String?> uploadFacilityPhoto({
+    Uint8List? fileBytes,
+    String? fileName,
+    String? base64Data,
+  }) async {
+    try {
+      if (fileBytes != null && fileBytes.isNotEmpty) {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$baseUrl/facilities/upload-photo'),
+        );
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'photo',
+            fileBytes,
+            filename: fileName ?? 'facility_photo.jpg',
+          ),
+        );
+        final streamedResponse =
+            await request.send().timeout(const Duration(seconds: 25));
+        final response = await http.Response.fromStream(streamedResponse);
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final data = json.decode(response.body);
+          return data['url'] as String?;
+        } else {
+          final err = json.decode(response.body);
+          throw Exception(err['message'] ?? 'Failed to upload photo');
+        }
+      } else if (base64Data != null && base64Data.isNotEmpty) {
+        final response = await _post(
+          '/facilities/upload-photo',
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'photoData': base64Data}),
+        );
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final data = json.decode(response.body);
+          return data['url'] as String?;
+        } else {
+          final err = json.decode(response.body);
+          throw Exception(err['message'] ?? 'Failed to upload photo');
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error uploading facility photo: $e');
+      rethrow;
+    }
+  }
+
+  static Future<bool> deleteFacility(String id) async {
+    try {
+      final response = await _delete('/facilities/$id');
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        final err = json.decode(response.body);
+        throw Exception(err['message'] ?? 'Failed to delete facility');
+      }
+    } catch (e) {
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
   // ================= SCHEDULE MANAGEMENT ================= //
 
   static Future<List<TimeSlot>> fetchSlots({
@@ -303,6 +444,17 @@ class ApiService {
     } catch (e) {
       throw Exception('Error fetching slots: $e');
     }
+  }
+
+  static Future<List<Facility>> fetchFacilities() async {
+    final response = await _get('/slots/facilities/list');
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load facilities');
+    }
+    final data = json.decode(response.body) as List<dynamic>;
+    return data
+        .map((item) => Facility.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   static Future<List<Map<String, dynamic>>> fetchManagerSlots({
@@ -615,6 +767,88 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error fetching bookings: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> fetchReviews(String facilityName) async {
+    final response = await _get(
+      '/reviews',
+      queryParams: {'facilityName': facilityName},
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load facility reviews');
+    }
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    return {
+      'averageRating': (body['averageRating'] as num?)?.toDouble() ?? 0,
+      'reviewCount': (body['reviewCount'] as num?)?.toInt() ?? 0,
+      'reviews': (body['reviews'] as List<dynamic>? ?? [])
+          .map((item) => Review.fromJson(item as Map<String, dynamic>))
+          .toList(),
+    };
+  }
+
+  static Future<void> submitReview({
+    required String facilityName,
+    required int rating,
+    required String comment,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final token = user != null ? await user.getIdToken() : '';
+    final response = await _post(
+      '/reviews',
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty)
+          'Authorization': 'Bearer ' + token,
+      },
+      body: json.encode({
+        'facilityName': facilityName,
+        'rating': rating,
+        'comment': comment,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Failed to save review');
+    }
+  }
+
+  static Future<void> updateReview({
+    required String reviewId,
+    required int rating,
+    required String comment,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final token = user != null ? await user.getIdToken() : '';
+    final response = await _put(
+      '/reviews/$reviewId',
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty)
+          'Authorization': 'Bearer ' + token,
+      },
+      body: json.encode({'rating': rating, 'comment': comment}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Failed to update review');
+    }
+  }
+
+  static Future<void> deleteReview(String reviewId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final token = user != null ? await user.getIdToken() : '';
+    final response = await _delete(
+      '/reviews/$reviewId',
+      headers: {
+        if (token != null && token.isNotEmpty)
+          'Authorization': 'Bearer ' + token,
+      },
+    );
+    if (response.statusCode != 204) {
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Failed to delete review');
     }
   }
 

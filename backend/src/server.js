@@ -17,9 +17,11 @@ connectDB().then(() => {
   const { seedSlots } = require('./controllers/slotsController');
   const { seedMaintenance } = require('./controllers/maintenanceController');
   const { seedPaymentVerifications } = require('./controllers/paymentVerificationController');
+  const { seedFacilities } = require('./controllers/facilityController');
   seedSlots();
   seedMaintenance();
   seedPaymentVerifications();
+  seedFacilities();
 });
 
 // Middlewares
@@ -36,10 +38,12 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/slots", require("./routes/slots"));
+app.use("/api/facilities", require("./routes/facilities"));
 app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/payments", require("./routes/payments"));
 app.use("/api/maintenance", require("./routes/maintenance"));
 app.use("/api/payment-verifications", require("./routes/paymentVerifications"));
+app.use("/api/reviews", require("./routes/reviews"));
 
 // admin routes
 app.use("/api/admin", adminRoutes);

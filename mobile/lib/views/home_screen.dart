@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../models/facility.dart';
+import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'explore_screen.dart';
@@ -17,83 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
   String? _selectedSport;
-
-  static const _facilities = [
-    _FacilityData(
-      'Colombo Cricket Grounds',
-      'Cricket',
-      '3.6 km',
-      Color(0xFF6B8E5B),
-      Icons.sports_cricket,
-      '4.8',
-    ),
-    _FacilityData(
-      'Lanka Cricket Academy',
-      'Cricket',
-      '5.4 km',
-      Color(0xFF4E7891),
-      Icons.sports_cricket,
-      '4.6',
-    ),
-    _FacilityData(
-      'Colombo Sports Hub',
-      'Basketball',
-      '2.5 km',
-      Color(0xFFC9A878),
-      Icons.sports_basketball,
-      '4.8',
-      imagePath: 'assets/bas.png',
-    ),
-    _FacilityData(
-      'City Sports Complex',
-      'Badminton',
-      '4.1 km',
-      Color(0xFF477D82),
-      Icons.sports_tennis,
-      '4.7',
-      imagePath: 'assets/badminton.png',
-    ),
-    _FacilityData(
-      'Elite Football Arena',
-      'Football',
-      '3.2 km',
-      Color(0xFF5E8C61),
-      Icons.sports_soccer,
-      '4.6',
-    ),
-    _FacilityData(
-      'Ace Tennis Club',
-      'Tennis',
-      '5.0 km',
-      Color(0xFFB77B64),
-      Icons.sports_tennis,
-      '4.9',
-    ),
-    _FacilityData(
-      'Aqua Life Centre',
-      'Swimming',
-      '6.3 km',
-      Color(0xFF4F91B5),
-      Icons.pool,
-      '4.5',
-    ),
-    _FacilityData(
-      'Riverside Badminton Hall',
-      'Badminton',
-      '3.8 km',
-      Color(0xFF806A9B),
-      Icons.sports_tennis,
-      '4.4',
-    ),
-    _FacilityData(
-      'Navy Basketball Court',
-      'Basketball',
-      '7.1 km',
-      Color(0xFF55718D),
-      Icons.sports_basketball,
-      '4.3',
-    ),
-  ];
+  late Future<List<Facility>> _facilitiesFuture;
 
   static const _events = [
     _EventData(
@@ -111,6 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
       Icons.sports_tennis,
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _facilitiesFuture = ApiService.fetchFacilities();
+  }
 
   String _greeting() {
     final hour = DateTime.now().hour;
@@ -144,98 +76,127 @@ class _HomeScreenState extends State<HomeScreen> {
     final userName = _userName();
     final greetingName = _greetingName(userName);
     final query = _searchController.text.trim().toLowerCase();
-    final facilities = _facilities.where((facility) {
-      final matchesSport =
-          _selectedSport == null || facility.sport == _selectedSport;
-      final searchable =
-          '${facility.name} ${facility.sport} Colombo ${facility.distance}'
-              .toLowerCase();
-      return matchesSport && (query.isEmpty || searchable.contains(query));
-    }).toList();
 
-    return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(userName, greetingName),
-              const SizedBox(height: 18),
-              _buildSearchField(),
-              const SizedBox(height: 18),
-              _buildSectionTitle('Popular Sports'),
-              const SizedBox(height: 10),
-              _buildSports(),
-              const SizedBox(height: 24),
-              _buildSectionTitle('Nearby & Recommended', showViewAll: true),
-              const SizedBox(height: 10),
-              if (facilities.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: Text(
-                      'No facilities found',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ),
-                )
-              else
-                ...facilities.expand(
-                  (facility) => [
-                    _FacilityCard.fromData(
-                      facility,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => FacilityProfileScreen(
-                            name: facility.name,
-                            sport: facility.sport,
-                            distance: facility.distance,
-                            rating: facility.rating,
-                            price: 1500,
-                            color: facility.color,
-                            icon: facility.icon,
-                            imagePath: facility.imagePath,
-                          ),
+    return FutureBuilder<List<Facility>>(
+      future: _facilitiesFuture,
+      builder: (context, snapshot) {
+        final facilities = (snapshot.data ?? [])
+            .where((facility) {
+              final matchesSport =
+                  _selectedSport == null || facility.sport == _selectedSport;
+              final searchable = '${facility.name} ${facility.sport}'
+                  .toLowerCase();
+              return matchesSport &&
+                  (query.isEmpty || searchable.contains(query));
+            })
+            .take(8)
+            .toList();
+
+        return Scaffold(
+          backgroundColor: AppColors.scaffoldBackground,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(userName, greetingName),
+                  const SizedBox(height: 18),
+                  _buildSearchField(),
+                  const SizedBox(height: 18),
+                  _buildSectionTitle('Popular Sports'),
+                  const SizedBox(height: 10),
+                  _buildSports(),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Nearby & Recommended', showViewAll: true),
+                  const SizedBox(height: 10),
+                  if (facilities.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No facilities found',
+                          style: TextStyle(color: AppColors.textSecondary),
                         ),
                       ),
+                    )
+                  else
+                    ...facilities.expand(
+                      (facility) => [
+                        _FacilityCard.fromFacility(
+                          facility,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FacilityProfileScreen(
+                                name: facility.name,
+                                sport: facility.sport,
+                                distance: 'Colombo',
+                                rating: '—',
+                                price: facility.price,
+                                color: _sportColor(facility.sport),
+                                icon: _sportIcon(facility.sport),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (facility != facilities.last)
+                          const SizedBox(height: 12),
+                      ],
                     ),
-                    if (facility != facilities.last) const SizedBox(height: 12),
-                  ],
-                ),
-              const SizedBox(height: 24),
-              _buildSectionTitle('Community Events', showViewAll: true),
-              const SizedBox(height: 10),
-              ..._events.map(
-                (event) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _CommunityEventCard(event: event),
-                ),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Community Events', showViewAll: true),
+                  const SizedBox(height: 10),
+                  ..._events.map(
+                    (event) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _CommunityEventCard(event: event),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: 0,
-        onItemSelected: (index) {
-          if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ExploreScreen()),
-            );
-          } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-            );
-          }
-        },
-      ),
+          bottomNavigationBar: AppBottomNav(
+            currentIndex: 0,
+            onItemSelected: (index) {
+              if (index == 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ExploreScreen()),
+                );
+              } else if (index == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                );
+              }
+            },
+          ),
+        );
+      },
     );
   }
+
+  Color _sportColor(String sport) =>
+      const {
+        'Badminton': Color(0xFF477D82),
+        'Tennis': Color(0xFFB77B64),
+        'Basketball': Color(0xFFC9A878),
+        'Football': Color(0xFF5E8C61),
+      }[sport] ??
+      const Color(0xFF55718D);
+
+  IconData _sportIcon(String sport) =>
+      const {
+        'Badminton': Icons.sports_tennis,
+        'Tennis': Icons.sports_tennis,
+        'Basketball': Icons.sports_basketball,
+        'Football': Icons.sports_soccer,
+        'Swimming': Icons.pool,
+        'Cricket': Icons.sports_cricket,
+      }[sport] ??
+      Icons.sports;
 
   Widget _buildHeader(String userName, String greetingName) {
     return Row(
@@ -347,9 +308,9 @@ class _HomeScreenState extends State<HomeScreen> {
       (Icons.sports_cricket, 'Cricket'),
       (Icons.sports_tennis, 'Badminton'),
       (Icons.sports_soccer, 'Football'),
-      (Icons.star, 'Basketball'),
-      (Icons.calendar_today_outlined, 'Tennis'),
-      (Icons.access_time, 'Swimming'),
+      (Icons.sports_basketball, 'Basketball'),
+      (Icons.sports_tennis, 'Tennis'),
+      (Icons.pool, 'Swimming'),
     ];
 
     return SizedBox(
@@ -410,6 +371,18 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _FacilityCard extends StatelessWidget {
+  _FacilityCard.fromFacility(Facility facility, {required VoidCallback onTap})
+    : this(
+        name: facility.name,
+        sport: facility.sport,
+        distance: 'Colombo',
+        color: _facilityColor(facility.sport),
+        icon: _facilityIcon(facility.sport),
+        rating: '—',
+        imagePath: null,
+        onTap: onTap,
+      );
+
   _FacilityCard.fromData(_FacilityData data, {required VoidCallback onTap})
     : this(
         name: data.name,
@@ -441,6 +414,26 @@ class _FacilityCard extends StatelessWidget {
   final String rating;
   final String? imagePath;
   final VoidCallback onTap;
+
+  static Color _facilityColor(String sport) =>
+      const {
+        'Badminton': Color(0xFF477D82),
+        'Tennis': Color(0xFFB77B64),
+        'Basketball': Color(0xFFC9A878),
+        'Football': Color(0xFF5E8C61),
+      }[sport] ??
+      const Color(0xFF55718D);
+
+  static IconData _facilityIcon(String sport) =>
+      const {
+        'Badminton': Icons.sports_tennis,
+        'Tennis': Icons.sports_tennis,
+        'Basketball': Icons.sports_basketball,
+        'Football': Icons.sports_soccer,
+        'Swimming': Icons.pool,
+        'Cricket': Icons.sports_cricket,
+      }[sport] ??
+      Icons.sports;
 
   @override
   Widget build(BuildContext context) {

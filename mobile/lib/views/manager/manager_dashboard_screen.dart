@@ -5,6 +5,7 @@ import '../../theme/manager_colors.dart';
 import '../../widgets/manager/metric_card.dart';
 import '../../widgets/manager/schedule_tile.dart';
 import 'manager_booking_details_screen.dart';
+import 'manager_facilities_screen.dart';
 import 'manager_notifications_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
@@ -59,7 +60,10 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
 
       final pendingPayments = allVerifications
           .whereType<Map>()
-          .where((p) => p['paymentStatus']?.toString() == 'pending')
+          .where((p) {
+            final st = p['paymentStatus']?.toString().toLowerCase().trim();
+            return st == 'pending' || st == 'unpaid' || st == 'pending_verification';
+          })
           .toList();
 
       final totalBookings = allBookings.length >= allVerifications.length
@@ -163,14 +167,20 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       final amt = item['amount']?.toString() ?? '2500';
                       final method = item['paymentMethod']?.toString() ?? 'card';
                       final hasSlip = item['slipUrl'] != null;
+                      final status = item['paymentStatus']?.toString().toLowerCase().trim() ?? 'pending';
+                      final isUnpaid = status == 'unpaid';
 
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                         leading: CircleAvatar(
-                          backgroundColor: ManagerColors.amber.withValues(alpha: 0.15),
+                          backgroundColor: isUnpaid
+                              ? Colors.red.withValues(alpha: 0.12)
+                              : ManagerColors.amber.withValues(alpha: 0.15),
                           child: Icon(
-                            method == 'bank' ? Icons.account_balance_rounded : Icons.credit_card_rounded,
-                            color: ManagerColors.amber,
+                            isUnpaid
+                                ? Icons.money_off_rounded
+                                : (method == 'bank' ? Icons.account_balance_rounded : Icons.credit_card_rounded),
+                            color: isUnpaid ? Colors.red.shade700 : ManagerColors.amber,
                             size: 20,
                           ),
                         ),
@@ -182,6 +192,30 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                                 fontWeight: FontWeight.w800,
                                 fontSize: 14,
                                 color: ManagerColors.navyDark,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isUnpaid
+                                    ? Colors.red.shade50
+                                    : ManagerColors.amber.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isUnpaid
+                                      ? Colors.red.shade200
+                                      : ManagerColors.amber.withValues(alpha: 0.3),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                isUnpaid ? 'Unpaid' : 'Pending',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isUnpaid ? Colors.red.shade700 : ManagerColors.amber,
+                                ),
                               ),
                             ),
                             if (hasSlip) ...[
@@ -287,7 +321,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: ManagerColors.amber.withOpacity(0.15),
+                          color: ManagerColors.amber.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: ManagerColors.amberBorder),
                         ),
@@ -299,7 +333,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                               child: Text(
                                 'Your account is pending admin approval. You can view the dashboard but cannot manage venues yet.',
                                 style: TextStyle(
-                                  color: ManagerColors.amber.withOpacity(0.9),
+                                  color: ManagerColors.amber.withValues(alpha: 0.9),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -433,7 +467,56 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 10),
+
+                    InkWell(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ManagerFacilitiesScreen(),
+                          ),
+                        ).then((_) => _loadDashboardData());
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        height: 50,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFBBF7D0),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.stadium_outlined,
+                              size: 20,
+                              color: ManagerColors.teal,
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Manage Facilities & Courts (Add / Edit)',
+                              style: TextStyle(
+                                color: ManagerColors.navy,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Spacer(),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 22,
+                              color: ManagerColors.teal,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -554,21 +637,12 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(
-          Icons.location_on_outlined,
-          size: 20,
-          color: ManagerColors.navy,
+        Image.asset(
+          'assets/Sport Space logo 2.png',
+          height: 32,
+          fit: BoxFit.contain,
         ),
-        const SizedBox(width: 6),
-        const Text(
-          'SportSpace',
-          style: TextStyle(
-            color: ManagerColors.navy,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(

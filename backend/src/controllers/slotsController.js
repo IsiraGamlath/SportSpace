@@ -175,6 +175,38 @@ exports.getSlots = async (req, res) => {
   }
 };
 
+exports.getFacilities = async (req, res) => {
+  try {
+    const facilities = await Slot.aggregate([
+      { $match: { status: { $ne: 'blocked' } } },
+      {
+        $group: {
+          _id: { courtName: '$courtName', facilityType: '$facilityType' },
+          price: { $min: '$price' },
+          availableSlots: {
+            $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] },
+          },
+        },
+      },
+      { $sort: { '_id.courtName': 1 } },
+      {
+        $project: {
+          _id: 0,
+          name: '$_id.courtName',
+          sport: '$_id.facilityType',
+          price: 1,
+          availableSlots: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).json(facilities);
+  } catch (error) {
+    console.error('Error fetching facilities:', error);
+    return res.status(500).json({ message: 'Error fetching facilities' });
+  }
+};
+
 // GET /api/slots/:id
 exports.getSlotById = async (req, res) => {
   try {
