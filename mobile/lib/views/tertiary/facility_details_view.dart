@@ -1,6 +1,26 @@
+// lib/views/tertiary/facility_details_view.dart
+//
+// Facility information screen, reached from Event Details' "View
+// Facility" action and the tappable location row.
+//
+// SCOPE NOTE: per instruction, this is screen/layout ONLY — nothing
+// here is wired to real navigation or actions yet. The primary CTA
+// button is rendered with an empty/no-op onPressed() (so it keeps its
+// full active styling rather than looking disabled), and the
+// "Upcoming Events" rows / sport chips / amenities are plain
+// non-interactive widgets (no InkWell/GestureDetector). Wire up real
+// behavior in a follow-up pass once there's somewhere for these to go.
+//
+// Data-driven: every section is built from constructor parameters, not
+// hard-coded — the event_details_view.dart call site currently passes
+// mock facility-wide data (opening hours, amenities, etc.) since no
+// dedicated Facility model/repository exists in the project yet.
 
 import 'package:flutter/material.dart';
 import '../../widgets/tertiary/event_image.dart';
+import 'contact_accessibility_view.dart';
+import 'facility_profile_view.dart';
+import 'notifications_view.dart';
 
 class FacilityAmenity {
   final IconData icon;
@@ -21,6 +41,14 @@ class FacilityDetailsView extends StatelessWidget {
   final List<String> upcomingEvents;
   final String accessibilityNote;
 
+  // Passed straight through to Screen 2 (ContactAccessibilityView)
+  // when "View full facility profile →" is tapped.
+  final String facilityId;
+  final String facilityName;
+  final String phone;
+  final String email;
+  final String address;
+
   const FacilityDetailsView({
     super.key,
     required this.title,
@@ -34,6 +62,11 @@ class FacilityDetailsView extends StatelessWidget {
     this.amenities = const [],
     this.upcomingEvents = const [],
     this.accessibilityNote = '',
+    this.facilityId = '',
+    this.facilityName = '',
+    this.phone = '',
+    this.email = '',
+    this.address = '',
   });
 
   // Local constants — replace with your app theme if available.
@@ -60,14 +93,12 @@ class FacilityDetailsView extends StatelessWidget {
           children: [
             _buildHeaderImage(context, topInset),
             Container(
-              // Small negative margin so the white sheet overlaps the
-              // image's bottom edge slightly, matching the reference.
-              margin: const EdgeInsets.only(top: -16),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              // The rounded "sheet" overlap is drawn by the white strip at
+              // the bottom of the header image (see _buildHeaderImage).
+              // Container asserts margin is non-negative, so a negative
+              // margin here crashes in debug mode.
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -112,9 +143,9 @@ class FacilityDetailsView extends StatelessWidget {
                     _buildAccessibilityRow(),
                     const SizedBox(height: 28),
                   ],
-                  _buildContactButton(),
+                  _buildContactButton(context),
                   const SizedBox(height: 14),
-                  _buildViewProfileLink(),
+                  _buildViewProfileLink(context),
                 ],
               ),
             ),
@@ -135,27 +166,55 @@ class FacilityDetailsView extends StatelessWidget {
         Positioned(
           top: topInset + 12,
           left: 16,
-          child: _circleIcon(Icons.arrow_back_ios_new_rounded),
+          child: _circleIconButton(
+            icon: Icons.arrow_back_ios_new_rounded,
+            onTap: () => Navigator.of(context).pop(),
+          ),
         ),
         Positioned(
           top: topInset + 12,
           right: 16,
-          child: _circleIcon(Icons.notifications_none_rounded),
+          child: _circleIconButton(
+            icon: Icons.notifications_none_rounded,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const NotificationsView()),
+            ),
+          ),
+        ),
+        // White rounded strip across the image's bottom edge — gives the
+        // "sheet overlapping the photo" look without a negative margin.
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            height: 18,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  // Visual only — no onTap yet, per scope.
-  Widget _circleIcon(IconData icon) {
-    return Container(
-      width: 38,
-      height: 38,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
+  Widget _circleIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(19),
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 17, color: _heading),
       ),
-      child: Icon(icon, size: 17, color: _heading),
     );
   }
 
@@ -336,26 +395,34 @@ class FacilityDetailsView extends StatelessWidget {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 14,
-      crossAxisSpacing: 14,
-      childAspectRatio: 4.2,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 2.8,
       children: amenities.map((amenity) {
-        return Row(
-          children: [
-            Icon(amenity.icon, size: 18, color: _accent),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                amenity.label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _heading,
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _cardBorder),
+          ),
+          child: Row(
+            children: [
+              Icon(amenity.icon, size: 18, color: _accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  amenity.label,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: _heading,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+            ],
+          ),
         );
       }).toList(),
     );
@@ -412,18 +479,32 @@ class FacilityDetailsView extends StatelessWidget {
     );
   }
 
-  // Visual only — no-op onPressed so the button keeps its active
-  // styling rather than rendering disabled. Wire up real behavior later.
-  Widget _buildContactButton() {
+  void _navigateToContactAccessibility(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ContactAccessibilityView(
+          facilityId: facilityId.isNotEmpty ? facilityId : title,
+          facilityName: facilityName.isNotEmpty ? facilityName : title,
+          phone: phone,
+          email: email,
+          address: address.isNotEmpty ? address : cityLocation,
+          openingHours: openingHours,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: () => _navigateToContactAccessibility(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: _ctaColor,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           elevation: 0,
         ),
         child: const Text(
@@ -434,14 +515,41 @@ class FacilityDetailsView extends StatelessWidget {
     );
   }
 
-  Widget _buildViewProfileLink() {
-    return const Center(
-      child: Text(
-        'View full facility profile →',
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: _accent,
+  void _navigateToFacilityProfile(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FacilityProfileView(
+          facilityId: facilityId.isNotEmpty ? facilityId : title,
+          facilityName: facilityName.isNotEmpty ? facilityName : title,
+          imageUrl: imageUrl,
+          status: status,
+          cityLocation: cityLocation,
+          address: address.isNotEmpty ? address : cityLocation,
+          phone: phone.isNotEmpty ? phone : '+94 11 234 5678',
+          email: email.isNotEmpty ? email : 'info@sportspace.lk',
+          openingHours: openingHours.isNotEmpty
+              ? openingHours
+              : '6:00 AM – 10:00 PM',
+          availableSports: availableSports,
+          amenities: amenities,
+          accessibilityNote: accessibilityNote,
+          upcomingEvents: upcomingEvents,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildViewProfileLink(BuildContext context) {
+    return Center(
+      child: GestureDetector(
+        onTap: () => _navigateToFacilityProfile(context),
+        child: const Text(
+          'View full facility profile →',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: _accent,
+          ),
         ),
       ),
     );
