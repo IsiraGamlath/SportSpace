@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../models/booking.dart';
 import 'slot_selection_screen.dart';
 import 'home_screen.dart';
+import 'explore_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -348,10 +349,20 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         currentIndex: 2, // 'Bookings' is selected
         onTap: (index) {
           if (index == 0) {
-            Navigator.pushAndRemoveUntil(
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (route) => false,
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const HomeScreen(),
+                transitionDuration: Duration.zero,
+              ),
+            );
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const ExploreScreen(),
+                transitionDuration: Duration.zero,
+              ),
             );
           }
         },

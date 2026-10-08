@@ -144,7 +144,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                 facility.sport,
                               ),
                               icon: _ExploreFacility._sportIcon(facility.sport),
-                              imagePath: null,
+                              imagePath: facility.photoUrl,
                             ),
                           ),
                         ),
@@ -160,12 +160,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
               if (index == 0) {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const HomeScreen(),
+                    transitionDuration: Duration.zero,
+                  ),
                 );
               } else if (index == 2) {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const MyBookingsScreen(),
+                    transitionDuration: Duration.zero,
+                  ),
                 );
               }
             },
@@ -432,8 +438,22 @@ class _FacilityCard extends StatelessWidget {
             SizedBox(
               height: 126,
               width: double.infinity,
-              child: facility.imagePath == null
-                  ? Container(
+              child: facility.imagePath != null
+                  ? Image.network(
+                      facility.imagePath!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: facility.color,
+                        child: Center(
+                          child: Icon(
+                            facility.icon,
+                            color: Colors.white70,
+                            size: 58,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Container(
                       color: facility.color,
                       child: Center(
                         child: Icon(
@@ -442,8 +462,7 @@ class _FacilityCard extends StatelessWidget {
                           size: 58,
                         ),
                       ),
-                    )
-                  : Image.asset(facility.imagePath!, fit: BoxFit.cover),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
@@ -537,6 +556,7 @@ class _ExploreFacility {
       facility.price,
       _sportColor(facility.sport),
       _sportIcon(facility.sport),
+      imagePath: facility.photoUrl,
     );
   }
 

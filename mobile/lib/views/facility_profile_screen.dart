@@ -101,7 +101,14 @@ class FacilityProfileScreen extends StatelessWidget {
                   color: color,
                   child: Icon(icon, color: Colors.white70, size: 82),
                 )
-              : Image.asset(imagePath!, fit: BoxFit.cover),
+              : Image.network(
+                  imagePath!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: color,
+                    child: Icon(icon, color: Colors.white70, size: 82),
+                  ),
+                ),
           Positioned(
             top: 12,
             left: 18,

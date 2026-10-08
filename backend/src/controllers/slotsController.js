@@ -392,6 +392,7 @@ exports.bookSlot = async (req, res) => {
       booking: newBooking,
     });
   } catch (error) {
+    console.error('DEBUG slotsController.bookSlot ERROR:', error);
     res.status(500).json({ message: 'Error booking slot', error: error.message });
   }
 };

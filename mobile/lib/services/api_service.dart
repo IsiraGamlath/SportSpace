@@ -447,7 +447,7 @@ class ApiService {
   }
 
   static Future<List<Facility>> fetchFacilities() async {
-    final response = await _get('/slots/facilities/list');
+    final response = await _get('/facilities');
     if (response.statusCode != 200) {
       throw Exception('Failed to load facilities');
     }
@@ -571,6 +571,7 @@ class ApiService {
           'POST',
           Uri.parse('$baseUrl/slots/$id/book'),
         );
+        request.headers.addAll(headers);
         request.fields['paymentMethod'] = paymentMethod;
         if (paymentIntentId != null) {
           request.fields['paymentIntentId'] = paymentIntentId;
@@ -588,11 +589,11 @@ class ApiService {
         } else if (response.statusCode == 409) {
           throw Exception('Slot already booked or conflict');
         } else {
-          throw Exception('Failed to book slot');
+          throw Exception('Failed to book slot (Upload): ${response.statusCode} - ${response.body}');
         }
       } else {
-        final response = await http.post(
-          Uri.parse('$baseUrl/slots/$id/book'),
+        final response = await _post(
+          '/slots/$id/book',
           headers: headers,
           body: json.encode({
             'paymentIntentId': paymentIntentId,
@@ -604,7 +605,7 @@ class ApiService {
         } else if (response.statusCode == 409) {
           throw Exception('Slot already booked or conflict');
         } else {
-          throw Exception('Failed to book slot');
+          throw Exception('Failed to book slot (Card): ${response.statusCode} - ${response.body}');
         }
       }
     } catch (e) {

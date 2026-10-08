@@ -136,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 price: facility.price,
                                 color: _sportColor(facility.sport),
                                 icon: _sportIcon(facility.sport),
+                                imagePath: facility.photoUrl,
                               ),
                             ),
                           ),
@@ -161,14 +162,20 @@ class _HomeScreenState extends State<HomeScreen> {
             currentIndex: 0,
             onItemSelected: (index) {
               if (index == 1) {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const ExploreScreen()),
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const ExploreScreen(),
+                    transitionDuration: Duration.zero,
+                  ),
                 );
               } else if (index == 2) {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const MyBookingsScreen(),
+                    transitionDuration: Duration.zero,
+                  ),
                 );
               }
             },
@@ -379,7 +386,7 @@ class _FacilityCard extends StatelessWidget {
         color: _facilityColor(facility.sport),
         icon: _facilityIcon(facility.sport),
         rating: '—',
-        imagePath: null,
+        imagePath: facility.photoUrl,
         onTap: onTap,
       );
 
@@ -470,11 +477,18 @@ class _FacilityCard extends StatelessWidget {
                               size: 54,
                             ),
                           )
-                        : Image.asset(
+                        : Image.network(
                             imagePath!,
                             width: double.infinity,
                             height: double.infinity,
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Center(
+                              child: Icon(
+                                icon,
+                                color: Colors.white.withValues(alpha: 0.8),
+                                size: 54,
+                              ),
+                            ),
                           ),
                   ),
                   Positioned(
