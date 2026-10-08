@@ -139,6 +139,33 @@ class ApiService {
     return body['user'] as Map<String, dynamic>;
   }
 
+  static Future<Map<String, dynamic>> updateUserProfile({
+    required String fullName,
+    required String phone,
+    required String address,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('You must be signed in to update your profile.');
+    final token = await user.getIdToken();
+    final response = await _patch(
+      '/users/profile',
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'fullName': fullName,
+        'phone': phone,
+        'address': address,
+      }),
+    );
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(body['message'] ?? 'Unable to update your profile');
+    }
+    return Map<String, dynamic>.from(body['user'] as Map);
+  }
+
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
   static Future<http.Response> _get(
