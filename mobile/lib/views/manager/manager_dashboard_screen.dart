@@ -5,6 +5,7 @@ import '../../theme/manager_colors.dart';
 import '../../widgets/manager/metric_card.dart';
 import '../../widgets/manager/schedule_tile.dart';
 import 'manager_booking_details_screen.dart';
+import 'manager_facilities_screen.dart';
 import 'manager_notifications_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
@@ -404,7 +405,56 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 10),
+
+                    InkWell(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ManagerFacilitiesScreen(),
+                          ),
+                        ).then((_) => _loadDashboardData());
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        height: 50,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFBBF7D0),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.stadium_outlined,
+                              size: 20,
+                              color: ManagerColors.teal,
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Manage Facilities & Courts (Add / Edit)',
+                              style: TextStyle(
+                                color: ManagerColors.navy,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Spacer(),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 22,
+                              color: ManagerColors.teal,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

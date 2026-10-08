@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/settings_tile.dart';
 import '../onboarding_screen.dart';
+import 'manager_facilities_screen.dart';
 import 'manager_login_screen.dart';
 
 class ManagerProfileScreen extends StatefulWidget {
@@ -133,9 +134,15 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                             icon: Icons.sports_tennis_rounded,
                             iconColor: ManagerColors.green,
                             iconBackground: ManagerColors.greenSoft,
-                            title: 'Facility Profile',
-                            subtitle: 'Colombo Sports Centre • 4 Courts',
-                            onTap: () {},
+                            title: 'Facility Management',
+                            subtitle: 'Manage courts, pricing & availability',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const ManagerFacilitiesScreen(),
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(height: 12),

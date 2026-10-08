@@ -4,6 +4,7 @@ import '../../services/api_service.dart';
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/schedule_card.dart';
 import 'manager_booking_details_screen.dart';
+import 'manager_facilities_screen.dart';
 import 'manager_notifications_screen.dart';
 
 class ManagerScheduleScreen extends StatefulWidget {
@@ -30,7 +31,7 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
     'Sun 27',
   ];
 
-  final List<String> _courts = [
+  List<String> _courts = [
     'All Courts',
     'Badminton Court 1',
     'Badminton Court 2',
@@ -38,10 +39,32 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
     'Basketball Court',
   ];
 
+  List<Map<String, dynamic>> _facilityList = [];
+
   @override
   void initState() {
     super.initState();
-    _loadSlots();
+    _loadFacilitiesAndSlots();
+  }
+
+  Future<void> _loadFacilitiesAndSlots() async {
+    try {
+      final facilities = await ApiService.fetchFacilities();
+      if (mounted && facilities.isNotEmpty) {
+        setState(() {
+          _facilityList = facilities;
+          final names = facilities
+              .map((f) => f['name']?.toString() ?? '')
+              .where((name) => name.isNotEmpty)
+              .toList();
+          _courts = ['All Courts', ...names];
+          if (_selectedCourt >= _courts.length) {
+            _selectedCourt = 0;
+          }
+        });
+      }
+    } catch (_) {}
+    await _loadSlots();
   }
 
   Future<void> _loadSlots() async {
@@ -87,12 +110,22 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
   }
 
   void _showAddSlotModal({String? initialDate}) {
-    String selectedCourtName = _courts[1];
+    final availableCourts = _courts.where((c) => c != 'All Courts').toList();
+    String selectedCourtName =
+        availableCourts.isNotEmpty ? availableCourts.first : 'Badminton Court 1';
+
+    final initialFacility = _facilityList.firstWhere(
+      (f) => f['name'] == selectedCourtName,
+      orElse: () => <String, dynamic>{},
+    );
+    final initialRate = initialFacility['hourlyRate']?.toString() ?? '2500';
+
     String selectedDate = initialDate ?? _days[_selectedDayIndex];
     TimeOfDay startTime = const TimeOfDay(hour: 17, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
-    final priceController = TextEditingController(text: '2500');
-    final reasonController = TextEditingController(text: 'Routine maintenance window');
+    final priceController = TextEditingController(text: initialRate);
+    final reasonController =
+        TextEditingController(text: 'Routine maintenance window');
 
     String formatTimeOfDay(TimeOfDay tod) {
       final hour = tod.hourOfPeriod == 0 ? 12 : tod.hourOfPeriod;
@@ -177,13 +210,36 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                   ),
 
                   const SizedBox(height: 14),
-                  const Text(
-                    'Facility Court',
-                    style: TextStyle(
-                      color: ManagerColors.navy,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Facility Court',
+                        style: TextStyle(
+                          color: ManagerColors.navy,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const ManagerFacilitiesScreen(),
+                            ),
+                          ).then((_) => _loadFacilitiesAndSlots());
+                        },
+                        child: const Text(
+                          '+ Manage Facilities',
+                          style: TextStyle(
+                            color: ManagerColors.teal,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Container(
@@ -195,14 +251,29 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         isExpanded: true,
-                        value: selectedCourtName,
-                        items: _courts
-                            .where((c) => c != 'All Courts')
-                            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                        value: availableCourts.contains(selectedCourtName)
+                            ? selectedCourtName
+                            : (availableCourts.isNotEmpty
+                                ? availableCourts.first
+                                : null),
+                        items: availableCourts
+                            .map((c) =>
+                                DropdownMenuItem(value: c, child: Text(c)))
                             .toList(),
                         onChanged: (val) {
                           if (val != null) {
-                            setModalState(() => selectedCourtName = val);
+                            setModalState(() {
+                              selectedCourtName = val;
+                              final matchingFacility = _facilityList.firstWhere(
+                                (f) => f['name'] == val,
+                                orElse: () => <String, dynamic>{},
+                              );
+                              if (matchingFacility.isNotEmpty &&
+                                  matchingFacility['hourlyRate'] != null) {
+                                priceController.text =
+                                    matchingFacility['hourlyRate'].toString();
+                              }
+                            });
                           }
                         },
                       ),
@@ -383,9 +454,16 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                           onPressed: () async {
                             Navigator.pop(context);
                             final priceVal = double.tryParse(priceController.text.trim()) ?? 2500.0;
+                            final matchingFacility = _facilityList.firstWhere(
+                              (f) => f['name'] == selectedCourtName,
+                              orElse: () => <String, dynamic>{},
+                            );
+                            final fType = matchingFacility['type']?.toString() ?? 'Badminton';
+
                             try {
                               await ApiService.createSlot({
                                 'courtName': selectedCourtName,
+                                'facilityType': fType,
                                 'time': startFormatted,
                                 'durationRange': durationRangeStr,
                                 'price': priceVal,
@@ -424,9 +502,16 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                           onPressed: () async {
                             Navigator.pop(context);
                             final priceVal = double.tryParse(priceController.text.trim()) ?? 2500.0;
+                            final matchingFacility = _facilityList.firstWhere(
+                              (f) => f['name'] == selectedCourtName,
+                              orElse: () => <String, dynamic>{},
+                            );
+                            final fType = matchingFacility['type']?.toString() ?? 'Badminton';
+
                             try {
                               await ApiService.createSlot({
                                 'courtName': selectedCourtName,
+                                'facilityType': fType,
                                 'time': startFormatted,
                                 'durationRange': durationRangeStr,
                                 'price': priceVal,
@@ -627,7 +712,63 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                     _buildHeader(),
                     const SizedBox(height: 16),
                     _buildDayWeekSwitch(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
+
+                    // Top Action Bar: Create Schedule & Facilities
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showAddSlotModal(),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ManagerColors.navy,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                            label: const Text(
+                              '+ Add Schedule / Slot',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ManagerFacilitiesScreen(),
+                              ),
+                            ).then((_) => _loadFacilitiesAndSlots());
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: ManagerColors.navy,
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: ManagerColors.border),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.stadium_outlined, size: 18, color: ManagerColors.teal),
+                          label: const Text(
+                            'Facilities',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
 
                     if (!_isWeekView) ...[
                       _buildDaySelector(),
@@ -644,34 +785,6 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
                       const SizedBox(height: 18),
                       _buildWeekViewBody(),
                     ],
-
-                    const SizedBox(height: 24),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton(
-                        onPressed: () => _showAddSlotModal(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: ManagerColors.navy,
-                          backgroundColor: Colors.transparent,
-                          side: const BorderSide(
-                            color: ManagerColors.border,
-                            width: 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                        child: const Text(
-                          '+ Add Schedule / Block Slot',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),

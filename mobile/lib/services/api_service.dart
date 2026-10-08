@@ -212,6 +212,94 @@ class ApiService {
     throw Exception('Failed to connect to backend on any host');
   }
 
+  // ================= FACILITY MANAGEMENT ================= //
+
+  static Future<List<Map<String, dynamic>>> fetchFacilities({
+    String? type,
+    String? status,
+    String? search,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (type != null && type != 'All') queryParams['type'] = type;
+      if (status != null && status != 'All') queryParams['status'] = status;
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+
+      final response = await _get(
+        '/facilities',
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      } else {
+        throw Exception('Failed to load facilities');
+      }
+    } catch (e) {
+      debugPrint('Error fetching facilities: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> createFacility(
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await _post(
+        '/facilities',
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(data),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return json.decode(response.body);
+      } else {
+        final err = json.decode(response.body);
+        throw Exception(err['message'] ?? 'Failed to create facility');
+      }
+    } catch (e) {
+      throw Exception('Error creating facility: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateFacility(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await _put(
+        '/facilities/$id',
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(data),
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        final err = json.decode(response.body);
+        throw Exception(err['message'] ?? 'Failed to update facility');
+      }
+    } catch (e) {
+      throw Exception('Error updating facility: $e');
+    }
+  }
+
+  static Future<bool> deleteFacility(String id) async {
+    try {
+      final response = await _delete('/facilities/$id');
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        final err = json.decode(response.body);
+        throw Exception(err['message'] ?? 'Failed to delete facility');
+      }
+    } catch (e) {
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
   // ================= SCHEDULE MANAGEMENT ================= //
 
   static Future<List<TimeSlot>> fetchSlots({
