@@ -6,9 +6,15 @@ import 'package:mobile/models/sport_event_model.dart';
 import 'package:mobile/services/app_services.dart';
 import 'package:mobile/views/home_screen.dart';
 import 'package:mobile/views/player_notifications_view.dart';
+import 'package:mobile/views/account_profile_screen.dart';
+import 'package:mobile/views/facility_profile_screen.dart';
 import 'package:mobile/views/manager/manager_notifications_screen.dart';
 import 'package:mobile/views/tertiary/notifications_view.dart';
+import 'package:mobile/views/tertiary/events_view.dart';
+import 'package:mobile/views/tertiary/facilities_view.dart';
+import 'package:mobile/views/tertiary/profile_view.dart';
 import 'package:mobile/widgets/app_bottom_nav.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Widget _wrap(Widget child) => MaterialApp(home: child);
 
@@ -23,6 +29,7 @@ void _setScreenSize(WidgetTester tester) {
 
 void main() {
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     appServices.bookmarkService.resetForTesting();
     appServices.reminderService.resetForTesting();
     appServices.contactRequestService.resetForTesting();
@@ -389,6 +396,182 @@ void main() {
             n.description.contains('Colombo Sports Hub')),
         isTrue,
       );
+    });
+  });
+
+  group('Requirement 1 - 5: Player Navigation, Bell, Card Tap & Mark as Read', () {
+    testWidgets('Req 1: PlayerNotificationsView navbar profile click navigates to UserProfileScreen',
+        (tester) async {
+      _setScreenSize(tester);
+      await tester.pumpWidget(_wrap(const PlayerNotificationsView()));
+      await tester.pumpAndSettle();
+
+      // Tap Profile navbar item (index 4)
+      await tester.tap(find.byIcon(Icons.person_outline));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(UserProfileScreen), findsOneWidget);
+    });
+
+    testWidgets('Req 2: UserProfileScreen notification bell redirects to PlayerNotificationsView',
+        (tester) async {
+      _setScreenSize(tester);
+      await tester.pumpWidget(_wrap(const UserProfileScreen()));
+      await tester.pumpAndSettle();
+
+      // Tap notification bell in header
+      await tester.tap(find.byKey(const Key('profile_notification_bell')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PlayerNotificationsView), findsOneWidget);
+    });
+
+    testWidgets('Req 3: Player notification card click marks as read and directs to FacilityProfileScreen',
+        (tester) async {
+      _setScreenSize(tester);
+      final notif = appServices.notificationService.dispatchNotification(
+        targetRoles: ['player'],
+        title: 'New Facility Added',
+        message: 'Colombo Badminton Complex (Badminton) is now open for bookings.',
+        category: NotificationCategory.facility,
+      );
+
+      await tester.pumpWidget(_wrap(const PlayerNotificationsView()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Colombo Badminton Complex (Badminton) is now open for bookings.'),
+          findsOneWidget);
+
+      // Tap the notification card
+      await tester.tap(find.byKey(Key('player_notification_${notif.id}')));
+      await tester.pumpAndSettle();
+
+      // Should open facility profile
+      expect(find.byType(FacilityProfileScreen), findsOneWidget);
+      expect(find.text('Colombo Badminton Complex'), findsWidgets);
+
+      // Should be marked as read
+      final updated = appServices.notificationService.allNotifications
+          .firstWhere((n) => n.id == notif.id);
+      expect(updated.showDot, isFalse);
+    });
+
+    testWidgets('Req 4: HomeScreen shows notification bell with count badge and redirects to PlayerNotificationsView',
+        (tester) async {
+      _setScreenSize(tester);
+      appServices.notificationService.dispatchNotification(
+        targetRoles: ['player'],
+        title: 'Payment Confirmed',
+        message: 'Payment for Badminton Court booking confirmed.',
+        category: NotificationCategory.event,
+      );
+
+      await tester.pumpWidget(_wrap(const HomeScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home_notification_bell')), findsOneWidget);
+      expect(find.byKey(const Key('home_notification_badge')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('home_notification_bell')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PlayerNotificationsView), findsOneWidget);
+    });
+
+    testWidgets('Req 5: PlayerNotificationsView Mark as read button zeroes player notification count',
+        (tester) async {
+      _setScreenSize(tester);
+      expect(appServices.notificationService.unreadCountForRole('player'),
+          greaterThan(0));
+
+      await tester.pumpWidget(_wrap(const PlayerNotificationsView()));
+      await tester.pumpAndSettle();
+
+      // Click Mark as read
+      await tester.tap(find.byKey(const Key('player_mark_read_button')));
+      await tester.pumpAndSettle();
+
+      // Count is zero
+      expect(appServices.notificationService.unreadCountForRole('player'), 0);
+
+      // Returning to HomeScreen shows bell without badge
+      await tester.pumpWidget(_wrap(const HomeScreen()));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('home_notification_badge')), findsNothing);
+    });
+  });
+
+  group('Requirement 6 - 8: Community Member Notification Badges & Mark as Read', () {
+    testWidgets('Req 6: Community member notification count displays on bell icons in EventsView, FacilitiesView, ProfileView',
+        (tester) async {
+      _setScreenSize(tester);
+      appServices.notificationService.dispatchNotification(
+        targetRoles: ['communityMember'],
+        title: 'New Schedule',
+        message: 'Community tournament schedule published.',
+        category: NotificationCategory.schedule,
+      );
+
+      final unread = appServices.notificationService.unreadCountForRole('communityMember');
+      expect(unread, greaterThan(0));
+
+      // EventsView
+      await tester.pumpWidget(_wrap(const EventsView()));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('events_notification_bell')), findsOneWidget);
+      expect(find.byKey(const Key('events_notification_badge')), findsOneWidget);
+
+      // FacilitiesView
+      await tester.pumpWidget(_wrap(const FacilitiesView()));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('facilities_notification_bell')), findsOneWidget);
+      expect(find.byKey(const Key('facilities_notification_badge')), findsOneWidget);
+
+      // ProfileView
+      await tester.pumpWidget(_wrap(const ProfileView()));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('profile_notification_bell')), findsOneWidget);
+      expect(find.byKey(const Key('profile_notification_badge')), findsOneWidget);
+    });
+
+    testWidgets('Req 7 & 8: NotificationsView Mark as read zeroes community member notification counts across screens',
+        (tester) async {
+      _setScreenSize(tester);
+      appServices.notificationService.dispatchNotification(
+        targetRoles: ['communityMember'],
+        title: 'Facility Alert',
+        message: 'Maintenance ongoing at court 3.',
+        category: NotificationCategory.facility,
+      );
+
+      expect(appServices.notificationService.unreadCountForRole('communityMember'),
+          greaterThan(0));
+
+      // Open NotificationsView and tap Mark as read
+      await tester.pumpWidget(_wrap(const NotificationsView()));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('community_mark_read_button')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('community_mark_read_button')));
+      await tester.pumpAndSettle();
+
+      // Count is zeroed
+      expect(appServices.notificationService.unreadCountForRole('communityMember'), 0);
+
+      // EventsView badge is gone
+      await tester.pumpWidget(_wrap(const EventsView()));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('events_notification_badge')), findsNothing);
+
+      // FacilitiesView badge is gone
+      await tester.pumpWidget(_wrap(const FacilitiesView()));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('facilities_notification_badge')), findsNothing);
+
+      // ProfileView badge is gone
+      await tester.pumpWidget(_wrap(const ProfileView()));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('profile_notification_badge')), findsNothing);
     });
   });
 }

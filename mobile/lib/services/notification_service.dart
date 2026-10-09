@@ -149,6 +149,14 @@ class NotificationService extends ChangeNotifier {
     return notification;
   }
 
+  int unreadCountForRole(String role) {
+    return _notifications.where((n) {
+      final matchesRole =
+          n.targetRole == null || n.targetRole == 'all' || n.targetRole == role;
+      return matchesRole && n.showDot;
+    }).length;
+  }
+
   void markAsRead(String id) {
     final index = _notifications.indexWhere((n) => n.id == id);
     if (index != -1) {
@@ -166,6 +174,35 @@ class NotificationService extends ChangeNotifier {
       );
       notifyListeners();
       ApiService.markNotificationAsRead(id).catchError((_) => false);
+    }
+  }
+
+  void markAllAsRead([String? role]) {
+    bool changed = false;
+    for (int i = 0; i < _notifications.length; i++) {
+      final n = _notifications[i];
+      final matchesRole = role == null ||
+          n.targetRole == null ||
+          n.targetRole == 'all' ||
+          n.targetRole == role;
+      if (matchesRole && n.showDot) {
+        _notifications[i] = AppNotification(
+          id: n.id,
+          title: n.title,
+          description: n.description,
+          timeAgo: n.timeAgo,
+          icon: n.icon,
+          accentColor: n.accentColor,
+          category: n.category,
+          showDot: false,
+          targetRole: n.targetRole,
+        );
+        changed = true;
+        ApiService.markNotificationAsRead(n.id).catchError((_) => false);
+      }
+    }
+    if (changed) {
+      notifyListeners();
     }
   }
 

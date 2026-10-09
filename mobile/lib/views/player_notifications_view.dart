@@ -7,6 +7,8 @@ import '../widgets/app_bottom_nav.dart';
 import 'home_screen.dart';
 import 'explore_screen.dart';
 import 'my_bookings_screen.dart';
+import 'account_profile_screen.dart';
+import 'facility_profile_screen.dart';
 
 class PlayerNotificationsView extends StatefulWidget {
   const PlayerNotificationsView({super.key});
@@ -90,6 +92,11 @@ class _PlayerNotificationsViewState extends State<PlayerNotificationsView> {
         context,
         MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
       );
+    } else if (index == 4) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+      );
     }
   }
 
@@ -121,13 +128,43 @@ class _PlayerNotificationsViewState extends State<PlayerNotificationsView> {
                     ),
                     const SizedBox(width: 8),
                   ],
-                  const Text(
-                    'Notifications',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: _navy,
-                      letterSpacing: -0.4,
+                  const Expanded(
+                    child: Text(
+                      'Notifications',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: _navy,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const Key('player_mark_read_button'),
+                    onPressed: () {
+                      appServices.notificationService.markAllAsRead('player');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('All notifications marked as read'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.done_all_rounded, size: 16, color: _navy),
+                    label: const Text(
+                      'Mark as read',
+                      style: TextStyle(
+                        color: _navy,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      backgroundColor: const Color(0xFFE9EDF2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                   ),
                 ],
@@ -217,27 +254,88 @@ class _PlayerNotificationCard extends StatelessWidget {
 
   const _PlayerNotificationCard({required this.notification});
 
+  void _handleTap(BuildContext context) {
+    appServices.notificationService.markAsRead(notification.id);
+
+    final title = notification.title.toLowerCase();
+    final desc = notification.description;
+    final cat = notification.category;
+
+    if (cat == NotificationCategory.facility || title.contains('facility')) {
+      String facilityName = 'Badminton Court 1';
+      String sport = 'Badminton';
+      if (desc.contains('(') && desc.contains(')')) {
+        facilityName = desc.substring(0, desc.indexOf('(')).trim();
+        final inside = desc.substring(desc.indexOf('(') + 1, desc.indexOf(')'));
+        if (inside.isNotEmpty) sport = inside;
+      } else if (desc.contains(' at ')) {
+        final afterAt = desc.substring(desc.indexOf(' at ') + 4);
+        if (afterAt.contains('Ground') || afterAt.contains('Complex') || afterAt.contains('Court')) {
+          final words = afterAt.split(' ');
+          if (words.length >= 3) {
+            facilityName = '${words[0]} ${words[1]} ${words[2]}'.replaceAll(RegExp(r'[,.]'), '');
+          }
+        }
+      } else if (desc.contains(' details have been updated')) {
+        facilityName = desc.substring(0, desc.indexOf(' details have been updated')).trim();
+      } else if (desc.contains(' has been removed')) {
+        facilityName = desc.substring(0, desc.indexOf(' has been removed')).trim();
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FacilityProfileScreen(
+            name: facilityName.isEmpty ? 'Badminton Court 1' : facilityName,
+            sport: sport,
+            distance: 'Colombo',
+            rating: '4.8',
+            price: 2500,
+            color: const Color(0xFF477D82),
+            icon: Icons.sports_tennis,
+          ),
+        ),
+      );
+    } else if (title.contains('pay') || title.contains('booking') || desc.toLowerCase().contains('booking')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ExploreScreen()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: Key('player_notification_${notification.id}'),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE9EDF2), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+        onTap: () => _handleTap(context),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE9EDF2), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               // Left colored accent stripe
               Container(
                 width: 5,
@@ -332,6 +430,8 @@ class _PlayerNotificationCard extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

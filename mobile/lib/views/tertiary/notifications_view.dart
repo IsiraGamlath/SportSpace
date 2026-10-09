@@ -101,12 +101,46 @@ class _NotificationsViewState extends State<NotificationsView> {
                     ),
                     const SizedBox(width: 8),
                   ],
-                  const Text(
-                    'Notifications',
-                    style: TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w700,
-                      color: _heading,
+                  const Expanded(
+                    child: Text(
+                      'Notifications',
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700,
+                        color: _heading,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const Key('community_mark_read_button'),
+                    onPressed: () {
+                      appServices.notificationService
+                          .markAllAsRead('communityMember');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('All notifications marked as read'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.done_all_rounded,
+                        size: 16, color: _heading),
+                    label: const Text(
+                      'Mark as read',
+                      style: TextStyle(
+                        color: _heading,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: const BorderSide(color: Color(0xFFE7EAF0)),
+                      ),
                     ),
                   ),
                 ],
@@ -142,8 +176,17 @@ class _NotificationsViewState extends State<NotificationsView> {
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                       itemCount: notifications.length,
-                      itemBuilder: (context, index) =>
-                          NotificationCard(notification: notifications[index]),
+                      itemBuilder: (context, index) {
+                        final notif = notifications[index];
+                        return InkWell(
+                          key: Key('community_notif_card_${notif.id}'),
+                          onTap: () {
+                            appServices.notificationService
+                                .markAsRead(notif.id);
+                          },
+                          child: NotificationCard(notification: notif),
+                        );
+                      },
                     ),
             ),
           ],
