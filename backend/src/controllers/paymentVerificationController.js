@@ -2,6 +2,7 @@ const PaymentVerification = require('../models/PaymentVerification');
 const Booking = require('../models/Booking');
 const Slot = require('../models/Slot');
 const User = require('../models/User');
+const { dispatchNotification } = require('./notificationsController');
 
 // Helper to format output
 const formatVerification = (doc) => {
@@ -344,6 +345,18 @@ exports.verifyPayment = async (req, res) => {
       Slot.updateOne({ _id: updatedBooking.slot }, { $set: { status: 'booked' } }).exec().catch(() => {});
     }
 
+    // Requirement 8: when facility manager confirm a payment, show to the player who made the booking
+    const confirmedPlayerId = updatedBooking ? updatedBooking.userId : (doc.bookingRef ? doc.bookingRef.userId : null);
+    await dispatchNotification({
+      targetRoles: 'player',
+      userId: confirmedPlayerId,
+      category: 'payment',
+      title: 'Payment Confirmed',
+      message: `Your payment for booking ${doc.bookingId || id} has been confirmed. Your court reservation is confirmed!`,
+      accentColor: 'green',
+      metadata: { bookingId: doc.bookingId || id, action: 'confirmed' },
+    });
+
     res.status(200).json({
       message: 'Payment Confirmed! Booking status updated to Paid.',
       verification: formatVerification(savedDoc || doc),
@@ -413,6 +426,18 @@ exports.markPaymentUnpaid = async (req, res) => {
     if (!slotIdToUpdate && updatedBooking && updatedBooking.slot) {
       Slot.updateOne({ _id: updatedBooking.slot }, { $set: { status: 'available' } }).exec().catch(() => {});
     }
+
+    // Requirement 9: when facility manager mark as unpaid a payment, show to the player who made the booking
+    const unpaidPlayerId = updatedBooking ? updatedBooking.userId : (doc.bookingRef ? doc.bookingRef.userId : null);
+    await dispatchNotification({
+      targetRoles: 'player',
+      userId: unpaidPlayerId,
+      category: 'payment',
+      title: 'Payment Marked Unpaid',
+      message: `Your payment for booking ${doc.bookingId || id} was marked as unpaid. Please review or complete payment.`,
+      accentColor: 'red',
+      metadata: { bookingId: doc.bookingId || id, action: 'unpaid' },
+    });
 
     res.status(200).json({
       message: 'Booking payment marked as Unpaid.',
