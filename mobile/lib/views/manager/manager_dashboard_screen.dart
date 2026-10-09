@@ -33,7 +33,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   int _maintenanceIssuesCount = 0;
   int _availableSlotsCount = 0;
   List<Map<String, dynamic>> _recentSlots = [];
-
+  String _facilityName = 'My Sports Centre';
   List<dynamic> _pendingPaymentsList = [];
 
   @override
@@ -45,18 +45,25 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   Future<void> _loadDashboardData() async {
     setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
+      final results = await Future.wait<dynamic>([
         ApiService.fetchPaymentVerifications().catchError((_) => <dynamic>[]),
         ApiService.fetchAllBookings().catchError((_) => <dynamic>[]),
         ApiService.fetchMaintenanceSummary().catchError((_) => <String, dynamic>{}),
-        ApiService.fetchManagerSlots(date: 'Tomorrow')
+        ApiService.fetchManagerSlots()
             .catchError((_) => <Map<String, dynamic>>[]),
+        ApiService.fetchManagerFacilities().catchError((_) => <dynamic>[]),
       ]);
 
       final allVerifications = results[0] as List<dynamic>;
       final allBookings = results[1] as List<dynamic>;
       final maintenanceSummary = results[2] as Map<String, dynamic>;
       final slots = results[3] as List<Map<String, dynamic>>;
+      final facilities = results[4] as List<dynamic>;
+
+      String facName = 'My Sports Centre';
+      if (facilities.isNotEmpty) {
+        facName = facilities.first['name'] ?? 'My Sports Centre';
+      }
 
       final pendingPayments = allVerifications
           .whereType<Map>()
@@ -80,6 +87,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
           _maintenanceIssuesCount = requiredCount + scheduledCount;
           _availableSlotsCount = slots.where((s) => s['status'] == 'available').length;
           _recentSlots = slots.take(4).toList();
+          _facilityName = facName;
           _isLoading = false;
         });
       }
@@ -357,9 +365,9 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Colombo Sports Centre',
-                      style: TextStyle(
+                    Text(
+                      _isLoading ? '...' : _facilityName,
+                      style: const TextStyle(
                         color: ManagerColors.secondaryText,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,

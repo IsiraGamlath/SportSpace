@@ -6,14 +6,15 @@ const { requireFirebaseUser } = require('../middlewares/firebaseAuth');
 
 // Facility Slot CRUD & Management Routes
 router.get('/', slotsController.getSlots);
+router.get('/manager', requireFirebaseUser, slotsController.getManagerSlots);
 router.get('/facilities/list', slotsController.getFacilities);
-router.post('/', slotsController.createSlot);
+router.post('/', requireFirebaseUser, slotsController.createSlot);
 router.get('/:id', slotsController.getSlotById);
-router.put('/:id', slotsController.updateSlot);
-router.delete('/:id', slotsController.deleteSlot);
+router.put('/:id', requireFirebaseUser, slotsController.updateSlot);
+router.delete('/:id', requireFirebaseUser, slotsController.deleteSlot);
 
 // Block/Unblock toggle
-router.patch('/:id/block', slotsController.toggleBlockSlot);
+router.patch('/:id/block', requireFirebaseUser, slotsController.toggleBlockSlot);
 
 // Player booking route
 router.post('/:id/book', requireFirebaseUser, upload.single('slip'), slotsController.bookSlot);

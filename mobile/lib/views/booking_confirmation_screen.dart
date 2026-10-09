@@ -73,18 +73,18 @@ class BookingConfirmationScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Colombo Sports Centre',
-                      style: TextStyle(
+                    Text(
+                      slot.courtName?.isNotEmpty == true ? slot.courtName! : 'SportSpace Facility',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: AppColors.darkNavy,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Badminton Court 1',
-                      style: TextStyle(
+                    Text(
+                      slot.facilityType?.isNotEmpty == true ? slot.facilityType! : 'Court',
+                      style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,
                       ),

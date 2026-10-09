@@ -27,6 +27,8 @@ class Booking {
         price: (json['slot']['price'] ?? 0).toDouble(),
         isConflictTrigger: false,
         date: json['slot']['date'] ?? '',
+        courtName: json['slot']['courtName'] ?? '',
+        facilityType: json['slot']['facilityType'] ?? '',
       ),
       status: json['status'] ?? 'confirmed',
       bookingId: json['bookingId'] ?? 'SS-00000',

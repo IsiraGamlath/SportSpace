@@ -9,7 +9,7 @@ class CourtInfoCard extends StatelessWidget {
   const CourtInfoCard({
     super.key,
     this.courtName = 'Badminton Court 1',
-    this.locationAndSport = 'Colombo Sports Centre · Badminton',
+    this.locationAndSport = 'SportSpace Facility',
     this.tag = 'Court',
   });
 
