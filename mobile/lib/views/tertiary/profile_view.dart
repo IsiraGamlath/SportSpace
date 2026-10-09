@@ -226,21 +226,69 @@ class _ProfileViewState extends State<ProfileView> {
                   ),
                 ],
               ),
-              InkWell(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const NotificationsView()),
-                ),
-                borderRadius: BorderRadius.circular(19),
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.14),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.notifications_none_rounded,
-                      size: 18, color: Colors.white),
-                ),
+              ListenableBuilder(
+                listenable: appServices.notificationService,
+                builder: (context, _) {
+                  final count = appServices.notificationService
+                      .unreadCountForRole('communityMember');
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      InkWell(
+                        key: const Key('profile_notification_bell'),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const NotificationsView()),
+                        ),
+                        borderRadius: BorderRadius.circular(19),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.14),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.notifications_none_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            key: const Key('profile_notification_badge'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE14C4C),
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 17,
+                              minHeight: 17,
+                            ),
+                            child: Center(
+                              child: Text(
+                                count > 99 ? '99+' : count.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

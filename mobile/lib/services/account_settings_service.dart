@@ -6,8 +6,12 @@ class AccountSettingsService {
   static final ValueNotifier<bool> darkModeEnabled = ValueNotifier(false);
 
   static String _key(String setting) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
-    return 'sportspace_${setting}_$uid';
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+      return 'sportspace_${setting}_$uid';
+    } catch (_) {
+      return 'sportspace_${setting}_guest';
+    }
   }
 
   static Future<bool> loadDarkMode() async {
