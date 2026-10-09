@@ -5,6 +5,7 @@ import '../../utils/tertiary_navigation.dart';
 import '../../widgets/tertiary/event_image.dart';
 import '../../widgets/tertiary/filter_chip.dart';
 import '../../widgets/tertiary/nav_bar.dart';
+import '../../services/api_service.dart';
 import 'facility_details_view.dart';
 import 'notifications_view.dart';
 
@@ -41,6 +42,26 @@ class _FacilitiesViewState extends State<FacilitiesView> {
     'Swimming',
   ];
 
+  List<FacilityItem> _facilities = List.from(kMockFacilities);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFacilities();
+  }
+
+  Future<void> _loadFacilities() async {
+    try {
+      final backendList = await ApiService.fetchManagerFacilities();
+      if (backendList.isNotEmpty && mounted) {
+        setState(() {
+          _facilities =
+              backendList.map((e) => FacilityItem.fromBackendJson(e)).toList();
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -50,7 +71,7 @@ class _FacilitiesViewState extends State<FacilitiesView> {
   List<FacilityItem> get _filteredFacilities {
     final query = _searchQuery.trim().toLowerCase();
 
-    return kMockFacilities.where((facility) {
+    return _facilities.where((facility) {
       final matchesSearch = query.isEmpty ||
           facility.name.toLowerCase().contains(query) ||
           facility.cityLocation.toLowerCase().contains(query) ||

@@ -42,6 +42,51 @@ class FacilityItem {
     this.description =
         'A premier, fully equipped multi-sport facility offering professional-standard courts, well-maintained locker rooms, dedicated coaching programs, and accessible amenities for all community members.',
   });
+
+  factory FacilityItem.fromBackendJson(Map<String, dynamic> json) {
+    final name = json['name'] as String? ?? 'Facility';
+    final location = json['location'] as String? ?? 'Colombo';
+    final photo = json['photoUrl'] as String? ??
+        (json['photos'] is List && (json['photos'] as List).isNotEmpty
+            ? json['photos'][0] as String
+            : 'assets/images/badminton.jpg');
+    final sports = (json['availableSports'] as List?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        ['Badminton'];
+    final amenitiesList = (json['amenities'] as List?)
+            ?.map((e) => FacilityAmenity(
+                  icon: Icons.check_circle_outline,
+                  label: e.toString(),
+                ))
+            .toList() ??
+        const [
+          FacilityAmenity(icon: Icons.local_parking_outlined, label: 'Parking'),
+          FacilityAmenity(icon: Icons.checkroom_outlined, label: 'Changing rooms'),
+        ];
+    final access = (json['accessibility'] as List?)?.join(', ') ??
+        'Wheelchair Accessible';
+
+    return FacilityItem(
+      id: json['id'] as String? ??
+          json['_id'] as String? ??
+          name.toLowerCase().replaceAll(' ', '_'),
+      name: name,
+      imageUrl: photo,
+      status: json['status'] == 'active' ? 'Open' : (json['status'] ?? 'Open'),
+      cityLocation: location,
+      address: location,
+      phone: json['contactNumber'] as String? ?? '+94 11 269 1111',
+      email: 'info@sportspace.lk',
+      openingHours: json['openTime'] as String? ?? '06:00 AM – 10:00 PM',
+      availableSports: sports,
+      amenities: amenitiesList,
+      upcomingEvents: const ['Community Sports Event'],
+      accessibilityNote: access,
+      description: json['description'] as String? ??
+          'Premier sports facility with professional courts and modern amenities.',
+    );
+  }
 }
 
 const List<FacilityItem> kMockFacilities = [
