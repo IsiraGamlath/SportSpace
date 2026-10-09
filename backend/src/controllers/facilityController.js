@@ -231,6 +231,39 @@ exports.getFacilities = async (req, res) => {
   }
 };
 
+// GET /api/facilities/manager
+// Supports query: type, status, search
+exports.getManagerFacilities = async (req, res) => {
+  try {
+    const { type, status, search } = req.query;
+    const query = { managerId: req.firebaseUser.uid };
+
+    if (type && type !== 'All') {
+      query.$or = [{ type: type }, { availableSports: type }];
+    }
+
+    if (status && status !== 'All') {
+      query.status = status;
+    }
+
+    if (search && search.trim()) {
+      query.$or = [
+        { name: { $regex: search.trim(), $options: 'i' } },
+        { location: { $regex: search.trim(), $options: 'i' } },
+        { type: { $regex: search.trim(), $options: 'i' } },
+      ];
+    }
+
+    const facilities = await Facility.find(query).sort({ createdAt: -1 });
+    res.status(200).json(facilities.map(formatFacility));
+  } catch (error) {
+    res.status(500).json({
+      message: 'Failed to fetch manager facilities',
+      error: error.message,
+    });
+  }
+};
+
 // GET /api/facilities/:id
 exports.getFacilityById = async (req, res) => {
   try {
@@ -399,6 +432,7 @@ exports.createFacility = async (req, res) => {
       surface: surface || 'Synthetic',
       isIndoor: isIndoor !== undefined ? isIndoor : true,
       centreName: centreName || 'Colombo Sports Centre',
+      managerId: req.firebaseUser.uid,
     });
 
     res.status(201).json({
@@ -445,6 +479,10 @@ exports.updateFacility = async (req, res) => {
     const facility = await Facility.findById(id);
     if (!facility) {
       return res.status(404).json({ message: 'Facility not found' });
+    }
+
+    if (facility.managerId && facility.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this facility' });
     }
 
     const oldName = facility.name;
@@ -543,6 +581,10 @@ exports.deleteFacility = async (req, res) => {
 
     if (!facility) {
       return res.status(404).json({ message: 'Facility not found' });
+    }
+
+    if (facility.managerId && facility.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this facility' });
     }
 
     // Check if facility has active/booked slots

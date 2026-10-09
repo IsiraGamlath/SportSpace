@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => _destinationForRole(profile?['role'] as String?),
+        builder: (_) => _destinationForRole(profile),
       ),
     );
   }
@@ -62,10 +62,13 @@ class _LoginScreenState extends State<LoginScreen> {
     return ApiService.fetchUserProfile();
   }
 
-  Widget _destinationForRole(String? role) {
+  Widget _destinationForRole(Map<String, dynamic>? profile) {
+    final role = profile?['role'] as String?;
+    final isApproved = (profile?['isApproved'] as bool?) ?? false;
+    
     switch (role) {
       case 'Facility Manager':
-        return const ManagerMainScreen();
+        return ManagerMainScreen(isApproved: isApproved);
       case 'Community / Public User':
         return const TertiaryHomeView();
       default:

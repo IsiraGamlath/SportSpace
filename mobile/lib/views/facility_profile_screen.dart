@@ -239,6 +239,8 @@ class _FacilityProfileScreenState extends State<FacilityProfileScreen> {
                           MaterialPageRoute(
                             builder: (_) => SlotSelectionScreen(
                               courtName: _displayName(facility),
+                              sport: facility?['sport']?.toString(),
+                              location: 'Colombo, Sri Lanka',
                             ),
                           ),
                         ),

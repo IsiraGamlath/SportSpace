@@ -97,7 +97,45 @@ exports.getMaintenanceFlags = async (req, res) => {
   }
 };
 
-// GET /api/maintenance/overview/summary
+// GET /api/maintenance/manager
+exports.getManagerMaintenanceFlags = async (req, res) => {
+  try {
+    const { status, facilityName, priority } = req.query;
+    const query = { managerId: req.firebaseUser.uid };
+
+    if (status) query.status = status;
+    if (facilityName) query.facilityName = facilityName;
+    if (priority) query.priority = priority;
+
+    const items = await Maintenance.find(query)
+      .populate('affectedSlots')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(items.map(formatMaintenance));
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching manager maintenance flags', error: error.message });
+  }
+};
+
+// GET /api/maintenance/overview/summary/manager
+exports.getManagerMaintenanceSummary = async (req, res) => {
+  try {
+    const uid = req.firebaseUser.uid;
+    const total = await Maintenance.countDocuments({ managerId: uid });
+    const required = await Maintenance.countDocuments({ managerId: uid, status: 'required' });
+    const scheduled = await Maintenance.countDocuments({ managerId: uid, status: 'scheduled' });
+    const available = await Maintenance.countDocuments({ managerId: uid, status: { $in: ['available', 'resolved'] } });
+
+    res.status(200).json({
+      total,
+      required,
+      scheduled,
+      available,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching manager summary', error: error.message });
+  }
+};
 exports.getMaintenanceSummary = async (req, res) => {
   try {
     const total = await Maintenance.countDocuments();
@@ -157,9 +195,9 @@ exports.createMaintenanceFlag = async (req, res) => {
       issue,
       priority,
       status,
-      scheduledRepairTime,
       notes,
       reportedBy,
+      managerId: req.firebaseUser.uid,
     });
 
     // Auto-block available facility slots if under maintenance
@@ -205,6 +243,9 @@ exports.updateMaintenanceFlag = async (req, res) => {
 
     if (!flag) {
       return res.status(404).json({ message: 'Maintenance flag not found' });
+    }
+    if (flag.managerId && flag.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden' });
     }
 
     const prevStatus = flag.status;
@@ -299,6 +340,9 @@ exports.resolveMaintenanceFlag = async (req, res) => {
     if (!flag) {
       return res.status(404).json({ message: 'Maintenance flag not found' });
     }
+    if (flag.managerId && flag.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
 
     flag.status = 'available'; // Or resolved / available for play
     flag.resolvedAt = new Date();
@@ -342,6 +386,9 @@ exports.deleteMaintenanceFlag = async (req, res) => {
 
     if (!flag) {
       return res.status(404).json({ message: 'Maintenance flag not found' });
+    }
+    if (flag.managerId && flag.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden' });
     }
 
     // Restore any affected slots

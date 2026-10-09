@@ -286,6 +286,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           paymentSheetParameters: SetupPaymentSheetParameters(
                             paymentIntentClientSecret: clientSecret,
                             merchantDisplayName: 'SportSpace',
+                            style: ThemeMode.light,
                           ),
                         );
 
@@ -420,18 +421,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Colombo Sports Centre',
-            style: TextStyle(
+          Text(
+            widget.slot.courtName?.isNotEmpty == true ? widget.slot.courtName! : 'SportSpace Facility',
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
               color: AppColors.darkNavy,
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
-            'Badminton Court 1',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          Text(
+            widget.slot.facilityType?.isNotEmpty == true ? widget.slot.facilityType! : 'Court',
+            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
           _buildSummaryRow('Date', widget.date),

@@ -510,8 +510,8 @@ class ManagerBookingDetailsScreenState
     final playerName = _data?['playerName'] as String? ?? 'Player';
     final playerPhone = _data?['playerPhone'] as String? ?? 'N/A';
     final playerEmail = _data?['playerEmail'] as String? ?? '';
-    final courtName = _data?['courtName'] as String? ?? 'Badminton Court 1';
-    final facilityName = _data?['facilityName'] as String? ?? 'Colombo Sports Centre';
+    final courtName = _data?['facilityType'] as String? ?? 'Badminton Court 1';
+    final facilityName = _data?['courtName'] as String? ?? 'SportSpace Facility';
     final date = _data?['slotDate'] as String? ?? 'Tomorrow';
     final time = _data?['slotTime'] as String? ?? '6:00 PM – 7:00 PM';
     final amount = (_data?['amount'] as num?)?.toDouble() ?? 2500.0;
@@ -972,7 +972,7 @@ class _PlayerInfo extends StatelessWidget {
 class _BookingInfo extends StatelessWidget {
   const _BookingInfo({
     required this.courtName,
-    this.facilityName = 'Colombo Sports Centre',
+    this.facilityName = 'SportSpace Facility',
     this.date = 'Tomorrow',
     this.time = '6:00 PM – 7:00 PM',
   });
