@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../models/app_notification_model.dart';
+import '../../services/app_services.dart';
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/notification_card.dart';
 
@@ -23,7 +25,63 @@ class _ManagerNotificationsScreenState
   ];
 
   @override
+  void initState() {
+    super.initState();
+    appServices.notificationService.addListener(_onChanged);
+    appServices.notificationService.fetchFromBackend('facilityManager');
+  }
+
+  @override
+  void dispose() {
+    appServices.notificationService.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  List<AppNotification> get _filteredNotifications {
+    final list = appServices.notificationService
+        .getNotificationsForRole('facilityManager');
+    final filter = _filters[_selectedFilter];
+    switch (filter) {
+      case 'Events':
+        return list
+            .where((n) => n.category == NotificationCategory.event)
+            .toList();
+      case 'Schedules':
+        return list
+            .where((n) => n.category == NotificationCategory.schedule)
+            .toList();
+      case 'Facilities':
+        return list
+            .where((n) => n.category == NotificationCategory.facility)
+            .toList();
+      case 'All':
+      default:
+        return list;
+    }
+  }
+
+  NotificationType _resolveType(AppNotification n) {
+    if (n.category == NotificationCategory.schedule) {
+      return NotificationType.schedule;
+    }
+    if (n.category == NotificationCategory.facility) {
+      return NotificationType.facility;
+    }
+    final lowerTitle = n.title.toLowerCase();
+    if (lowerTitle.contains('cancel') || lowerTitle.contains('unpaid')) {
+      return NotificationType.cancelled;
+    }
+    return NotificationType.reminder;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final notifications = _filteredNotifications;
+
     return Scaffold(
       backgroundColor: ManagerColors.pageBackground,
       body: SafeArea(
@@ -79,7 +137,8 @@ class _ManagerNotificationsScreenState
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: _filters.length,
-                          separatorBuilder: (context, index) => const SizedBox(width: 8),
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 8),
                           itemBuilder: (context, index) {
                             final selected = index == _selectedFilter;
 
@@ -92,7 +151,8 @@ class _ManagerNotificationsScreenState
                               },
                               child: Container(
                                 alignment: Alignment.center,
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
                                 decoration: BoxDecoration(
                                   color: selected
                                       ? ManagerColors.navy
@@ -122,45 +182,32 @@ class _ManagerNotificationsScreenState
 
                       const SizedBox(height: 18),
 
-                      const NotificationCard(
-                        type: NotificationType.schedule,
-                        title: 'Schedule Updated',
-                        showUnreadDot: true,
-                        message:
-                            'Colombo Community Badminton Open — start time changed from 9:00 AM to 10:00 AM.',
-                        timeAgo: '10 minutes ago',
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      const NotificationCard(
-                        type: NotificationType.reminder,
-                        title: 'Event Reminder',
-                        showUnreadDot: true,
-                        message:
-                            'Youth Football Training Day starts tomorrow at 4:00 PM.',
-                        timeAgo: '2 hours ago',
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      const NotificationCard(
-                        type: NotificationType.facility,
-                        title: 'Facility Update',
-                        message:
-                            'Parking area at City Sports Ground will be temporarily unavailable on 22 Sep.',
-                        timeAgo: 'Yesterday',
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      const NotificationCard(
-                        type: NotificationType.cancelled,
-                        title: 'Event Cancelled',
-                        message:
-                            'Community Swimming Meet has been postponed due to maintenance.',
-                        timeAgo: '2 days ago',
-                      ),
+                      if (notifications.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 40),
+                          child: Center(
+                            child: Text(
+                              'No notifications in this category',
+                              style: TextStyle(
+                                color: ManagerColors.secondaryText,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ...notifications.map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: NotificationCard(
+                              type: _resolveType(item),
+                              title: item.title,
+                              showUnreadDot: item.showDot,
+                              message: item.description,
+                              timeAgo: item.timeAgo,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

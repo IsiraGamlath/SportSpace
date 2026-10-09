@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/app_notification_model.dart';
+import '../../services/app_services.dart';
 import '../../utils/tertiary_navigation.dart';
 import '../../widgets/tertiary/filter_chip.dart';
 import '../../widgets/tertiary/nav_bar.dart';
@@ -22,9 +23,6 @@ class _NotificationsViewState extends State<NotificationsView> {
   static const Color _background = Color(0xFFF5F6F8);
   static const Color _heading = Color(0xFF0F2A44);
   static const Color _subtext = Color(0xFF8A93A3);
-  static const Color _orange = Color(0xFFDF8420);
-  static const Color _green = Color(0xFF2E8B57);
-  static const Color _red = Color(0xFFE14C4C);
 
   static const List<String> _filters = [
     'All',
@@ -34,71 +32,44 @@ class _NotificationsViewState extends State<NotificationsView> {
   ];
   String _selectedFilter = 'All';
 
-  // ---------------------------------------------------------------------
-  // Dummy data — replace with a notification repository later.
-  // ---------------------------------------------------------------------
-  static const List<AppNotification> _notifications = [
-    AppNotification(
-      id: 'n1',
-      title: 'Schedule Updated',
-      description:
-          'Colombo Community Badminton Open — start time changed from '
-          '9:00 AM to 10:00 AM.',
-      timeAgo: '10 minutes ago',
-      icon: Icons.calendar_today_rounded,
-      accentColor: _orange,
-      category: NotificationCategory.schedule,
-    ),
-    AppNotification(
-      id: 'n2',
-      title: 'Event Reminder',
-      description: 'Youth Football Training Day starts tomorrow at 4:00 PM.',
-      timeAgo: '2 hours ago',
-      icon: Icons.notifications_none_rounded,
-      accentColor: _green,
-      category: NotificationCategory.event,
-    ),
-    AppNotification(
-      id: 'n3',
-      title: 'Facility Update',
-      description:
-          'Parking area at City Sports Ground will be temporarily '
-          'unavailable on 22 Sep.',
-      timeAgo: 'Yesterday',
-      icon: Icons.location_on_outlined,
-      accentColor: _orange,
-      category: NotificationCategory.facility,
-    ),
-    AppNotification(
-      id: 'n4',
-      title: 'Event Cancelled',
-      description:
-          'Community Swimming Meet has been postponed due to maintenance.',
-      timeAgo: '2 days ago',
-      icon: Icons.flag_rounded,
-      accentColor: _red,
-      category: NotificationCategory.event,
-    ),
-  ];
-  // ---------------------------------------------------------------------
+  @override
+  void initState() {
+    super.initState();
+    appServices.notificationService.addListener(_onChanged);
+    appServices.notificationService.fetchFromBackend('communityMember');
+  }
+
+  @override
+  void dispose() {
+    appServices.notificationService.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  List<AppNotification> get _notifications =>
+      appServices.notificationService.getNotificationsForRole('communityMember');
 
   List<AppNotification> get _filteredNotifications {
+    final list = _notifications;
     switch (_selectedFilter) {
       case 'Events':
-        return _notifications
+        return list
             .where((n) => n.category == NotificationCategory.event)
             .toList();
       case 'Schedules':
-        return _notifications
+        return list
             .where((n) => n.category == NotificationCategory.schedule)
             .toList();
       case 'Facilities':
-        return _notifications
+        return list
             .where((n) => n.category == NotificationCategory.facility)
             .toList();
       case 'All':
       default:
-        return _notifications;
+        return list;
     }
   }
 
