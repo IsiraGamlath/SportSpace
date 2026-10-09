@@ -455,7 +455,7 @@ class EventDetailsView extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () =>
-                          appServices.reminderService.toggle(event.id),
+                          appServices.reminderService.toggle(event.id, event),
                       icon: Icon(
                         reminded
                             ? Icons.notifications_active_rounded

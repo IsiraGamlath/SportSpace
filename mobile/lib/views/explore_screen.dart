@@ -7,6 +7,7 @@ import '../widgets/app_bottom_nav.dart';
 import 'home_screen.dart';
 import 'my_bookings_screen.dart';
 import 'facility_profile_screen.dart';
+import 'player_notifications_view.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -166,6 +167,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                );
+              } else if (index == 3) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PlayerNotificationsView(),
+                  ),
                 );
               }
             },

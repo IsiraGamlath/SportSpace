@@ -8,6 +8,7 @@ import '../widgets/app_bottom_nav.dart';
 import 'explore_screen.dart';
 import 'facility_profile_screen.dart';
 import 'my_bookings_screen.dart';
+import 'player_notifications_view.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,12 +53,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _userName() {
-    final user = FirebaseAuth.instance.currentUser;
-    final displayName = user?.displayName?.trim();
-    if (displayName != null && displayName.isNotEmpty) return displayName;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final displayName = user?.displayName?.trim();
+      if (displayName != null && displayName.isNotEmpty) return displayName;
 
-    final email = user?.email;
-    if (email != null && email.contains('@')) return email.split('@').first;
+      final email = user?.email;
+      if (email != null && email.contains('@')) return email.split('@').first;
+    } catch (_) {}
     return 'there';
   }
 
@@ -169,6 +172,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                );
+              } else if (index == 3) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PlayerNotificationsView(),
+                  ),
                 );
               }
             },
