@@ -7,6 +7,7 @@ import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'home_screen.dart';
 import 'my_bookings_screen.dart';
+import 'tertiary/profile_view.dart';
 import 'facility_profile_screen.dart';
 import 'player_notifications_view.dart';
 import 'account_profile_screen.dart';
@@ -179,13 +180,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                 distance: 'Colombo',
                                 rating: '—',
                                 price: facility.price,
+                                 
                                 color: _ExploreFacility._sportColor(
                                   facility.sport,
                                 ),
                                 icon: _ExploreFacility._sportIcon(
                                   facility.sport,
                                 ),
-                                imagePath: null,
+                                imagePath: facility.photoUrl,
+
                               ),
                             ),
                           );
@@ -203,12 +206,26 @@ class _ExploreScreenState extends State<ExploreScreen> {
               if (index == 0) {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const HomeScreen(),
+                    transitionDuration: Duration.zero,
+                  ),
                 );
               } else if (index == 2) {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const MyBookingsScreen(),
+                    transitionDuration: Duration.zero,
+                  ),
+                );
+              } else if (index == 4) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
+                    transitionDuration: Duration.zero,
+                  ),
                 );
               } else if (index == 3) {
                 Navigator.push(

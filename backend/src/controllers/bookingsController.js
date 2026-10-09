@@ -10,12 +10,12 @@ exports.getBookings = async (req, res) => {
   }
 };
 
-exports.getAllBookings = async (req, res) => {
+exports.getManagerBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find().populate('slot').sort({ createdAt: -1 });
+    const bookings = await Booking.find({ managerId: req.firebaseUser.uid }).populate('slot').sort({ createdAt: -1 });
     res.status(200).json(bookings);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching all bookings', error: error.message });
+    res.status(500).json({ message: 'Error fetching manager bookings', error: error.message });
   }
 };
 

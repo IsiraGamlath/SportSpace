@@ -171,16 +171,33 @@ class ApiService {
 
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
+  static Future<Map<String, String>> _getAuthHeaders(
+      Map<String, String>? headers) async {
+    final Map<String, String> authHeaders =
+        headers != null ? Map.from(headers) : {};
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final token = await user.getIdToken();
+        if (token != null && token.isNotEmpty) {
+          authHeaders['Authorization'] = 'Bearer $token';
+        }
+      } catch (_) {}
+    }
+    return authHeaders;
+  }
+
   static Future<http.Response> _get(
     String path, {
     Map<String, String>? queryParams,
     Map<String, String>? headers,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       final uri = Uri.parse('$baseUrl$path')
           .replace(queryParameters: queryParams);
       return await http
-          .get(uri, headers: headers)
+          .get(uri, headers: authHeaders)
           .timeout(const Duration(milliseconds: 7000));
     } catch (_) {}
 
@@ -190,7 +207,7 @@ class ApiService {
         final uri = Uri.parse('$candidate$path')
             .replace(queryParameters: queryParams);
         final res = await http
-            .get(uri, headers: headers)
+            .get(uri, headers: authHeaders)
             .timeout(const Duration(milliseconds: 6000));
         _activeBaseUrl = candidate;
         return res;
@@ -204,9 +221,10 @@ class ApiService {
     Map<String, String>? headers,
     Object? body,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       return await http
-          .post(Uri.parse('$baseUrl$path'), headers: headers, body: body)
+          .post(Uri.parse('$baseUrl$path'), headers: authHeaders, body: body)
           .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
@@ -214,7 +232,7 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .post(Uri.parse('$candidate$path'), headers: headers, body: body)
+            .post(Uri.parse('$candidate$path'), headers: authHeaders, body: body)
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -228,9 +246,10 @@ class ApiService {
     Map<String, String>? headers,
     Object? body,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       return await http
-          .put(Uri.parse('$baseUrl$path'), headers: headers, body: body)
+          .put(Uri.parse('$baseUrl$path'), headers: authHeaders, body: body)
           .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
@@ -238,7 +257,7 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .put(Uri.parse('$candidate$path'), headers: headers, body: body)
+            .put(Uri.parse('$candidate$path'), headers: authHeaders, body: body)
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -252,9 +271,10 @@ class ApiService {
     Map<String, String>? headers,
     Object? body,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       return await http
-          .patch(Uri.parse('$baseUrl$path'), headers: headers, body: body)
+          .patch(Uri.parse('$baseUrl$path'), headers: authHeaders, body: body)
           .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
@@ -262,7 +282,7 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .patch(Uri.parse('$candidate$path'), headers: headers, body: body)
+            .patch(Uri.parse('$candidate$path'), headers: authHeaders, body: body)
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -275,9 +295,10 @@ class ApiService {
     String path, {
     Map<String, String>? headers,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       return await http
-          .delete(Uri.parse('$baseUrl$path'), headers: headers)
+          .delete(Uri.parse('$baseUrl$path'), headers: authHeaders)
           .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
@@ -285,7 +306,7 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .delete(Uri.parse('$candidate$path'), headers: headers)
+            .delete(Uri.parse('$candidate$path'), headers: authHeaders)
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -310,7 +331,7 @@ class ApiService {
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
 
       final response = await _get(
-        '/facilities',
+        '/facilities/manager',
         queryParams: queryParams.isNotEmpty ? queryParams : null,
       );
 
@@ -381,6 +402,13 @@ class ApiService {
           'POST',
           Uri.parse('$baseUrl/facilities/upload-photo'),
         );
+        
+        final user = FirebaseAuth.instance.currentUser;
+        final token = user != null ? await user.getIdToken() : '';
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
+
         request.files.add(
           http.MultipartFile.fromBytes(
             'photo',
@@ -464,6 +492,8 @@ class ApiService {
                 price: json['price'].toDouble(),
                 isConflictTrigger: json['isConflictTrigger'] ?? false,
                 date: json['date'],
+                courtName: json['courtName'],
+                facilityType: json['facilityType'],
               ),
             )
             .toList();
@@ -475,33 +505,14 @@ class ApiService {
     }
   }
 
-  static const List<Facility> _defaultFacilities = [
-    Facility(
-      name: 'Badminton Court 1',
-      sport: 'Badminton',
-      price: 2500,
-      availableSlots: 8,
-    ),
-    Facility(
-      name: 'Tennis Court',
-      sport: 'Tennis',
-      price: 3000,
-      availableSlots: 5,
-    ),
-    Facility(
-      name: 'Basketball Court',
-      sport: 'Basketball',
-      price: 2000,
-      availableSlots: 6,
-    ),
-  ];
+  
 
   static Future<List<Facility>> fetchFacilities() async {
     try {
       final response = await _get('/slots/facilities/list');
 
       if (response.statusCode != 200) {
-        return _defaultFacilities;
+        return [];
       }
 
       final data = json.decode(response.body) as List<dynamic>;
@@ -542,7 +553,7 @@ class ApiService {
 
       return facilities.map((item) => Facility.fromJson(item)).toList();
     } catch (_) {
-      return _defaultFacilities;
+      return [];
     }
   }
 
@@ -590,7 +601,7 @@ class ApiService {
         queryParams['courtName'] = courtName;
       }
 
-      final response = await _get('/slots', queryParams: queryParams);
+      final response = await _get('/slots/manager', queryParams: queryParams);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -692,7 +703,7 @@ class ApiService {
           (slipBytes != null && slipBytes.isNotEmpty) || slipFilePath != null;
 
       if (hasSlipUpload) {
-        var request = http.MultipartRequest(
+                var request = http.MultipartRequest(
           'POST',
           Uri.parse('$baseUrl/slots/$id/book'),
         );
@@ -726,11 +737,11 @@ class ApiService {
         } else if (response.statusCode == 409) {
           throw Exception('Slot already booked or conflict');
         } else {
-          throw Exception('Failed to book slot');
+          throw Exception('Failed to book slot (Upload): ${response.statusCode} - ${response.body}');
         }
       } else {
-        final response = await http.post(
-          Uri.parse('$baseUrl/slots/$id/book'),
+        final response = await _post(
+          '/slots/$id/book',
           headers: headers,
           body: json.encode({
             'paymentIntentId': paymentIntentId,
@@ -742,7 +753,7 @@ class ApiService {
         } else if (response.statusCode == 409) {
           throw Exception('Slot already booked or conflict');
         } else {
-          throw Exception('Failed to book slot');
+          throw Exception('Failed to book slot (Card): ${response.statusCode} - ${response.body}');
         }
       }
     } catch (e) {
@@ -762,7 +773,7 @@ class ApiService {
       if (facilityName != null) queryParams['facilityName'] = facilityName;
 
       final response = await _get(
-        '/maintenance',
+        '/maintenance/manager',
         queryParams: queryParams.isNotEmpty ? queryParams : null,
       );
 
@@ -992,7 +1003,7 @@ class ApiService {
 
   static Future<List<dynamic>> fetchAllBookings() async {
     try {
-      final response = await _get('/bookings/all');
+      final response = await _get('/bookings/manager');
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
@@ -1058,7 +1069,7 @@ class ApiService {
       if (courtName != null) queryParams['courtName'] = courtName;
 
       final response = await _get(
-        '/payment-verifications',
+        '/payment-verifications/manager',
         queryParams: queryParams.isNotEmpty ? queryParams : null,
       );
 

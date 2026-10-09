@@ -20,8 +20,26 @@ export default function PaymentsPage() {
   async function fetchPayments() {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/admin/payments`);
-      setPayments(response.data);
+      const [paymentsRes, facilitiesRes, managersRes] = await Promise.all([
+        axios.get(`${API_URL}/admin/payments`),
+        axios.get(`${API_URL}/facilities`),
+        axios.get(`${API_URL}/admin/managers`)
+      ]);
+      const paymentsData = paymentsRes.data;
+      const facilities = facilitiesRes.data;
+      const managers = managersRes.data;
+
+      const mappedPayments = paymentsData.map((payment: any) => {
+        const facility = facilities.find((f: any) => f.name === payment.courtName);
+        let managerName = payment.managerName;
+        if (facility && facility.managerId) {
+          const manager = managers.find((m: any) => m.firebaseUid === facility.managerId);
+          if (manager) managerName = manager.fullName;
+        }
+        return { ...payment, managerName };
+      });
+
+      setPayments(mappedPayments);
     } catch (err) {
       console.error("Failed to fetch payments:", err);
     } finally {
@@ -131,14 +149,14 @@ export default function PaymentsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        {payment.paymentMethod === 'bank_transfer' ? (
+                        {payment.paymentMethod === 'bank' || payment.paymentMethod === 'bank_transfer' ? (
                           <StatusBadge status={payment.managerStatus} />
                         ) : (
                           <span className="text-xs text-slate-400 italic">Auto-verified</span>
                         )}
                       </td>
                       <td className="px-4 py-4 text-right">
-                        {payment.slipUrl && payment.paymentMethod === 'bank_transfer' && (
+                        {payment.slipUrl && payment.slipUrl !== 'manual_slip' && (payment.paymentMethod === 'bank' || payment.paymentMethod === 'bank_transfer') && (
                           <button 
                             onClick={() => setSelectedSlip({ url: payment.slipUrl, booking: payment })}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-md font-medium text-xs transition-colors"

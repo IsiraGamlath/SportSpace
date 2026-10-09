@@ -1,5 +1,6 @@
 const Slot = require('../models/Slot');
 const Booking = require('../models/Booking');
+const Facility = require('../models/Facility');
 
 const mockSlots = [
   {
@@ -147,7 +148,8 @@ exports.getSlots = async (req, res) => {
     }
 
     const slots = await Slot.find(query).sort({ time: 1 });
-    let mappedSlots = slots.map(formatSlot);
+    
+    let mappedSlots = slots.map(s => formatSlot(s));
 
     if (managerView === 'true') {
       const bookedSlots = mappedSlots.filter((s) => s.status === 'booked');
@@ -172,6 +174,43 @@ exports.getSlots = async (req, res) => {
     res.status(200).json(mappedSlots);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching slots', error: error.message });
+  }
+};
+
+exports.getManagerSlots = async (req, res) => {
+  try {
+    const { date, courtName, facilityType, status } = req.query;
+    let query = { managerId: req.firebaseUser.uid };
+
+    if (date) query.date = date;
+    if (courtName) query.courtName = courtName;
+    if (facilityType) query.facilityType = facilityType;
+    if (status) query.status = status;
+
+    const slots = await Slot.find(query).sort({ time: 1 });
+    let mappedSlots = slots.map(formatSlot);
+
+    const bookedSlots = mappedSlots.filter((s) => s.status === 'booked');
+    if (bookedSlots.length > 0) {
+      const slotIds = bookedSlots.map((s) => s.id);
+      const bookings = await Booking.find({ slot: { $in: slotIds } });
+      const bookingBySlot = {};
+      for (const b of bookings) {
+        if (b.slot && b.bookingId) {
+          bookingBySlot[b.slot.toString()] = b.bookingId;
+        }
+      }
+      mappedSlots = mappedSlots.map((s) => {
+        if (bookingBySlot[s.id]) {
+          s.bookingId = bookingBySlot[s.id];
+        }
+        return s;
+      });
+    }
+
+    res.status(200).json(mappedSlots);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching manager slots', error: error.message });
   }
 };
 
@@ -252,6 +291,7 @@ exports.createSlot = async (req, res) => {
       facilityType,
       blockedReason: status === 'blocked' ? (blockedReason || 'Blocked by Manager') : null,
       isConflictTrigger,
+      managerId: req.firebaseUser.uid,
     });
 
     res.status(201).json({
@@ -277,6 +317,12 @@ exports.updateSlot = async (req, res) => {
       updateData.maintenanceId = null;
     }
 
+    const slot = await Slot.findById(id);
+    if (!slot) return res.status(404).json({ message: 'Slot not found' });
+    if (slot.managerId && slot.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
     const updatedSlot = await Slot.findByIdAndUpdate(id, updateData, { new: true });
     if (!updatedSlot) {
       return res.status(404).json({ message: 'Slot not found' });
@@ -299,6 +345,9 @@ exports.deleteSlot = async (req, res) => {
     if (!slot) {
       return res.status(404).json({ message: 'Slot not found' });
     }
+    if (slot.managerId && slot.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this slot' });
+    }
 
     await Slot.findByIdAndDelete(id);
 
@@ -320,6 +369,9 @@ exports.toggleBlockSlot = async (req, res) => {
     const slot = await Slot.findById(id);
     if (!slot) {
       return res.status(404).json({ message: 'Slot not found' });
+    }
+    if (slot.managerId && slot.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this slot' });
     }
 
     if (blocked === true || blocked === 'true') {
@@ -384,6 +436,7 @@ exports.bookSlot = async (req, res) => {
       status: bookingStatus,
       slipUrl,
       bookingId: `SS-${Math.floor(10000 + Math.random() * 90000)}`,
+      managerId: slot.managerId,
     });
 
     res.status(200).json({
@@ -392,6 +445,7 @@ exports.bookSlot = async (req, res) => {
       booking: newBooking,
     });
   } catch (error) {
+    console.error('DEBUG slotsController.bookSlot ERROR:', error);
     res.status(500).json({ message: 'Error booking slot', error: error.message });
   }
 };

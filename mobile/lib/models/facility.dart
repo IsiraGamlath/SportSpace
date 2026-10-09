@@ -16,8 +16,10 @@ class Facility {
   factory Facility.fromJson(Map<String, dynamic> json) {
     return Facility(
       name: json['name']?.toString() ?? 'Unnamed facility',
-      sport: json['sport']?.toString() ?? 'Sports',
-      price: (json['price'] as num?)?.round() ?? 0,
+      sport: json['sport']?.toString() ?? json['type']?.toString() ?? 'Sports',
+      price: (json['price'] as num?)?.round() ??
+          (json['hourlyRate'] as num?)?.round() ??
+          0,
       availableSlots: (json['availableSlots'] as num?)?.toInt() ?? 0,
       photoUrl: _firstPhoto(json),
     );

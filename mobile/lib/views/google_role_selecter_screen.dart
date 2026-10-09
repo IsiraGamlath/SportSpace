@@ -85,7 +85,7 @@ class _GoogleRoleSelecterScreenState extends State<GoogleRoleSelecterScreen> {
       }
 
       if (!mounted) return;
-      final destination = _destinationForRole(registeredRole ?? selectedRole);
+      final destination = _destinationForRole(existingProfile ?? {'role': registeredRole ?? selectedRole});
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(builder: (_) => destination),
         (route) => false,
@@ -105,10 +105,13 @@ class _GoogleRoleSelecterScreenState extends State<GoogleRoleSelecterScreen> {
     }
   }
 
-  Widget _destinationForRole(String role) {
+  Widget _destinationForRole(Map<String, dynamic>? profile) {
+    final role = profile?['role'] as String?;
+    final isApproved = (profile?['isApproved'] as bool?) ?? false;
+
     switch (role) {
       case 'Facility Manager':
-        return const ManagerMainScreen();
+        return ManagerMainScreen(isApproved: isApproved);
       case 'Community / Public User':
         return const TertiaryHomeView();
       default:

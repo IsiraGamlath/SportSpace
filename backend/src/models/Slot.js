@@ -15,6 +15,7 @@ const slotSchema = new mongoose.Schema({
   blockedReason: { type: String, default: null },
   isConflictTrigger: { type: Boolean, default: false },
   maintenanceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Maintenance', default: null },
+  managerId: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Slot', slotSchema);

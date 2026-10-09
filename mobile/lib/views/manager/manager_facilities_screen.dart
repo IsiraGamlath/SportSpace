@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
+import 'dart:io';
 
 import '../../services/api_service.dart';
 import '../../theme/manager_colors.dart';
@@ -405,7 +406,10 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                                 );
                                             final file = result?.files.single;
                                             if (file != null) {
-                                              final bytes = file.bytes;
+                                              Uint8List? bytes = file.bytes;
+                                              if (bytes == null && file.path != null) {
+                                                bytes = await File(file.path!).readAsBytes();
+                                              }
                                               if (bytes == null) return;
                                               setModalState(() {
                                                 pickedPhotoBytes = bytes;

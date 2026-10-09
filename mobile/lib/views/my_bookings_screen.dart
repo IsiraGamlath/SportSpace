@@ -6,6 +6,7 @@ import 'slot_selection_screen.dart';
 import 'home_screen.dart';
 import 'explore_screen.dart';
 import 'player_notifications_view.dart';
+import 'tertiary/profile_view.dart';
 import 'account_profile_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -121,8 +122,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   }
 
   Widget _buildBookingCard(Booking booking) {
-    final title = 'Colombo Sports Centre';
-    final subtitle = booking.courtName;
+    final title = booking.courtName.isNotEmpty ? booking.courtName : 'SportSpace Facility';
+    final subtitle = booking.slot.facilityType?.isNotEmpty == true ? booking.slot.facilityType! : 'Court';
     final date = booking.slot.date ?? 'N/A';
     final time = booking.slot.durationRange;
     final price =
@@ -130,6 +131,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     final isActive =
         booking.status == 'confirmed' || booking.status == 'rescheduled';
     final isRescheduled = booking.status == 'rescheduled';
+    final isPending = booking.status == 'pending_verification';
+    final isCancelled = booking.status == 'cancelled';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -181,11 +184,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: isActive
-                      ? (isRescheduled
-                            ? Colors.blue.shade50
-                            : AppColors.availableBg)
-                      : Colors.grey.shade200,
+                  color: isPending
+                      ? Colors.orange.shade50
+                      : (isActive
+                          ? (isRescheduled ? Colors.blue.shade50 : AppColors.availableBg)
+                          : Colors.grey.shade200),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -195,27 +198,29 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: isActive
-                            ? (isRescheduled
-                                  ? Colors.blue
-                                  : AppColors.availableText)
-                            : Colors.grey.shade600,
+                        color: isPending
+                            ? Colors.orange
+                            : (isActive
+                                ? (isRescheduled ? Colors.blue : AppColors.availableText)
+                                : Colors.grey.shade600),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      isActive
-                          ? (isRescheduled ? 'Rescheduled' : 'Confirmed')
-                          : 'Cancelled',
+                      isPending
+                          ? 'Pending'
+                          : (isActive
+                              ? (isRescheduled ? 'Rescheduled' : 'Confirmed')
+                              : 'Cancelled'),
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: isActive
-                            ? (isRescheduled
-                                  ? Colors.blue.shade700
-                                  : AppColors.availableText)
-                            : Colors.grey.shade700,
+                        color: isPending
+                            ? Colors.orange.shade800
+                            : (isActive
+                                ? (isRescheduled ? Colors.blue.shade700 : AppColors.availableText)
+                                : Colors.grey.shade700),
                       ),
                     ),
                   ],
@@ -229,47 +234,51 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           _buildDetailRow('Time', time),
           const SizedBox(height: 12),
           _buildDetailRow('Paid', price),
-          if (isActive) ...[
+          if (isActive || isPending) ...[
             const SizedBox(height: 20),
             Row(
               children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: OutlinedButton(
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SlotSelectionScreen(
-                              rescheduleBookingId: booking.id,
+                if (isActive)
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SlotSelectionScreen(
+                                rescheduleBookingId: booking.id,
+                                facilityName: booking.courtName,
+                                location: title,
+                                sport: 'Sport',
+                              ),
                             ),
+                          );
+                          if (result == true) {
+                            setState(() {
+                              _bookingsFuture = _fetchBookings();
+                            });
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.darkNavy,
+                          side: const BorderSide(color: AppColors.borderLight),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(22),
                           ),
-                        );
-                        if (result == true) {
-                          setState(() {
-                            _bookingsFuture = _fetchBookings();
-                          });
-                        }
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.darkNavy,
-                        side: const BorderSide(color: AppColors.borderLight),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
                         ),
-                      ),
-                      child: const Text(
-                        'Reschedule',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                        child: const Text(
+                          'Reschedule',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
+                if (isActive) const SizedBox(width: 12),
                 Expanded(
                   child: SizedBox(
                     height: 44,
@@ -403,10 +412,28 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         currentIndex: 2, // 'Bookings' is selected
         onTap: (index) {
           if (index == 0) {
-            Navigator.pushAndRemoveUntil(
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (route) => false,
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const HomeScreen(),
+                transitionDuration: Duration.zero,
+              ),
+            );
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const ExploreScreen(),
+                transitionDuration: Duration.zero,
+              ),
+            );
+          } else if (index == 4) {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
+                transitionDuration: Duration.zero,
+              ),
             );
           } else if (index == 1) {
             Navigator.pushReplacement(

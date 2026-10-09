@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../login_screen.dart';
 import '../../models/sport_event_model.dart';
 import '../../services/app_services.dart';
 import '../../utils/tertiary_navigation.dart';
@@ -12,9 +14,15 @@ import 'event_details_view.dart';
 import 'events_view.dart';
 import 'notifications_view.dart';
 import 'personal_information_view.dart';
+import '../../services/api_service.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../home_screen.dart';
+import '../explore_screen.dart';
+import '../my_bookings_screen.dart';
 
 class ProfileView extends StatefulWidget {
-  const ProfileView({super.key});
+  final String role;
+  const ProfileView({super.key, this.role = 'Tertiary'});
 
   @override
   State<ProfileView> createState() => _ProfileViewState();
@@ -48,11 +56,53 @@ class _ProfileViewState extends State<ProfileView> {
   bool _notificationsEnabled = true; // initially ON, per spec
   bool _darkModeEnabled = false; // initially OFF, per spec
 
+  String _userName = '';
+  String _userEmail = '';
+  String _userInitials = '';
+
   @override
   void initState() {
     super.initState();
+    _loadProfileData();
     _loadEvents();
     appServices.bookmarkService.addListener(_onBookmarksChanged);
+  }
+
+  Future<void> _loadProfileData() async {
+    try {
+      final profile = await ApiService.fetchUserProfile();
+      if (!mounted) return;
+      
+      String name = FirebaseAuth.instance.currentUser?.displayName ?? 'User';
+      String email = FirebaseAuth.instance.currentUser?.email ?? '';
+      
+      if (profile != null) {
+        name = profile['fullName'] ?? profile['name'] ?? name;
+        email = profile['email'] ?? email;
+      }
+      
+      String initials = 'U';
+      final names = name.trim().split(RegExp(r'\s+'));
+      if (names.length > 1) {
+        initials = '${names.first[0]}${names.last[0]}'.toUpperCase();
+      } else if (name.isNotEmpty) {
+        initials = name.substring(0, 1).toUpperCase();
+      }
+      
+      setState(() {
+        _userName = name;
+        _userEmail = email;
+        _userInitials = initials;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _userName = FirebaseAuth.instance.currentUser?.displayName ?? 'User';
+        _userEmail = FirebaseAuth.instance.currentUser?.email ?? '';
+        final n = _userName.trim().split(RegExp(r'\s+'));
+        _userInitials = n.length > 1 ? '${n.first[0]}${n.last[0]}'.toUpperCase() : (_userName.isNotEmpty ? _userName.substring(0, 1).toUpperCase() : 'U');
+      });
+    }
   }
 
   @override
@@ -179,14 +229,45 @@ class _ProfileViewState extends State<ProfileView> {
         ),
       ),
       // --- Reused global nav bar, not re-implemented here -----------------
-      bottomNavigationBar: TertiaryNavBar(
-        currentIndex: _tabIndex,
-        onItemSelected: (index) => handleTertiaryNavTap(
-          context: context,
-          tappedIndex: index,
-          currentIndex: _tabIndex,
-        ),
-      ),
+      bottomNavigationBar: widget.role == 'Player'
+          ? AppBottomNav(
+              currentIndex: 4,
+              onItemSelected: (index) {
+                if (index == 0) {
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const HomeScreen(),
+                      transitionDuration: Duration.zero,
+                    ),
+                  );
+                } else if (index == 1) {
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const ExploreScreen(),
+                      transitionDuration: Duration.zero,
+                    ),
+                  );
+                } else if (index == 2) {
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const MyBookingsScreen(),
+                      transitionDuration: Duration.zero,
+                    ),
+                  );
+                }
+              },
+            )
+          : TertiaryNavBar(
+              currentIndex: _tabIndex,
+              onItemSelected: (index) => handleTertiaryNavTap(
+                context: context,
+                tappedIndex: index,
+                currentIndex: _tabIndex,
+              ),
+            ),
     );
   }
 
@@ -296,12 +377,12 @@ class _ProfileViewState extends State<ProfileView> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 28,
-                backgroundColor: Color(0xFF3D6F9C),
+                backgroundColor: const Color(0xFF3D6F9C),
                 child: Text(
-                  'SD',
-                  style: TextStyle(
+                  _userInitials,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
                     fontSize: 18,
@@ -313,9 +394,9 @@ class _ProfileViewState extends State<ProfileView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Saantha Sudarshana',
-                      style: TextStyle(
+                    Text(
+                      _userName,
+                      style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -323,9 +404,9 @@ class _ProfileViewState extends State<ProfileView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
-                    const Text(
-                      'SaSudarshana@email.com',
-                      style: TextStyle(
+                    Text(
+                      _userEmail,
+                      style: const TextStyle(
                         fontSize: 12.5,
                         color: Color(0xFF9FB6CF),
                       ),
@@ -764,6 +845,67 @@ class _ProfileViewState extends State<ProfileView> {
                     openingHours: '6:00 AM – 10:00 PM',
                   ),
                 ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: TextButton.icon(
+            onPressed: () {
+              showDialog<void>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Sign Out'),
+                  content: const Text('Do you want to sign out of SportSpace?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        try {
+                          await FirebaseAuth.instance.signOut();
+                        } catch (_) {}
+                        if (!mounted) return;
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE05252),
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Sign Out'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            icon: const Icon(
+              Icons.logout_rounded,
+              size: 20,
+              color: Color(0xFFE05252),
+            ),
+            label: const Text(
+              'Sign Out',
+              style: TextStyle(
+                color: Color(0xFFE05252),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFFFDECEC),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
               ),
             ),
           ),

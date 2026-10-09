@@ -21,6 +21,7 @@ const maintenanceSchema = new mongoose.Schema({
   affectedSlots: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Slot' }],
   resolvedAt: { type: Date, default: null },
   resolutionNotes: { type: String, default: null },
+  managerId: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Maintenance', maintenanceSchema);

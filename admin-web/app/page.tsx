@@ -3,18 +3,54 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Users, Building2, DollarSign, Activity, CheckCircle, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchOverview() {
       try {
-        const response = await axios.get(`${API_URL}/admin/overview`);
-        setData(response.data);
+        const [overviewRes, paymentsRes, facilitiesRes, managersRes] = await Promise.all([
+          axios.get(`${API_URL}/admin/overview`),
+          axios.get(`${API_URL}/admin/payments`),
+          axios.get(`${API_URL}/facilities`),
+          axios.get(`${API_URL}/admin/managers`)
+        ]);
+
+        const overviewData = overviewRes.data;
+        const paymentsData = paymentsRes.data;
+        const facilities = facilitiesRes.data;
+        const managers = managersRes.data;
+
+        const bankPayments = paymentsData.filter((p: any) => 
+          (p.paymentMethod === 'bank' || p.paymentMethod === 'bank_transfer') && 
+          p.slipUrl && p.slipUrl !== 'manual_slip'
+        );
+
+        const mappedSlips = bankPayments.map((payment: any) => {
+          const facility = facilities.find((f: any) => f.name === payment.courtName);
+          let managerName = payment.managerName;
+          if (facility && facility.managerId) {
+            const manager = managers.find((m: any) => m.firebaseUid === facility.managerId);
+            if (manager) managerName = manager.fullName;
+          }
+          return {
+            _id: payment._id,
+            facilityName: payment.courtName,
+            managerName: managerName,
+            amount: payment.amount,
+            status: payment.managerStatus === 'Approved by Manager' ? 'Approved' : 
+                    payment.managerStatus === 'Rejected by Manager' ? 'Rejected' : 'Pending'
+          };
+        }).slice(0, 5); // take top 5 recent
+
+        overviewData.recentSlips = mappedSlips;
+        setData(overviewData);
       } catch (err) {
         console.error("Failed to connect to backend API:", err);
       } finally {
@@ -69,7 +105,10 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold text-slate-900">Recent Payment Slips</h2>
             <p className="text-xs text-slate-500">Latest bank transfers submitted by facility managers</p>
           </div>
-          <button className="text-xs font-semibold text-emerald-600 hover:underline">
+          <button 
+            onClick={() => router.push("/payments")}
+            className="text-xs font-semibold text-emerald-600 hover:underline"
+          >
             View All Slips
           </button>
         </div>
@@ -92,8 +131,8 @@ export default function DashboardPage() {
                 data.recentSlips.map((slip: any) => (
                   <TableRow
                     key={slip._id}
-                    facility={slip.facilityId?.name || "Colombo Futsal Club"}
-                    manager={slip.managerId?.name || "Sahan Perera"}
+                    facility={slip.facilityName}
+                    manager={slip.managerName}
                     amount={`LKR ${slip.amount?.toLocaleString()}`}
                     commission={`LKR ${(slip.amount * 0.1).toLocaleString()}`}
                     status={slip.status}
@@ -141,6 +180,7 @@ function StatCard({ title, value, subtitle, icon: Icon }: any) {
 }
 
 function TableRow({ facility, manager, amount, commission, status }: any) {
+  const router = useRouter();
   const isPending = status === "Pending";
   return (
     <tr className="hover:bg-slate-50 transition-colors">
@@ -158,7 +198,10 @@ function TableRow({ facility, manager, amount, commission, status }: any) {
         </span>
       </td>
       <td className="px-4 py-4 text-right">
-        <button className="text-xs font-medium px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md border border-slate-200 transition-colors">
+        <button 
+          onClick={() => router.push("/payments")}
+          className="text-xs font-medium px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md border border-slate-200 transition-colors"
+        >
           Review
         </button>
       </td>
