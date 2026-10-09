@@ -34,3 +34,5 @@ node_modules/
 **/ios/Flutter/Flutter.podspec
 **/ios/Flutter/Generated.xcconfig
 **/ios/Flutter/ephemeral/
+# Crash logs
+*.log

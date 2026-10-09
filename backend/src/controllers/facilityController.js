@@ -231,6 +231,39 @@ exports.getFacilities = async (req, res) => {
   }
 };
 
+// GET /api/facilities/manager
+// Supports query: type, status, search
+exports.getManagerFacilities = async (req, res) => {
+  try {
+    const { type, status, search } = req.query;
+    const query = { managerId: req.firebaseUser.uid };
+
+    if (type && type !== 'All') {
+      query.$or = [{ type: type }, { availableSports: type }];
+    }
+
+    if (status && status !== 'All') {
+      query.status = status;
+    }
+
+    if (search && search.trim()) {
+      query.$or = [
+        { name: { $regex: search.trim(), $options: 'i' } },
+        { location: { $regex: search.trim(), $options: 'i' } },
+        { type: { $regex: search.trim(), $options: 'i' } },
+      ];
+    }
+
+    const facilities = await Facility.find(query).sort({ createdAt: -1 });
+    res.status(200).json(facilities.map(formatFacility));
+  } catch (error) {
+    res.status(500).json({
+      message: 'Failed to fetch manager facilities',
+      error: error.message,
+    });
+  }
+};
+
 // GET /api/facilities/:id
 exports.getFacilityById = async (req, res) => {
   try {
@@ -307,6 +340,9 @@ exports.createFacility = async (req, res) => {
       amenities,
       accessibility,
       contactNumber,
+      email,
+      facebookUrl,
+      tiktokUrl,
       photos,
       photoUrl,
       hourlyRate,
@@ -320,6 +356,11 @@ exports.createFacility = async (req, res) => {
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Facility name is required' });
+    }
+
+    const trimmedEmail = typeof email === 'string' ? email.trim() : '';
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      return res.status(400).json({ message: 'A valid facility email address is required' });
     }
 
     const trimmedName = name.trim();
@@ -359,6 +400,10 @@ exports.createFacility = async (req, res) => {
       ? [photoUrl]
       : [];
 
+    if (photosList.length > 5) {
+      return res.status(400).json({ message: 'A facility can have up to 5 photos' });
+    }
+
     const primaryPhoto = photoUrl || (photosList.length > 0 ? photosList[0] : '');
 
     const resolvedOpenTime =
@@ -375,6 +420,9 @@ exports.createFacility = async (req, res) => {
       amenities: amenitiesList,
       accessibility: accessibilityList,
       contactNumber: contactNumber ? contactNumber.trim() : '+94 11 269 1111',
+      email: trimmedEmail,
+      facebookUrl: typeof facebookUrl === 'string' ? facebookUrl.trim() : '',
+      tiktokUrl: typeof tiktokUrl === 'string' ? tiktokUrl.trim() : '',
       photos: photosList,
       photoUrl: primaryPhoto,
       hourlyRate: Number(hourlyRate) || 2500,
@@ -384,6 +432,7 @@ exports.createFacility = async (req, res) => {
       surface: surface || 'Synthetic',
       isIndoor: isIndoor !== undefined ? isIndoor : true,
       centreName: centreName || 'Colombo Sports Centre',
+      managerId: req.firebaseUser.uid,
     });
 
     res.status(201).json({
@@ -413,6 +462,9 @@ exports.updateFacility = async (req, res) => {
       amenities,
       accessibility,
       contactNumber,
+      email,
+      facebookUrl,
+      tiktokUrl,
       photos,
       photoUrl,
       hourlyRate,
@@ -429,7 +481,15 @@ exports.updateFacility = async (req, res) => {
       return res.status(404).json({ message: 'Facility not found' });
     }
 
+    if (facility.managerId && facility.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this facility' });
+    }
+
     const oldName = facility.name;
+
+    if (photos !== undefined && (Array.isArray(photos) ? photos.length : 1) > 5) {
+      return res.status(400).json({ message: 'A facility can have up to 5 photos' });
+    }
 
     // Check duplicate name if name changed
     if (name && name.trim().toLowerCase() !== oldName.toLowerCase()) {
@@ -451,6 +511,15 @@ exports.updateFacility = async (req, res) => {
     if (openingTime !== undefined) facility.openingTime = openingTime;
     if (closingTime !== undefined) facility.closingTime = closingTime;
     if (contactNumber !== undefined) facility.contactNumber = contactNumber.trim();
+    if (email !== undefined) {
+      const trimmedEmail = typeof email === 'string' ? email.trim() : '';
+      if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        return res.status(400).json({ message: 'A valid facility email address is required' });
+      }
+      facility.email = trimmedEmail;
+    }
+    if (facebookUrl !== undefined) facility.facebookUrl = facebookUrl.trim();
+    if (tiktokUrl !== undefined) facility.tiktokUrl = tiktokUrl.trim();
     if (photoUrl !== undefined) facility.photoUrl = photoUrl;
     if (photos !== undefined) {
       facility.photos = Array.isArray(photos) ? photos : [photos];
@@ -512,6 +581,10 @@ exports.deleteFacility = async (req, res) => {
 
     if (!facility) {
       return res.status(404).json({ message: 'Facility not found' });
+    }
+
+    if (facility.managerId && facility.managerId !== req.firebaseUser.uid) {
+      return res.status(403).json({ message: 'Forbidden: You do not own this facility' });
     }
 
     // Check if facility has active/booked slots

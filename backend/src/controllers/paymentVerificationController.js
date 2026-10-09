@@ -20,8 +20,8 @@ const formatVerification = (doc) => {
 
 // Helper to resolve player details from actual registered users
 const getPlayerDetails = async (booking, index = 0) => {
-  if (booking && booking.user) {
-    const u = await User.findById(booking.user);
+  if (booking && booking.userId) {
+    const u = await User.findOne({ firebaseUid: booking.userId });
     if (u) {
       return {
         playerName: u.fullName || u.name || 'Player',
@@ -124,18 +124,18 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
       if (!b.bookingId) continue;
       let pv = pvMap.get(b.bookingId);
 
-      const isPending =
-        b.status === 'pending_verification' ||
-        (b.paymentMethod === 'bank' && b.status !== 'confirmed');
       const isCancelled = b.status === 'cancelled';
       const isVerified = b.status === 'confirmed';
+      const isPending =
+        !isCancelled &&
+        !isVerified &&
+        (b.status === 'pending_verification' ||
+          (b.paymentMethod === 'bank' && b.status !== 'confirmed'));
 
-      const pStatus = isPending
-        ? 'pending'
+      const pStatus = isCancelled
+        ? 'unpaid'
         : isVerified
         ? 'verified'
-        : isCancelled
-        ? 'unpaid'
         : 'pending';
       const slotPrice = b.slot && b.slot.price ? b.slot.price : 2500;
       const cName =
@@ -149,8 +149,8 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
           PaymentVerification.create({
             bookingId: b.bookingId,
             bookingRef: b._id,
-            courtName: cName,
-            facilityName: 'Colombo Sports Centre',
+            courtName: b.slot ? b.slot.facilityType : 'Court',
+            facilityName: b.slot ? b.slot.courtName : 'SportSpace Facility',
             slotDate: sDate,
             slotTime: sTime,
             playerName: playerInfo.playerName,
@@ -166,12 +166,13 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
               }`,
             paymentStatus: pStatus,
             slipUrl: b.slipUrl || null,
+            managerId: b.managerId || null,
           })
         );
       } else {
         let changed = false;
-        if (pv.playerName === 'Kasun Perera') {
-          const playerInfo = await getPlayerDetails(b, i);
+        const playerInfo = await getPlayerDetails(b, i);
+        if (pv.playerName !== playerInfo.playerName || pv.playerEmail !== playerInfo.playerEmail) {
           pv.playerName = playerInfo.playerName;
           pv.playerEmail = playerInfo.playerEmail;
           pv.playerPhone = playerInfo.playerPhone;
@@ -185,6 +186,10 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
           pv.bookingRef = b._id;
           changed = true;
         }
+        if (pv.managerId !== b.managerId) {
+          pv.managerId = b.managerId;
+          changed = true;
+        }
         if (!pv.slotDate || pv.slotDate !== sDate) {
           pv.slotDate = sDate;
           changed = true;
@@ -193,8 +198,14 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
           pv.slotTime = sTime;
           changed = true;
         }
-        if (!pv.facilityName) {
-          pv.facilityName = 'Colombo Sports Centre';
+        const expectedFacility = b.slot ? b.slot.courtName : 'SportSpace Facility';
+        if (pv.facilityName !== expectedFacility) {
+          pv.facilityName = expectedFacility;
+          changed = true;
+        }
+        const expectedCourt = b.slot ? b.slot.facilityType : 'Court';
+        if (pv.courtName !== expectedCourt) {
+          pv.courtName = expectedCourt;
           changed = true;
         }
         if (
@@ -238,6 +249,27 @@ exports.getPaymentVerifications = async (req, res) => {
   }
 };
 
+// GET /api/payment-verifications/manager
+exports.getManagerPaymentVerifications = async (req, res) => {
+  try {
+    await syncBookingsWithPaymentVerifications();
+    const { paymentStatus, courtName, bookingId } = req.query;
+    const query = { managerId: req.firebaseUser.uid };
+
+    if (paymentStatus) query.paymentStatus = paymentStatus;
+    if (courtName) query.courtName = courtName;
+    if (bookingId) query.bookingId = bookingId;
+
+    const list = await PaymentVerification.find(query).sort({ createdAt: -1 });
+    res.status(200).json(list.map(formatVerification));
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error fetching manager payment verifications',
+      error: error.message,
+    });
+  }
+};
+
 // GET /api/payment-verifications/:id/status
 exports.getVerificationStatus = async (req, res) => {
   try {
@@ -264,7 +296,11 @@ exports.getVerificationStatus = async (req, res) => {
           amount: 2500,
           paymentMethod: booking.paymentMethod || 'card',
           paymentRef: `PMT-${Math.floor(10000 + Math.random() * 90000)}`,
-          paymentStatus: booking.status === 'pending_verification' ? 'pending' : (booking.status === 'confirmed' ? 'verified' : 'pending'),
+          paymentStatus: booking.status === 'pending_verification'
+            ? 'pending'
+            : (booking.status === 'confirmed'
+              ? 'verified'
+              : (booking.status === 'cancelled' ? 'unpaid' : 'pending')),
           slipUrl: booking.slipUrl || null,
         });
       }

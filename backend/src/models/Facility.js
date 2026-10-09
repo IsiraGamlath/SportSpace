@@ -46,6 +46,21 @@ const facilitySchema = new mongoose.Schema(
       default: '+94 11 269 1111',
       trim: true,
     },
+    email: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    facebookUrl: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    tiktokUrl: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     photos: {
       type: [String],
       default: [],
@@ -83,6 +98,10 @@ const facilitySchema = new mongoose.Schema(
     centreName: {
       type: String,
       default: 'Colombo Sports Centre',
+    },
+    managerId: {
+      type: String,
+      default: null,
     },
   },
   { timestamps: true }

@@ -79,7 +79,8 @@ void main() {
           home: TertiaryHomeView(),
         ),
       );
-  
+      await tester.pumpAndSettle();
+
       expect(find.textContaining('Good morning, Saantha'), findsOneWidget);
       expect(find.text('Ready to play?'), findsOneWidget);
       expect(

@@ -33,7 +33,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   int _maintenanceIssuesCount = 0;
   int _availableSlotsCount = 0;
   List<Map<String, dynamic>> _recentSlots = [];
-
+  String _facilityName = 'My Sports Centre';
   List<dynamic> _pendingPaymentsList = [];
 
   @override
@@ -45,22 +45,32 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   Future<void> _loadDashboardData() async {
     setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
+      final results = await Future.wait<dynamic>([
         ApiService.fetchPaymentVerifications().catchError((_) => <dynamic>[]),
         ApiService.fetchAllBookings().catchError((_) => <dynamic>[]),
         ApiService.fetchMaintenanceSummary().catchError((_) => <String, dynamic>{}),
-        ApiService.fetchManagerSlots(date: 'Tomorrow')
+        ApiService.fetchManagerSlots()
             .catchError((_) => <Map<String, dynamic>>[]),
+        ApiService.fetchManagerFacilities().catchError((_) => <dynamic>[]),
       ]);
 
       final allVerifications = results[0] as List<dynamic>;
       final allBookings = results[1] as List<dynamic>;
       final maintenanceSummary = results[2] as Map<String, dynamic>;
       final slots = results[3] as List<Map<String, dynamic>>;
+      final facilities = results[4] as List<dynamic>;
+
+      String facName = 'My Sports Centre';
+      if (facilities.isNotEmpty) {
+        facName = facilities.first['name'] ?? 'My Sports Centre';
+      }
 
       final pendingPayments = allVerifications
           .whereType<Map>()
-          .where((p) => p['paymentStatus']?.toString() == 'pending')
+          .where((p) {
+            final st = p['paymentStatus']?.toString().toLowerCase().trim();
+            return st == 'pending' || st == 'unpaid' || st == 'pending_verification';
+          })
           .toList();
 
       final totalBookings = allBookings.length >= allVerifications.length
@@ -77,6 +87,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
           _maintenanceIssuesCount = requiredCount + scheduledCount;
           _availableSlotsCount = slots.where((s) => s['status'] == 'available').length;
           _recentSlots = slots.take(4).toList();
+          _facilityName = facName;
           _isLoading = false;
         });
       }
@@ -164,14 +175,20 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       final amt = item['amount']?.toString() ?? '2500';
                       final method = item['paymentMethod']?.toString() ?? 'card';
                       final hasSlip = item['slipUrl'] != null;
+                      final status = item['paymentStatus']?.toString().toLowerCase().trim() ?? 'pending';
+                      final isUnpaid = status == 'unpaid';
 
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                         leading: CircleAvatar(
-                          backgroundColor: ManagerColors.amber.withValues(alpha: 0.15),
+                          backgroundColor: isUnpaid
+                              ? Colors.red.withValues(alpha: 0.12)
+                              : ManagerColors.amber.withValues(alpha: 0.15),
                           child: Icon(
-                            method == 'bank' ? Icons.account_balance_rounded : Icons.credit_card_rounded,
-                            color: ManagerColors.amber,
+                            isUnpaid
+                                ? Icons.money_off_rounded
+                                : (method == 'bank' ? Icons.account_balance_rounded : Icons.credit_card_rounded),
+                            color: isUnpaid ? Colors.red.shade700 : ManagerColors.amber,
                             size: 20,
                           ),
                         ),
@@ -183,6 +200,30 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                                 fontWeight: FontWeight.w800,
                                 fontSize: 14,
                                 color: ManagerColors.navyDark,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isUnpaid
+                                    ? Colors.red.shade50
+                                    : ManagerColors.amber.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isUnpaid
+                                      ? Colors.red.shade200
+                                      : ManagerColors.amber.withValues(alpha: 0.3),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                isUnpaid ? 'Unpaid' : 'Pending',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isUnpaid ? Colors.red.shade700 : ManagerColors.amber,
+                                ),
                               ),
                             ),
                             if (hasSlip) ...[
@@ -288,7 +329,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: ManagerColors.amber.withOpacity(0.15),
+                          color: ManagerColors.amber.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: ManagerColors.amberBorder),
                         ),
@@ -300,7 +341,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                               child: Text(
                                 'Your account is pending admin approval. You can view the dashboard but cannot manage venues yet.',
                                 style: TextStyle(
-                                  color: ManagerColors.amber.withOpacity(0.9),
+                                  color: ManagerColors.amber.withValues(alpha: 0.9),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -324,9 +365,9 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Colombo Sports Centre',
-                      style: TextStyle(
+                    Text(
+                      _isLoading ? '...' : _facilityName,
+                      style: const TextStyle(
                         color: ManagerColors.secondaryText,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -604,21 +645,12 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(
-          Icons.location_on_outlined,
-          size: 20,
-          color: ManagerColors.navy,
+        Image.asset(
+          'assets/Sport Space logo 2.png',
+          height: 32,
+          fit: BoxFit.contain,
         ),
-        const SizedBox(width: 6),
-        const Text(
-          'SportSpace',
-          style: TextStyle(
-            color: ManagerColors.navy,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(

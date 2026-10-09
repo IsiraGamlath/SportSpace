@@ -10,6 +10,7 @@ const bookingSchema = new mongoose.Schema({
   paymentIntentId: { type: String },
   refundId: { type: String },
   slipUrl: { type: String },
+  managerId: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

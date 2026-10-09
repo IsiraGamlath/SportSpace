@@ -84,7 +84,10 @@ class ManagerBookingDetailsScreenState
 
       if (selected == null || selected.isEmpty) {
         selected = bookingsList.firstWhere(
-          (b) => b['paymentStatus']?.toString() == 'pending',
+          (b) {
+            final st = b['paymentStatus']?.toString().toLowerCase().trim();
+            return st == 'pending' || st == 'unpaid' || st == 'pending_verification';
+          },
           orElse: () => bookingsList.isNotEmpty ? bookingsList.first : <String, dynamic>{},
         );
       }
@@ -281,12 +284,13 @@ class ManagerBookingDetailsScreenState
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+          color: Colors.red.shade50,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade200, width: 0.8),
         ),
-        child: const Text(
+        child: Text(
           'Unpaid',
-          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.grey),
+          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.red.shade700),
         ),
       );
     }
@@ -506,8 +510,8 @@ class ManagerBookingDetailsScreenState
     final playerName = _data?['playerName'] as String? ?? 'Player';
     final playerPhone = _data?['playerPhone'] as String? ?? 'N/A';
     final playerEmail = _data?['playerEmail'] as String? ?? '';
-    final courtName = _data?['courtName'] as String? ?? 'Badminton Court 1';
-    final facilityName = _data?['facilityName'] as String? ?? 'Colombo Sports Centre';
+    final courtName = _data?['facilityType'] as String? ?? 'Badminton Court 1';
+    final facilityName = _data?['courtName'] as String? ?? 'SportSpace Facility';
     final date = _data?['slotDate'] as String? ?? 'Tomorrow';
     final time = _data?['slotTime'] as String? ?? '6:00 PM – 7:00 PM';
     final amount = (_data?['amount'] as num?)?.toDouble() ?? 2500.0;
@@ -674,6 +678,7 @@ class ManagerBookingDetailsScreenState
                             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                             child: _PaymentInfo(
                               isConfirmed: _isConfirmed,
+                              paymentStatus: _data?['paymentStatus']?.toString() ?? (_isConfirmed ? 'verified' : 'pending'),
                               amount: amount,
                               paymentRef: paymentRef,
                               paymentMethod: paymentMethod,
@@ -967,7 +972,7 @@ class _PlayerInfo extends StatelessWidget {
 class _BookingInfo extends StatelessWidget {
   const _BookingInfo({
     required this.courtName,
-    this.facilityName = 'Colombo Sports Centre',
+    this.facilityName = 'SportSpace Facility',
     this.date = 'Tomorrow',
     this.time = '6:00 PM – 7:00 PM',
   });
@@ -1053,6 +1058,7 @@ class _InfoRow extends StatelessWidget {
 class _PaymentInfo extends StatelessWidget {
   const _PaymentInfo({
     required this.isConfirmed,
+    this.paymentStatus = 'pending',
     required this.amount,
     required this.paymentRef,
     this.paymentMethod = 'card',
@@ -1061,6 +1067,7 @@ class _PaymentInfo extends StatelessWidget {
   });
 
   final bool isConfirmed;
+  final String paymentStatus;
   final double amount;
   final String paymentRef;
   final String paymentMethod;
@@ -1069,6 +1076,8 @@ class _PaymentInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveStatus = isConfirmed ? 'verified' : paymentStatus.toLowerCase().trim();
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1122,7 +1131,7 @@ class _PaymentInfo extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        if (isConfirmed)
+        if (effectiveStatus == 'verified')
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
@@ -1138,6 +1147,37 @@ class _PaymentInfo extends StatelessWidget {
                   'Verified',
                   style: TextStyle(
                     color: ManagerColors.green,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else if (effectiveStatus == 'unpaid')
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.red.shade200, width: 0.8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade700,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Unpaid',
+                  style: TextStyle(
+                    color: Colors.red.shade700,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),

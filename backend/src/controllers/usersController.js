@@ -59,8 +59,48 @@ async function getProfile(req, res) {
       email: user.email,
       role: user.role,
       isApproved: user.isApproved,
+      phone: user.phone || '',
+      address: user.address || '',
+      assignedVenues: user.assignedVenues || [],
+      createdAt: user.createdAt,
     },
   });
 }
 
-module.exports = { syncProfile, getProfile };
+async function updateProfile(req, res) {
+  const email = (req.firebaseUser.email || '').trim().toLowerCase();
+  const user = await User.findOne({
+    $or: [{ firebaseUid: req.firebaseUser.uid }, { email }],
+  });
+  if (!user) {
+    return res.status(404).json({ message: 'User profile not found' });
+  }
+
+  const { fullName, phone, address } = req.body;
+  if (fullName !== undefined) {
+    if (typeof fullName !== 'string' || !fullName.trim()) {
+      return res.status(400).json({ message: 'Name cannot be empty' });
+    }
+    user.fullName = fullName.trim();
+  }
+  if (phone !== undefined) user.phone = String(phone).trim();
+  if (address !== undefined) user.address = String(address).trim();
+
+  await user.save();
+  return res.status(200).json({
+    user: {
+      id: user._id,
+      firebaseUid: user.firebaseUid,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      isApproved: user.isApproved,
+      phone: user.phone || '',
+      address: user.address || '',
+      assignedVenues: user.assignedVenues || [],
+      createdAt: user.createdAt,
+    },
+  });
+}
+
+module.exports = { syncProfile, getProfile, updateProfile };
