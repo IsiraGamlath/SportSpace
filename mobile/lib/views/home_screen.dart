@@ -11,6 +11,7 @@ import 'facility_profile_screen.dart';
 import 'my_bookings_screen.dart';
 import 'player_notifications_view.dart';
 import 'account_profile_screen.dart';
+import '../services/app_services.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -274,6 +275,80 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+        ListenableBuilder(
+          listenable: appServices.notificationService,
+          builder: (context, _) {
+            final count =
+                appServices.notificationService.unreadCountForRole('player');
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                InkWell(
+                  key: const Key('home_notification_bell'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PlayerNotificationsView(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: AppColors.textPrimary,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      key: const Key('home_notification_badge'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE14C4C),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Center(
+                        child: Text(
+                          count > 99 ? '99+' : count.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(width: 10),
         Container(
           width: 40,
           height: 40,
