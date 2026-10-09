@@ -490,6 +490,8 @@ class ApiService {
                 price: json['price'].toDouble(),
                 isConflictTrigger: json['isConflictTrigger'] ?? false,
                 date: json['date'],
+                courtName: json['courtName'],
+                facilityType: json['facilityType'],
               ),
             )
             .toList();
@@ -770,7 +772,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> fetchMaintenanceSummary() async {
     try {
-      final response = await _get('/maintenance/overview/summary/manager');
+      final response = await _get('/maintenance/overview/summary');
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {

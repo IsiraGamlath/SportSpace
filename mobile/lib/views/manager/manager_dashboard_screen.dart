@@ -49,7 +49,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         ApiService.fetchPaymentVerifications().catchError((_) => <dynamic>[]),
         ApiService.fetchAllBookings().catchError((_) => <dynamic>[]),
         ApiService.fetchMaintenanceSummary().catchError((_) => <String, dynamic>{}),
-        ApiService.fetchManagerSlots(date: 'Tomorrow')
+        ApiService.fetchManagerSlots()
             .catchError((_) => <Map<String, dynamic>>[]),
         ApiService.fetchManagerFacilities().catchError((_) => <dynamic>[]),
       ]);

@@ -17,13 +17,7 @@ class _ManagerMaintenanceScreenState extends State<ManagerMaintenanceScreen> {
   bool _isLoading = true;
   List<dynamic> _flags = [];
 
-  final List<String> _facilityOptions = [
-    'Badminton Court 1',
-    'Badminton Court 2',
-    'Tennis Court 1',
-    'Basketball Court',
-    'Swimming Pool',
-  ];
+  List<String> _facilityOptions = [];
 
   @override
   void initState() {
@@ -35,9 +29,14 @@ class _ManagerMaintenanceScreenState extends State<ManagerMaintenanceScreen> {
     setState(() => _isLoading = true);
     try {
       final flags = await ApiService.fetchMaintenanceFlags();
+      final facilities = await ApiService.fetchFacilities();
       if (mounted) {
         setState(() {
           _flags = flags;
+          _facilityOptions = facilities.map((f) => f.name).toList();
+          if (_facilityOptions.isEmpty) {
+            _facilityOptions = ['No Facilities Found'];
+          }
           _isLoading = false;
         });
       }
@@ -150,7 +149,7 @@ class _ManagerMaintenanceScreenState extends State<ManagerMaintenanceScreen> {
   }
 
   void _showAddFlagModal() {
-    String selectedFacility = _facilityOptions[0];
+    String selectedFacility = _facilityOptions.isNotEmpty ? _facilityOptions[0] : 'No Facilities Found';
     final issueController = TextEditingController();
     String selectedPriority = 'medium';
 
