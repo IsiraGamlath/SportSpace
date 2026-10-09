@@ -8,6 +8,7 @@ import '../../widgets/tertiary/nav_bar.dart';
 import '../../services/api_service.dart';
 import 'facility_details_view.dart';
 import 'notifications_view.dart';
+import '../../services/app_services.dart';
 
 class FacilitiesView extends StatefulWidget {
   const FacilitiesView({super.key});
@@ -227,25 +228,70 @@ class _FacilitiesViewState extends State<FacilitiesView> {
               ),
             ],
           ),
-          InkWell(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NotificationsView()),
-            ),
-            borderRadius: BorderRadius.circular(19),
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(color: _cardBorder),
-              ),
-              child: const Icon(
-                Icons.notifications_none_rounded,
-                size: 19,
-                color: _heading,
-              ),
-            ),
+          ListenableBuilder(
+            listenable: appServices.notificationService,
+            builder: (context, _) {
+              final count = appServices.notificationService
+                  .unreadCountForRole('communityMember');
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  InkWell(
+                    key: const Key('facilities_notification_bell'),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const NotificationsView()),
+                    ),
+                    borderRadius: BorderRadius.circular(19),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _cardBorder),
+                      ),
+                      child: const Icon(
+                        Icons.notifications_none_rounded,
+                        size: 19,
+                        color: _heading,
+                      ),
+                    ),
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: -2,
+                      right: -2,
+                      child: Container(
+                        key: const Key('facilities_notification_badge'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE14C4C),
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 17,
+                          minHeight: 17,
+                        ),
+                        child: Center(
+                          child: Text(
+                            count > 99 ? '99+' : count.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),
