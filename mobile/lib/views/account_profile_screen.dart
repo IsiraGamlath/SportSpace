@@ -624,11 +624,10 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
             child: Center(child: Text('No matching settings', style: TextStyle(color: Theme.of(context).hintColor))),
           )
         else
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
+          Material(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
             child: Column(children: tiles),
           ),
       ],
