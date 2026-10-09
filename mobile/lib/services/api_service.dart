@@ -401,6 +401,13 @@ class ApiService {
           'POST',
           Uri.parse('$baseUrl/facilities/upload-photo'),
         );
+        
+        final user = FirebaseAuth.instance.currentUser;
+        final token = user != null ? await user.getIdToken() : '';
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
+
         request.files.add(
           http.MultipartFile.fromBytes(
             'photo',
