@@ -2,13 +2,14 @@
 //
 // Lightweight service locator — plain top-level singletons, no DI
 // package required. Screens/widgets import `appServices` directly, so
-// Save/Bookmark, Remind Me, and Contact Request state stays consistent
-// everywhere without threading instances through every constructor.
+// Save/Bookmark, Remind Me, Contact Request, and Notification state stays
+// consistent everywhere.
 
 import 'bookmark_service.dart';
 import 'reminder_service.dart';
 import 'event_repository.dart';
 import 'contact_request_service.dart';
+import 'notification_service.dart';
 
 class AppServices {
   AppServices._internal();
@@ -18,6 +19,7 @@ class AppServices {
   final ReminderService reminderService = ReminderService();
   final EventRepository eventRepository = MockEventRepository();
   final ContactRequestService contactRequestService = ContactRequestService();
+  final NotificationService notificationService = NotificationService();
 }
 
 final AppServices appServices = AppServices.instance;
