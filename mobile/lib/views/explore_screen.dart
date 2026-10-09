@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../models/facility.dart';
 import '../services/api_service.dart';
+import '../services/favorites_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'home_screen.dart';
 import 'my_bookings_screen.dart';
 import 'facility_profile_screen.dart';
 import 'player_notifications_view.dart';
+import 'account_profile_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -21,12 +23,42 @@ class _ExploreScreenState extends State<ExploreScreen> {
   String? _sport;
   String? _location;
   String? _price;
+  bool _showFavoritesOnly = false;
+  Set<String> _favoriteNames = {};
   late Future<List<Facility>> _facilitiesFuture;
 
   @override
   void initState() {
     super.initState();
     _facilitiesFuture = ApiService.fetchFacilities();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    final favorites = await FavoritesService.loadFavorites();
+    if (mounted) setState(() => _favoriteNames = favorites);
+  }
+
+  Future<void> _toggleFavorite(String facilityName) async {
+    final isFavorite = await FavoritesService.toggleFavorite(facilityName);
+    if (!mounted) return;
+    setState(() {
+      if (isFavorite) {
+        _favoriteNames.add(facilityName);
+      } else {
+        _favoriteNames.remove(facilityName);
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isFavorite
+              ? '$facilityName added to your favourites'
+              : '$facilityName removed from your favourites',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -47,6 +79,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           return (_sport == null || facility.sport == _sport) &&
               (_location == null || _location == 'Colombo') &&
               _matchesPrice(facility.price) &&
+              (!_showFavoritesOnly || _favoriteNames.contains(facility.name)) &&
               (query.isEmpty || searchable.contains(query));
         }).toList();
 
@@ -117,11 +150,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     ),
                   )
                 else if (facilities.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 48),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 48),
                     child: Center(
                       child: Text(
-                        'No facilities found',
+                        _showFavoritesOnly
+                            ? 'No favourite facilities yet. Tap a heart to save one.'
+                            : 'No facilities found',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                     ),
@@ -132,23 +167,30 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _FacilityCard(
                         facility: _ExploreFacility.fromFacility(facility),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FacilityProfileScreen(
-                              name: facility.name,
-                              sport: facility.sport,
-                              distance: 'Colombo',
-                              rating: '—',
-                              price: facility.price,
-                              color: _ExploreFacility._sportColor(
-                                facility.sport,
+                        isFavorite: _favoriteNames.contains(facility.name),
+                        onFavoriteTap: () => _toggleFavorite(facility.name),
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FacilityProfileScreen(
+                                name: facility.name,
+                                sport: facility.sport,
+                                distance: 'Colombo',
+                                rating: '—',
+                                price: facility.price,
+                                color: _ExploreFacility._sportColor(
+                                  facility.sport,
+                                ),
+                                icon: _ExploreFacility._sportIcon(
+                                  facility.sport,
+                                ),
+                                imagePath: null,
                               ),
-                              icon: _ExploreFacility._sportIcon(facility.sport),
-                              imagePath: null,
                             ),
-                          ),
-                        ),
+                          );
+                          await _loadFavorites();
+                        },
                       ),
                     ),
                   ),
@@ -174,6 +216,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   MaterialPageRoute(
                     builder: (_) => const PlayerNotificationsView(),
                   ),
+                );
+              } else if (index == 4) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UserProfileScreen()),
                 );
               }
             },
@@ -228,8 +275,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
           _FilterChip(
             label: 'Filters',
             icon: Icons.tune,
-            selected: _sport != null || _location != null || _price != null,
+            selected:
+                _sport != null ||
+                _location != null ||
+                _price != null ||
+                _showFavoritesOnly,
             onTap: _showAllFilters,
+          ),
+          _FilterChip(
+            label: 'Favourites',
+            selected: _showFavoritesOnly,
+            onTap: () =>
+                setState(() => _showFavoritesOnly = !_showFavoritesOnly),
           ),
           _FilterChip(
             label: _sport ?? 'Sport',
@@ -304,6 +361,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         _sport = null;
         _location = null;
         _price = null;
+        _showFavoritesOnly = false;
       });
     }
   }
@@ -417,10 +475,26 @@ class _OptionsSheet extends StatelessWidget {
 }
 
 class _FacilityCard extends StatelessWidget {
-  const _FacilityCard({required this.facility, required this.onTap});
+  const _FacilityCard({
+    required this.facility,
+    required this.onTap,
+    required this.isFavorite,
+    required this.onFavoriteTap,
+  });
 
   final _ExploreFacility facility;
   final VoidCallback onTap;
+  final bool isFavorite;
+  final VoidCallback onFavoriteTap;
+
+  Widget _facilityImageFallback(_ExploreFacility facility) {
+    return Container(
+      color: facility.color,
+      child: Center(
+        child: Icon(facility.icon, color: Colors.white70, size: 58),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -440,18 +514,45 @@ class _FacilityCard extends StatelessWidget {
             SizedBox(
               height: 126,
               width: double.infinity,
-              child: facility.imagePath == null
-                  ? Container(
-                      color: facility.color,
-                      child: Center(
-                        child: Icon(
-                          facility.icon,
-                          color: Colors.white70,
-                          size: 58,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (facility.imageUrl != null)
+                    Image.network(
+                      facility.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          _facilityImageFallback(facility),
+                    )
+                  else if (facility.imagePath == null)
+                    _facilityImageFallback(facility)
+                  else
+                    Image.asset(facility.imagePath!, fit: BoxFit.cover),
+                  Positioned(
+                    top: 9,
+                    right: 9,
+                    child: CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Colors.white.withValues(alpha: 0.92),
+                      child: IconButton(
+                        onPressed: onFavoriteTap,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 28,
+                          height: 28,
+                        ),
+                        icon: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          size: 17,
+                          color: isFavorite
+                              ? Colors.redAccent
+                              : AppColors.textSecondary,
                         ),
                       ),
-                    )
-                  : Image.asset(facility.imagePath!, fit: BoxFit.cover),
+                    ),
+                  ),
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
@@ -487,7 +588,7 @@ class _FacilityCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${facility.sport}   •   Colombo   •   ${facility.distance}',
+                    '${facility.sport}   •   ${facility.distance}',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 10,
@@ -545,6 +646,7 @@ class _ExploreFacility {
       facility.price,
       _sportColor(facility.sport),
       _sportIcon(facility.sport),
+      imageUrl: facility.photoUrl,
     );
   }
 
@@ -557,6 +659,7 @@ class _ExploreFacility {
     this.color,
     this.icon, {
     this.imagePath,
+    this.imageUrl,
   });
 
   final String name;
@@ -567,6 +670,7 @@ class _ExploreFacility {
   final Color color;
   final IconData icon;
   final String? imagePath;
+  final String? imageUrl;
 
   static Color _sportColor(String sport) =>
       const {

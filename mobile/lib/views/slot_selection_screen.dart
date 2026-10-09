@@ -11,8 +11,13 @@ import 'checkout_screen.dart';
 
 class SlotSelectionScreen extends StatefulWidget {
   final String? rescheduleBookingId;
+  final String? courtName;
 
-  const SlotSelectionScreen({super.key, this.rescheduleBookingId});
+  const SlotSelectionScreen({
+    super.key,
+    this.rescheduleBookingId,
+    this.courtName,
+  });
 
   @override
   State<SlotSelectionScreen> createState() => _SlotSelectionScreenState();
@@ -45,6 +50,7 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
     try {
       final fetchedSlots = await ApiService.fetchSlots(
         date: _dates[_selectedDateIndex],
+        courtName: widget.courtName,
       );
       if (!mounted) return;
       setState(() {
@@ -171,9 +177,10 @@ class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Court Info Card
-                    const CourtInfoCard(
-                      courtName: 'Badminton Court 1',
-                      locationAndSport: 'Colombo Sports Centre · Badminton',
+                    CourtInfoCard(
+                      courtName: widget.courtName ?? 'Badminton Court 1',
+                      locationAndSport:
+                          '${widget.courtName ?? 'Colombo Sports Centre'} · Court',
                       tag: 'Court',
                     ),
                     const SizedBox(height: 18),

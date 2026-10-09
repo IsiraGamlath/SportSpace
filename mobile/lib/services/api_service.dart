@@ -1,7 +1,9 @@
 import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
 import '../models/time_slot.dart';
 import '../models/review.dart';
 import '../models/facility.dart';
@@ -139,6 +141,34 @@ class ApiService {
     return body['user'] as Map<String, dynamic>;
   }
 
+  static Future<Map<String, dynamic>> updateUserProfile({
+    required String fullName,
+    required String phone,
+    required String address,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null)
+      throw Exception('You must be signed in to update your profile.');
+    final token = await user.getIdToken();
+    final response = await _patch(
+      '/users/profile',
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'fullName': fullName,
+        'phone': phone,
+        'address': address,
+      }),
+    );
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(body['message'] ?? 'Unable to update your profile');
+    }
+    return Map<String, dynamic>.from(body['user'] as Map);
+  }
+
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
   static Future<http.Response> _get(
@@ -147,9 +177,8 @@ class ApiService {
     Map<String, String>? headers,
   }) async {
     try {
-      final uri = Uri.parse(
-        '$baseUrl$path',
-      ).replace(queryParameters: queryParams);
+      final uri = Uri.parse('$baseUrl$path')
+          .replace(queryParameters: queryParams);
       return await http
           .get(uri, headers: headers)
           .timeout(const Duration(milliseconds: 7000));
@@ -158,9 +187,8 @@ class ApiService {
     for (final candidate in _candidates) {
       if (candidate == baseUrl) continue;
       try {
-        final uri = Uri.parse(
-          '$candidate$path',
-        ).replace(queryParameters: queryParams);
+        final uri = Uri.parse('$candidate$path')
+            .replace(queryParameters: queryParams);
         final res = await http
             .get(uri, headers: headers)
             .timeout(const Duration(milliseconds: 6000));
@@ -360,8 +388,9 @@ class ApiService {
             filename: fileName ?? 'facility_photo.jpg',
           ),
         );
-        final streamedResponse =
-            await request.send().timeout(const Duration(seconds: 25));
+        final streamedResponse = await request.send().timeout(
+          const Duration(seconds: 25),
+        );
         final response = await http.Response.fromStream(streamedResponse);
         if (response.statusCode == 200 || response.statusCode == 201) {
           final data = json.decode(response.body);
@@ -470,15 +499,81 @@ class ApiService {
   static Future<List<Facility>> fetchFacilities() async {
     try {
       final response = await _get('/slots/facilities/list');
+
       if (response.statusCode != 200) {
         return _defaultFacilities;
       }
+
       final data = json.decode(response.body) as List<dynamic>;
-      return data
-          .map((item) => Facility.fromJson(item as Map<String, dynamic>))
+      final facilities = data
+          .map((item) => Map<String, dynamic>.from(item as Map))
           .toList();
+
+      try {
+        final profileResponse = await _get('/facilities');
+
+        if (profileResponse.statusCode == 200) {
+          final profiles = json.decode(profileResponse.body) as List<dynamic>;
+
+          final profilesByName = <String, Map<String, dynamic>>{
+            for (final profile in profiles.whereType<Map>())
+              profile['name']?.toString().trim().toLowerCase() ?? '':
+                  Map<String, dynamic>.from(profile),
+          };
+
+          for (final facility in facilities) {
+            final key = facility['name']?.toString().trim().toLowerCase() ?? '';
+            final profile = profilesByName[key];
+
+            if (profile != null) {
+              if (profile['photoUrl'] != null) {
+                facility['photoUrl'] = profile['photoUrl'];
+              }
+
+              if (profile['photos'] != null) {
+                facility['photos'] = profile['photos'];
+              }
+            }
+          }
+        }
+      } catch (_) {
+        // Keep facility data even if photo loading fails.
+      }
+
+      return facilities.map((item) => Facility.fromJson(item)).toList();
     } catch (_) {
       return _defaultFacilities;
+    }
+  }
+
+  /// Loads full facility profile from `/facilities` matched by [facilityName].
+  static Future<Map<String, dynamic>?> fetchFacilityByName(
+    String facilityName,
+  ) async {
+    final trimmed = facilityName.trim();
+    if (trimmed.isEmpty) return null;
+
+    try {
+      final response = await _get(
+        '/facilities',
+        queryParams: {'search': trimmed},
+      );
+      if (response.statusCode != 200) return null;
+
+      final data = json.decode(response.body) as List<dynamic>;
+      for (final item in data) {
+        if (item is! Map) continue;
+        final map = Map<String, dynamic>.from(item);
+        if (map['name']?.toString().toLowerCase() == trimmed.toLowerCase()) {
+          return map;
+        }
+      }
+      // Search is substring based on the server. Never show a different
+      // facility just because its name happened to contain the search text.
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching facility details: $e');
+      return null;
     }
   }
 
@@ -582,6 +677,8 @@ class ApiService {
     String? paymentIntentId,
     String paymentMethod = 'card',
     String? slipFilePath,
+    Uint8List? slipBytes,
+    String? slipFileName,
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -591,19 +688,35 @@ class ApiService {
         if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       };
 
-      if (slipFilePath != null) {
+      final hasSlipUpload =
+          (slipBytes != null && slipBytes.isNotEmpty) || slipFilePath != null;
+
+      if (hasSlipUpload) {
         var request = http.MultipartRequest(
           'POST',
           Uri.parse('$baseUrl/slots/$id/book'),
         );
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
         request.fields['paymentMethod'] = paymentMethod;
         if (paymentIntentId != null) {
           request.fields['paymentIntentId'] = paymentIntentId;
         }
 
-        request.files.add(
-          await http.MultipartFile.fromPath('slip', slipFilePath),
-        );
+        if (slipBytes != null && slipBytes.isNotEmpty) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'slip',
+              slipBytes,
+              filename: slipFileName ?? 'transfer_slip',
+            ),
+          );
+        } else if (slipFilePath != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath('slip', slipFilePath),
+          );
+        }
 
         var streamedResponse = await request.send();
         var response = await http.Response.fromStream(streamedResponse);
@@ -1263,16 +1376,11 @@ class ApiService {
     throw Exception('Failed to save event: ${response.body}');
   }
 
-  static Future<bool> unsaveEvent(
-    String eventId, {
-    String? userId,
-  }) async {
+  static Future<bool> unsaveEvent(String eventId, {String? userId}) async {
     final queryParams = <String, String>{
       if (userId != null && userId.isNotEmpty) 'userId': userId,
     };
-    final response = await _delete(
-      '/saved-events/$eventId',
-    );
+    final response = await _delete('/saved-events/$eventId');
     return response.statusCode == 200;
   }
 }

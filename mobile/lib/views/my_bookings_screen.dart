@@ -6,6 +6,7 @@ import 'slot_selection_screen.dart';
 import 'home_screen.dart';
 import 'explore_screen.dart';
 import 'player_notifications_view.dart';
+import 'account_profile_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -40,7 +41,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           child: Center(
             child: Material(
               color: AppColors.cardBackground,
-              shape: const CircleBorder(side: BorderSide(color: AppColors.borderLight)),
+              shape: const CircleBorder(
+                side: BorderSide(color: AppColors.borderLight),
+              ),
               child: InkWell(
                 onTap: () => Navigator.pop(context),
                 customBorder: const CircleBorder(),
@@ -74,25 +77,39 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           future: _bookingsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.primaryTeal));
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryTeal),
+              );
             } else if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+              return Center(
+                child: Text(
+                  'Error: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              );
             } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Center(
-                child: Text('No bookings found.', style: TextStyle(color: AppColors.textSecondary)),
+                child: Text(
+                  'No bookings found.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               );
             }
 
             final bookings = snapshot.data!;
-            
+
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
               child: Column(
                 children: [
-                  ...bookings.map((booking) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _buildBookingCard(booking),
-                      )).toList(),
+                  ...bookings
+                      .map(
+                        (booking) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildBookingCard(booking),
+                        ),
+                      )
+                      .toList(),
                 ],
               ),
             );
@@ -108,8 +125,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     final subtitle = booking.courtName;
     final date = booking.slot.date ?? 'N/A';
     final time = booking.slot.durationRange;
-    final price = 'LKR ${booking.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
-    final isActive = booking.status == 'confirmed' || booking.status == 'rescheduled';
+    final price =
+        'LKR ${booking.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
+    final isActive =
+        booking.status == 'confirmed' || booking.status == 'rescheduled';
     final isRescheduled = booking.status == 'rescheduled';
 
     return Container(
@@ -157,10 +176,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: isActive
-                      ? (isRescheduled ? Colors.blue.shade50 : AppColors.availableBg)
+                      ? (isRescheduled
+                            ? Colors.blue.shade50
+                            : AppColors.availableBg)
                       : Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -172,19 +196,25 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       height: 6,
                       decoration: BoxDecoration(
                         color: isActive
-                            ? (isRescheduled ? Colors.blue : AppColors.availableText)
+                            ? (isRescheduled
+                                  ? Colors.blue
+                                  : AppColors.availableText)
                             : Colors.grey.shade600,
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      isActive ? (isRescheduled ? 'Rescheduled' : 'Confirmed') : 'Cancelled',
+                      isActive
+                          ? (isRescheduled ? 'Rescheduled' : 'Confirmed')
+                          : 'Cancelled',
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                         color: isActive
-                            ? (isRescheduled ? Colors.blue.shade700 : AppColors.availableText)
+                            ? (isRescheduled
+                                  ? Colors.blue.shade700
+                                  : AppColors.availableText)
                             : Colors.grey.shade700,
                       ),
                     ),
@@ -211,7 +241,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => SlotSelectionScreen(rescheduleBookingId: booking.id),
+                            builder: (_) => SlotSelectionScreen(
+                              rescheduleBookingId: booking.id,
+                            ),
                           ),
                         );
                         if (result == true) {
@@ -272,7 +304,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancel Booking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.darkNavy)),
+        title: const Text(
+          'Cancel Booking',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: AppColors.darkNavy,
+          ),
+        ),
         content: const Text(
           'Are you sure you want to cancel this booking? A refund will be issued to your original payment method.',
           style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
@@ -281,7 +320,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Keep Booking', style: TextStyle(color: AppColors.darkNavy, fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Keep Booking',
+              style: TextStyle(
+                color: AppColors.darkNavy,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -290,7 +335,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 await ApiService.cancelBooking(bookingId);
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Booking cancelled successfully'), backgroundColor: AppColors.availableText),
+                  const SnackBar(
+                    content: Text('Booking cancelled successfully'),
+                    backgroundColor: AppColors.availableText,
+                  ),
                 );
                 setState(() {
                   _bookingsFuture = _fetchBookings();
@@ -298,7 +346,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               } catch (e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to cancel: $e'), backgroundColor: AppColors.bookedText),
+                  SnackBar(
+                    content: Text('Failed to cancel: $e'),
+                    backgroundColor: AppColors.bookedText,
+                  ),
                 );
               }
             },
@@ -306,9 +357,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               backgroundColor: AppColors.bookedBg,
               foregroundColor: AppColors.bookedText,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
-            child: const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Yes, Cancel',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -321,10 +377,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         Text(
           value,
@@ -366,6 +419,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               MaterialPageRoute(
                 builder: (context) => const PlayerNotificationsView(),
               ),
+            );
+          } else if (index == 4) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const UserProfileScreen()),
             );
           }
         },
