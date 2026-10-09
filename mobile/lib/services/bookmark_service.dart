@@ -1,12 +1,40 @@
-
 import 'package:flutter/foundation.dart';
 import '../models/saved_event_model.dart';
+import 'api_service.dart';
 
 class BookmarkService extends ChangeNotifier {
   final Map<String, SavedEvent> _savedByEventId = {}; // keyed by eventId
 
   // Placeholder until the project has real authentication.
   static const String _currentUserId = 'guest';
+
+  BookmarkService() {
+    loadFromBackend();
+  }
+
+  Future<void> loadFromBackend() async {
+    try {
+      final backendList = await ApiService.fetchSavedEvents(userId: _currentUserId);
+      if (backendList.isNotEmpty) {
+        for (final item in backendList) {
+          final eventId = item['eventId'] as String?;
+          if (eventId != null && eventId.isNotEmpty) {
+            _savedByEventId[eventId] = SavedEvent(
+              id: item['id'] as String? ?? '${eventId}_$_currentUserId',
+              eventId: eventId,
+              userId: _currentUserId,
+              createdAt: item['createdAt'] != null
+                  ? DateTime.tryParse(item['createdAt'].toString()) ?? DateTime.now()
+                  : DateTime.now(),
+            );
+          }
+        }
+        notifyListeners();
+      }
+    } catch (_) {
+      // Offline fallback
+    }
+  }
 
   bool isSaved(String eventId) => _savedByEventId.containsKey(eventId);
 
@@ -22,15 +50,8 @@ class BookmarkService extends ChangeNotifier {
     );
     notifyListeners();
 
-    // TODO(backend): persist, e.g.
-    //   final saved = _savedByEventId[eventId]!;
-    //   await FirebaseFirestore.instance
-    //     .collection('saved_events').doc(saved.id)
-    //     .set({
-    //       'eventId': saved.eventId,
-    //       'userId': saved.userId,
-    //       'createdAt': saved.createdAt,
-    //     });
+    // Push to backend
+    ApiService.saveEvent(eventId, userId: _currentUserId).catchError((_) => <String, dynamic>{});
   }
 
   /// DELETE — unsave/unbookmark [eventId] for the current user.
@@ -39,9 +60,8 @@ class BookmarkService extends ChangeNotifier {
     if (removed == null) return;
     notifyListeners();
 
-    // TODO(backend): delete the corresponding Firestore doc, e.g.
-    //   await FirebaseFirestore.instance
-    //     .collection('saved_events').doc(removed.id).delete();
+    // Push delete to backend
+    ApiService.unsaveEvent(eventId, userId: _currentUserId).catchError((_) => false);
   }
 
   void toggle(String eventId) {
@@ -51,9 +71,6 @@ class BookmarkService extends ChangeNotifier {
   List<SavedEvent> get savedEvents =>
       List.unmodifiable(_savedByEventId.values);
 
-  /// Clears all state. This service is an app-wide singleton, so
-  /// widget tests call this in setUp() to avoid state leaking between
-  /// tests — see test/event_details_view_test.dart.
   @visibleForTesting
   void resetForTesting() {
     _savedByEventId.clear();
