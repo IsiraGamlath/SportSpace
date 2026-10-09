@@ -141,17 +141,34 @@ class ApiService {
 
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
+  static Future<Map<String, String>> _getAuthHeaders(
+      Map<String, String>? headers) async {
+    final Map<String, String> authHeaders =
+        headers != null ? Map.from(headers) : {};
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final token = await user.getIdToken();
+        if (token != null && token.isNotEmpty) {
+          authHeaders['Authorization'] = 'Bearer $token';
+        }
+      } catch (_) {}
+    }
+    return authHeaders;
+  }
+
   static Future<http.Response> _get(
     String path, {
     Map<String, String>? queryParams,
     Map<String, String>? headers,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       final uri = Uri.parse(
         '$baseUrl$path',
       ).replace(queryParameters: queryParams);
       return await http
-          .get(uri, headers: headers)
+          .get(uri, headers: authHeaders)
           .timeout(const Duration(milliseconds: 7000));
     } catch (_) {}
 
@@ -162,7 +179,7 @@ class ApiService {
           '$candidate$path',
         ).replace(queryParameters: queryParams);
         final res = await http
-            .get(uri, headers: headers)
+            .get(uri, headers: authHeaders)
             .timeout(const Duration(milliseconds: 6000));
         _activeBaseUrl = candidate;
         return res;
@@ -176,9 +193,10 @@ class ApiService {
     Map<String, String>? headers,
     Object? body,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       return await http
-          .post(Uri.parse('$baseUrl$path'), headers: headers, body: body)
+          .post(Uri.parse('$baseUrl$path'), headers: authHeaders, body: body)
           .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
@@ -186,7 +204,7 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .post(Uri.parse('$candidate$path'), headers: headers, body: body)
+            .post(Uri.parse('$candidate$path'), headers: authHeaders, body: body)
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -200,9 +218,10 @@ class ApiService {
     Map<String, String>? headers,
     Object? body,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       return await http
-          .put(Uri.parse('$baseUrl$path'), headers: headers, body: body)
+          .put(Uri.parse('$baseUrl$path'), headers: authHeaders, body: body)
           .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
@@ -210,7 +229,7 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .put(Uri.parse('$candidate$path'), headers: headers, body: body)
+            .put(Uri.parse('$candidate$path'), headers: authHeaders, body: body)
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -224,9 +243,10 @@ class ApiService {
     Map<String, String>? headers,
     Object? body,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       return await http
-          .patch(Uri.parse('$baseUrl$path'), headers: headers, body: body)
+          .patch(Uri.parse('$baseUrl$path'), headers: authHeaders, body: body)
           .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
@@ -234,7 +254,7 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .patch(Uri.parse('$candidate$path'), headers: headers, body: body)
+            .patch(Uri.parse('$candidate$path'), headers: authHeaders, body: body)
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -247,9 +267,10 @@ class ApiService {
     String path, {
     Map<String, String>? headers,
   }) async {
+    final authHeaders = await _getAuthHeaders(headers);
     try {
       return await http
-          .delete(Uri.parse('$baseUrl$path'), headers: headers)
+          .delete(Uri.parse('$baseUrl$path'), headers: authHeaders)
           .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
@@ -257,7 +278,7 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .delete(Uri.parse('$candidate$path'), headers: headers)
+            .delete(Uri.parse('$candidate$path'), headers: authHeaders)
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -282,7 +303,7 @@ class ApiService {
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
 
       final response = await _get(
-        '/facilities',
+        '/facilities/manager',
         queryParams: queryParams.isNotEmpty ? queryParams : null,
       );
 
@@ -470,7 +491,7 @@ class ApiService {
         queryParams['courtName'] = courtName;
       }
 
-      final response = await _get('/slots', queryParams: queryParams);
+      final response = await _get('/slots/manager', queryParams: queryParams);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -625,7 +646,7 @@ class ApiService {
       if (facilityName != null) queryParams['facilityName'] = facilityName;
 
       final response = await _get(
-        '/maintenance',
+        '/maintenance/manager',
         queryParams: queryParams.isNotEmpty ? queryParams : null,
       );
 
@@ -641,7 +662,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> fetchMaintenanceSummary() async {
     try {
-      final response = await _get('/maintenance/overview/summary');
+      final response = await _get('/maintenance/overview/summary/manager');
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -855,7 +876,7 @@ class ApiService {
 
   static Future<List<dynamic>> fetchAllBookings() async {
     try {
-      final response = await _get('/bookings/all');
+      final response = await _get('/bookings/manager');
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
@@ -921,7 +942,7 @@ class ApiService {
       if (courtName != null) queryParams['courtName'] = courtName;
 
       final response = await _get(
-        '/payment-verifications',
+        '/payment-verifications/manager',
         queryParams: queryParams.isNotEmpty ? queryParams : null,
       );
 

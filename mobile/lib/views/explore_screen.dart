@@ -6,6 +6,7 @@ import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'home_screen.dart';
 import 'my_bookings_screen.dart';
+import 'tertiary/profile_view.dart';
 import 'facility_profile_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
@@ -170,6 +171,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   context,
                   PageRouteBuilder(
                     pageBuilder: (_, __, ___) => const MyBookingsScreen(),
+                    transitionDuration: Duration.zero,
+                  ),
+                );
+              } else if (index == 4) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
                     transitionDuration: Duration.zero,
                   ),
                 );

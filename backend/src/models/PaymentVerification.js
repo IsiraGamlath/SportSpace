@@ -20,8 +20,8 @@ const paymentVerificationSchema = new mongoose.Schema({
   },
   verifiedBy: { type: String, default: null },
   verifiedAt: { type: Date, default: null },
-  verificationNotes: { type: String, default: null },
   slipUrl: { type: String, default: null },
+  managerId: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('PaymentVerification', paymentVerificationSchema);

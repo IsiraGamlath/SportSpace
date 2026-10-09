@@ -84,6 +84,10 @@ const facilitySchema = new mongoose.Schema(
       type: String,
       default: 'Colombo Sports Centre',
     },
+    managerId: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

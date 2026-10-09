@@ -12,6 +12,8 @@ class TimeSlot {
   final double price;
   final bool isConflictTrigger;
   final String? date;
+  final String? courtName;
+  final String? facilityType;
 
   const TimeSlot({
     required this.id,
@@ -21,6 +23,8 @@ class TimeSlot {
     required this.price,
     this.isConflictTrigger = false,
     this.date,
+    this.courtName,
+    this.facilityType,
   });
 
   TimeSlot copyWith({
@@ -31,6 +35,8 @@ class TimeSlot {
     double? price,
     bool? isConflictTrigger,
     String? date,
+    String? courtName,
+    String? facilityType,
   }) {
     return TimeSlot(
       id: id ?? this.id,
@@ -40,6 +46,8 @@ class TimeSlot {
       price: price ?? this.price,
       isConflictTrigger: isConflictTrigger ?? this.isConflictTrigger,
       date: date ?? this.date,
+      courtName: courtName ?? this.courtName,
+      facilityType: facilityType ?? this.facilityType,
     );
   }
 }

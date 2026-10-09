@@ -73,7 +73,11 @@ class FacilityProfileScreen extends StatelessWidget {
             child: FilledButton(
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SlotSelectionScreen()),
+                MaterialPageRoute(builder: (_) => SlotSelectionScreen(
+                  facilityName: name,
+                  sport: sport,
+                  location: 'Colombo, Sri Lanka',
+                )),
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primaryTeal,

@@ -8,6 +8,7 @@ import '../widgets/app_bottom_nav.dart';
 import 'explore_screen.dart';
 import 'facility_profile_screen.dart';
 import 'my_bookings_screen.dart';
+import 'tertiary/profile_view.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -174,6 +175,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   PageRouteBuilder(
                     pageBuilder: (_, __, ___) => const MyBookingsScreen(),
+                    transitionDuration: Duration.zero,
+                  ),
+                );
+              } else if (index == 4) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
                     transitionDuration: Duration.zero,
                   ),
                 );

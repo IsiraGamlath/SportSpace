@@ -20,8 +20,8 @@ const formatVerification = (doc) => {
 
 // Helper to resolve player details from actual registered users
 const getPlayerDetails = async (booking, index = 0) => {
-  if (booking && booking.user) {
-    const u = await User.findById(booking.user);
+  if (booking && booking.userId) {
+    const u = await User.findOne({ firebaseUid: booking.userId });
     if (u) {
       return {
         playerName: u.fullName || u.name || 'Player',
@@ -149,8 +149,8 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
           PaymentVerification.create({
             bookingId: b.bookingId,
             bookingRef: b._id,
-            courtName: cName,
-            facilityName: 'Colombo Sports Centre',
+            courtName: b.slot ? b.slot.facilityType : 'Court',
+            facilityName: b.slot ? b.slot.courtName : 'SportSpace Facility',
             slotDate: sDate,
             slotTime: sTime,
             playerName: playerInfo.playerName,
@@ -166,12 +166,13 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
               }`,
             paymentStatus: pStatus,
             slipUrl: b.slipUrl || null,
+            managerId: b.managerId || null,
           })
         );
       } else {
         let changed = false;
-        if (pv.playerName === 'Kasun Perera') {
-          const playerInfo = await getPlayerDetails(b, i);
+        const playerInfo = await getPlayerDetails(b, i);
+        if (pv.playerName !== playerInfo.playerName || pv.playerEmail !== playerInfo.playerEmail) {
           pv.playerName = playerInfo.playerName;
           pv.playerEmail = playerInfo.playerEmail;
           pv.playerPhone = playerInfo.playerPhone;
@@ -185,6 +186,10 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
           pv.bookingRef = b._id;
           changed = true;
         }
+        if (pv.managerId !== b.managerId) {
+          pv.managerId = b.managerId;
+          changed = true;
+        }
         if (!pv.slotDate || pv.slotDate !== sDate) {
           pv.slotDate = sDate;
           changed = true;
@@ -193,8 +198,14 @@ const syncBookingsWithPaymentVerifications = async (force = false) => {
           pv.slotTime = sTime;
           changed = true;
         }
-        if (!pv.facilityName) {
-          pv.facilityName = 'Colombo Sports Centre';
+        const expectedFacility = b.slot ? b.slot.courtName : 'SportSpace Facility';
+        if (pv.facilityName !== expectedFacility) {
+          pv.facilityName = expectedFacility;
+          changed = true;
+        }
+        const expectedCourt = b.slot ? b.slot.facilityType : 'Court';
+        if (pv.courtName !== expectedCourt) {
+          pv.courtName = expectedCourt;
           changed = true;
         }
         if (
@@ -233,6 +244,27 @@ exports.getPaymentVerifications = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching payment verifications',
+      error: error.message,
+    });
+  }
+};
+
+// GET /api/payment-verifications/manager
+exports.getManagerPaymentVerifications = async (req, res) => {
+  try {
+    await syncBookingsWithPaymentVerifications();
+    const { paymentStatus, courtName, bookingId } = req.query;
+    const query = { managerId: req.firebaseUser.uid };
+
+    if (paymentStatus) query.paymentStatus = paymentStatus;
+    if (courtName) query.courtName = courtName;
+    if (bookingId) query.bookingId = bookingId;
+
+    const list = await PaymentVerification.find(query).sort({ createdAt: -1 });
+    res.status(200).json(list.map(formatVerification));
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error fetching manager payment verifications',
       error: error.message,
     });
   }

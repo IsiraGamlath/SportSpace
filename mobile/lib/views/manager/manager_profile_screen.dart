@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/manager_colors.dart';
@@ -32,8 +33,12 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
+              try {
+                await FirebaseAuth.instance.signOut();
+              } catch (_) {}
+              if (!mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute<void>(
                   builder: (_) => const LoginScreen(),
