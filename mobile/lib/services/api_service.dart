@@ -139,6 +139,33 @@ class ApiService {
     return body['user'] as Map<String, dynamic>;
   }
 
+  static Future<Map<String, dynamic>> updateUserProfile({
+    required String fullName,
+    required String phone,
+    required String address,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('You must be signed in to update your profile.');
+    final token = await user.getIdToken();
+    final response = await _patch(
+      '/users/profile',
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'fullName': fullName,
+        'phone': phone,
+        'address': address,
+      }),
+    );
+    final body = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(body['message'] ?? 'Unable to update your profile');
+    }
+    return Map<String, dynamic>.from(body['user'] as Map);
+  }
+
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
   static Future<Map<String, String>> _getAuthHeaders(
@@ -473,9 +500,66 @@ class ApiService {
       throw Exception('Failed to load facilities');
     }
     final data = json.decode(response.body) as List<dynamic>;
-    return data
-        .map((item) => Facility.fromJson(item as Map<String, dynamic>))
+    final facilities = data
+        .map((item) => Map<String, dynamic>.from(item as Map))
         .toList();
+
+    // The slots endpoint provides availability and pricing; facility records
+    // provide the manager-uploaded photos. Merge by exact facility name.
+    try {
+      final profileResponse = await _get('/facilities');
+      if (profileResponse.statusCode == 200) {
+        final profiles = json.decode(profileResponse.body) as List<dynamic>;
+        final profilesByName = <String, Map<String, dynamic>>{
+          for (final profile in profiles.whereType<Map>())
+            profile['name']?.toString().trim().toLowerCase() ?? '':
+                Map<String, dynamic>.from(profile),
+        };
+        for (final facility in facilities) {
+          final profile =
+              profilesByName[facility['name']?.toString().trim().toLowerCase()];
+          if (profile != null) {
+            facility['photoUrl'] = profile['photoUrl'];
+            facility['photos'] = profile['photos'];
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Could not load facility photos: $e');
+    }
+
+    return facilities.map(Facility.fromJson).toList();
+  }
+
+  /// Loads full facility profile from `/facilities` matched by [facilityName].
+  static Future<Map<String, dynamic>?> fetchFacilityByName(
+    String facilityName,
+  ) async {
+    final trimmed = facilityName.trim();
+    if (trimmed.isEmpty) return null;
+
+    try {
+      final response = await _get(
+        '/facilities',
+        queryParams: {'search': trimmed},
+      );
+      if (response.statusCode != 200) return null;
+
+      final data = json.decode(response.body) as List<dynamic>;
+      for (final item in data) {
+        if (item is! Map) continue;
+        final map = Map<String, dynamic>.from(item);
+        if (map['name']?.toString().toLowerCase() == trimmed.toLowerCase()) {
+          return map;
+        }
+      }
+      // Search is substring based on the server. Never show a different
+      // facility just because its name happened to contain the search text.
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching facility details: $e');
+      return null;
+    }
   }
 
   static Future<List<Map<String, dynamic>>> fetchManagerSlots({
@@ -578,6 +662,8 @@ class ApiService {
     String? paymentIntentId,
     String paymentMethod = 'card',
     String? slipFilePath,
+    Uint8List? slipBytes,
+    String? slipFileName,
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -587,20 +673,35 @@ class ApiService {
         if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       };
 
-      if (slipFilePath != null) {
-        var request = http.MultipartRequest(
+      final hasSlipUpload =
+          (slipBytes != null && slipBytes.isNotEmpty) || slipFilePath != null;
+
+      if (hasSlipUpload) {
+                var request = http.MultipartRequest(
           'POST',
           Uri.parse('$baseUrl/slots/$id/book'),
         );
-        request.headers.addAll(headers);
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
         request.fields['paymentMethod'] = paymentMethod;
         if (paymentIntentId != null) {
           request.fields['paymentIntentId'] = paymentIntentId;
         }
 
-        request.files.add(
-          await http.MultipartFile.fromPath('slip', slipFilePath),
-        );
+        if (slipBytes != null && slipBytes.isNotEmpty) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'slip',
+              slipBytes,
+              filename: slipFileName ?? 'transfer_slip',
+            ),
+          );
+        } else if (slipFilePath != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath('slip', slipFilePath),
+          );
+        }
 
         var streamedResponse = await request.send();
         var response = await http.Response.fromStream(streamedResponse);

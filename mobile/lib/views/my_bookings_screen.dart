@@ -6,6 +6,7 @@ import 'slot_selection_screen.dart';
 import 'home_screen.dart';
 import 'explore_screen.dart';
 import 'tertiary/profile_view.dart';
+import 'account_profile_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -390,6 +391,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
                 transitionDuration: Duration.zero,
               ),
+            );
+          } else if (index == 4) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const UserProfileScreen()),
             );
           }
         },

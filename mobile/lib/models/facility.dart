@@ -16,10 +16,23 @@ class Facility {
   factory Facility.fromJson(Map<String, dynamic> json) {
     return Facility(
       name: json['name']?.toString() ?? 'Unnamed facility',
-      sport: json['sport']?.toString() ?? (json['type']?.toString() ?? 'Sports'),
-      price: (json['price'] as num?)?.round() ?? (json['hourlyRate'] as num?)?.round() ?? 0,
-      availableSlots: (json['availableSlots'] as num?)?.toInt() ?? 10,
-      photoUrl: json['photoUrl']?.toString() ?? (json['photos'] != null && (json['photos'] as List).isNotEmpty ? json['photos'][0].toString() : null),
+      sport: json['sport']?.toString() ?? json['type']?.toString() ?? 'Sports',
+      price: (json['price'] as num?)?.round() ??
+          (json['hourlyRate'] as num?)?.round() ??
+          0,
+      availableSlots: (json['availableSlots'] as num?)?.toInt() ?? 0,
+      photoUrl: _firstPhoto(json),
     );
+  }
+
+  static String? _firstPhoto(Map<String, dynamic> json) {
+    final photos = json['photos'];
+    final firstPhoto = photos is List && photos.isNotEmpty
+        ? photos.first?.toString().trim()
+        : null;
+    final photoUrl = json['photoUrl']?.toString().trim();
+    final value = (firstPhoto?.isNotEmpty == true ? firstPhoto : photoUrl);
+    if (value == null || value.isEmpty) return null;
+    return value;
   }
 }
