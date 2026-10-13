@@ -44,6 +44,12 @@ class _ContactAccessibilityViewState extends State<ContactAccessibilityView> {
   static const Color _pillBg = Color(0xFFEAF4FB);
 
   @override
+  void initState() {
+    super.initState();
+    appServices.contactRequestService.loadFromBackend();
+  }
+
+  @override
   void dispose() {
     _messageController.dispose();
     super.dispose();
@@ -518,6 +524,63 @@ class _ContactAccessibilityViewState extends State<ContactAccessibilityView> {
     );
   }
 
+  Widget _buildStatusBadge(String status) {
+    final Color bgColor;
+    final Color textColor;
+    final Color borderColor;
+    final IconData icon;
+    final String label;
+
+    switch (status.toLowerCase()) {
+      case 'resolved':
+        bgColor = const Color(0xFFF0FDF4);
+        textColor = const Color(0xFF15803D);
+        borderColor = const Color(0xFFBBF7D0);
+        icon = Icons.check_circle_outline_rounded;
+        label = 'Resolved';
+        break;
+      case 'in_review':
+        bgColor = const Color(0xFFEFF6FF);
+        textColor = const Color(0xFF1D4ED8);
+        borderColor = const Color(0xFFBFDBFE);
+        icon = Icons.pending_outlined;
+        label = 'In Review';
+        break;
+      case 'pending':
+      default:
+        bgColor = const Color(0xFFFFFBEB);
+        textColor = const Color(0xFFB45309);
+        borderColor = const Color(0xFFFDE68A);
+        icon = Icons.schedule_rounded;
+        label = 'Pending';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11.5, color: textColor),
+          const SizedBox(width: 3.5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSubmissionCard(ContactRequest request) {
     final isAccessibility =
         request.type == ContactRequestType.accessibilityRequest;
@@ -555,6 +618,8 @@ class _ContactAccessibilityViewState extends State<ContactAccessibilityView> {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              _buildStatusBadge(request.status),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.edit_outlined, size: 16, color: _subtext),

@@ -7,6 +7,7 @@ class ContactRequest {
   final String userId;
   final ContactRequestType type;
   final String message;
+  final String status;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -16,22 +17,29 @@ class ContactRequest {
     required this.userId,
     required this.type,
     required this.message,
+    this.status = 'pending',
     required this.createdAt,
     this.updatedAt,
   });
 
   ContactRequest copyWith({
+    String? id,
+    String? facilityId,
+    String? userId,
     ContactRequestType? type,
     String? message,
+    String? status,
+    DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return ContactRequest(
-      id: id,
-      facilityId: facilityId,
-      userId: userId,
+      id: id ?? this.id,
+      facilityId: facilityId ?? this.facilityId,
+      userId: userId ?? this.userId,
       type: type ?? this.type,
       message: message ?? this.message,
-      createdAt: createdAt,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

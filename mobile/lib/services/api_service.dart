@@ -1181,7 +1181,19 @@ class ApiService {
   }) async {
     try {
       final queryParams = <String, String>{};
-      if (userId != null && userId.isNotEmpty) queryParams['userId'] = userId;
+      String? activeUserId = userId;
+      if (activeUserId == null || activeUserId.isEmpty) {
+        try {
+          final currentUid = FirebaseAuth.instance.currentUser?.uid;
+          if (currentUid != null && currentUid.isNotEmpty) {
+            activeUserId = currentUid;
+          }
+        } catch (_) {}
+      }
+
+      if (activeUserId != null && activeUserId.isNotEmpty) {
+        queryParams['userId'] = activeUserId;
+      }
       if (facilityId != null && facilityId.isNotEmpty) {
         queryParams['facilityId'] = facilityId;
       }
@@ -1205,10 +1217,23 @@ class ApiService {
   static Future<Map<String, dynamic>> createContactRequest(
     Map<String, dynamic> data,
   ) async {
+    final payload = Map<String, dynamic>.from(data);
+    if (!payload.containsKey('userId') ||
+        payload['userId'] == 'guest' ||
+        payload['userId'] == null ||
+        (payload['userId'] as String).isEmpty) {
+      try {
+        final currentUid = FirebaseAuth.instance.currentUser?.uid;
+        if (currentUid != null && currentUid.isNotEmpty) {
+          payload['userId'] = currentUid;
+        }
+      } catch (_) {}
+    }
+
     final response = await _post(
       '/contact-requests',
       headers: {'Content-Type': 'application/json'},
-      body: json.encode(data),
+      body: json.encode(payload),
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
       return json.decode(response.body);

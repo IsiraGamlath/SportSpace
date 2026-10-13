@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/contact_request_model.dart';
@@ -9,16 +10,30 @@ class ContactRequestService extends ChangeNotifier {
   final Map<String, ContactRequest> _requests = {}; // keyed by id
   int _nextId = 1;
 
-  // Placeholder until the project has real authentication.
-  static const String _currentUserId = 'guest';
+  String get currentUserId {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.uid.isNotEmpty) {
+        return user.uid;
+      }
+    } catch (_) {}
+    return 'guest';
+  }
 
   ContactRequestService() {
     loadFromBackend();
+    try {
+      FirebaseAuth.instance.authStateChanges().listen((user) {
+        loadFromBackend(user?.uid);
+      });
+    } catch (_) {}
   }
 
-  Future<void> loadFromBackend() async {
+  Future<void> loadFromBackend([String? targetUserId]) async {
+    final activeUserId = targetUserId ?? currentUserId;
     try {
-      final backendList = await ApiService.fetchContactRequests(userId: _currentUserId);
+      final backendList = await ApiService.fetchContactRequests(userId: activeUserId);
+      _requests.clear();
       if (backendList.isNotEmpty) {
         for (final item in backendList) {
           final id = item['id'] as String? ?? item['_id'] as String? ?? 'req_${_nextId++}';
@@ -30,9 +45,10 @@ class ContactRequestService extends ChangeNotifier {
           _requests[id] = ContactRequest(
             id: id,
             facilityId: item['facilityId'] as String? ?? 'general',
-            userId: item['userId'] as String? ?? _currentUserId,
+            userId: item['userId'] as String? ?? activeUserId,
             type: type,
             message: item['message'] as String? ?? '',
+            status: item['status'] as String? ?? 'pending',
             createdAt: item['createdAt'] != null
                 ? DateTime.tryParse(item['createdAt'].toString()) ?? DateTime.now()
                 : DateTime.now(),
@@ -41,8 +57,8 @@ class ContactRequestService extends ChangeNotifier {
                 : null,
           );
         }
-        notifyListeners();
       }
+      notifyListeners();
     } catch (_) {
       // Offline fallback
     }
@@ -52,7 +68,7 @@ class ContactRequestService extends ChangeNotifier {
       _requests.values.where((r) => r.userId == userId).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-  List<ContactRequest> get myRequests => requestsForUser(_currentUserId);
+  List<ContactRequest> get myRequests => requestsForUser(currentUserId);
 
   /// CREATE
   ContactRequest create({
@@ -60,11 +76,12 @@ class ContactRequestService extends ChangeNotifier {
     required ContactRequestType type,
     required String message,
   }) {
+    final activeUserId = currentUserId;
     final id = 'req_${_nextId++}';
     final request = ContactRequest(
       id: id,
       facilityId: facilityId,
-      userId: _currentUserId,
+      userId: activeUserId,
       type: type,
       message: message,
       createdAt: DateTime.now(),
@@ -73,12 +90,24 @@ class ContactRequestService extends ChangeNotifier {
     notifyListeners();
 
     // Push to backend
-    ApiService.createContactRequest({
-      'facilityId': facilityId,
-      'userId': _currentUserId,
-      'type': type.name,
-      'message': message,
-    }).catchError((_) => <String, dynamic>{});
+    () async {
+      try {
+        final created = await ApiService.createContactRequest({
+          'facilityId': facilityId,
+          'userId': activeUserId,
+          'type': type.name,
+          'message': message,
+        });
+        if (created.containsKey('id') || created.containsKey('_id')) {
+          final serverId = created['id'] as String? ?? created['_id'] as String?;
+          if (serverId != null && serverId != id) {
+            _requests.remove(id);
+            _requests[serverId] = request.copyWith(id: serverId);
+            notifyListeners();
+          }
+        }
+      } catch (_) {}
+    }();
 
     // Requirement 13: when submit contact enquiry or accessibility request,
     // show in notification screen for community member who submitted the request.
@@ -88,7 +117,7 @@ class ContactRequestService extends ChangeNotifier {
 
     appServices.notificationService.dispatchNotification(
       targetRoles: ['communityMember'],
-      userId: _currentUserId,
+      userId: activeUserId,
       category: NotificationCategory.facility,
       title: 'Request Submitted',
       message: 'Your $readableType for $facilityId has been submitted successfully.',
@@ -101,7 +130,8 @@ class ContactRequestService extends ChangeNotifier {
   /// UPDATE — no-op if [id] doesn't exist or isn't owned by current user.
   void update(String id, {ContactRequestType? type, String? message}) {
     final existing = _requests[id];
-    if (existing == null || existing.userId != _currentUserId) return;
+    final activeUserId = currentUserId;
+    if (existing == null || existing.userId != activeUserId) return;
 
     _requests[id] = existing.copyWith(
       type: type,
@@ -111,22 +141,31 @@ class ContactRequestService extends ChangeNotifier {
     notifyListeners();
 
     // Push update to backend
-    ApiService.updateContactRequest(id, {
-      if (type != null) 'type': type.name,
-      if (message != null) 'message': message,
-    }).catchError((_) => <String, dynamic>{});
+    () async {
+      try {
+        await ApiService.updateContactRequest(id, {
+          if (type != null) 'type': type.name,
+          if (message != null) 'message': message,
+        });
+      } catch (_) {}
+    }();
   }
 
   /// DELETE — no-op if [id] doesn't exist or isn't owned by current user.
   void delete(String id) {
     final existing = _requests[id];
-    if (existing == null || existing.userId != _currentUserId) return;
+    final activeUserId = currentUserId;
+    if (existing == null || existing.userId != activeUserId) return;
 
     _requests.remove(id);
     notifyListeners();
 
     // Push delete to backend
-    ApiService.deleteContactRequest(id).catchError((_) => false);
+    () async {
+      try {
+        await ApiService.deleteContactRequest(id);
+      } catch (_) {}
+    }();
 
     // Requirement 3: when community member deletes a request, dispatch notification to communityMember
     final readableType = existing.type == ContactRequestType.accessibilityRequest
@@ -135,7 +174,7 @@ class ContactRequestService extends ChangeNotifier {
 
     appServices.notificationService.dispatchNotification(
       targetRoles: ['communityMember'],
-      userId: _currentUserId,
+      userId: activeUserId,
       category: NotificationCategory.facility,
       title: 'Request Deleted',
       message: 'Your $readableType for ${existing.facilityId} has been deleted.',

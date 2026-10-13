@@ -8,7 +8,7 @@ import {
     Building2,
     CreditCard,
     Percent,
-    Settings,
+    HelpCircle,
     LogOut
 } from "lucide-react";
 
@@ -17,7 +17,7 @@ const navigation = [
     { name: "Users", href: "/users", icon: Users },
     { name: "Facility Managers", href: "/managers", icon: Building2 },
     { name: "Payment Audit", href: "/payments", icon: CreditCard },
-    { name: "Settings", href: "/settings", icon: Settings },
+    { name: "Inquiries", href: "/inquiries", icon: HelpCircle },
 ];
 
 export default function Sidebar() {
@@ -32,7 +32,7 @@ export default function Sidebar() {
 
             <nav className="space-y-1 flex-1">
                 {navigation.map((item) => {
-                    const isActive = pathname === item.href;
+                    const isActive = pathname === item.href || (item.href === "/inquiries" && pathname === "/settings");
                     const Icon = item.icon;
                     return (
                         <Link

@@ -21,6 +21,7 @@ import 'manager/manager_notifications_screen.dart';
 import 'tertiary/notifications_view.dart';
 import 'player_main_screen.dart';
 import 'tertiary/tertiary_main_screen.dart';
+import 'tertiary/contact_accessibility_view.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key, this.communityMode = false, this.showBottomNav = true});
@@ -345,6 +346,21 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
     );
   }
 
+  void _openContactAccessibility() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ContactAccessibilityView(
+          facilityId: 'general',
+          facilityName: 'SportSpace Support & Facilities',
+          phone: '+94 11 234 5678',
+          email: 'support@sportspace.lk',
+          address: 'Independence Square, Colombo 07',
+          openingHours: '6:00 AM – 10:00 PM',
+        ),
+      ),
+    );
+  }
+
   Future<void> _contactSupport() async {
     await SharePlus.instance.share(
       ShareParams(
@@ -664,6 +680,15 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
       if (_isPlayer && _matchesSearch('Payment Methods Card'))
         _profileTile(Icons.credit_card_outlined, const Color(0xFFF18B24), const Color(0xFFFFF1E3),
             'Payment Methods', 'Secure card payments through Stripe', _openPayments),
+      if (_matchesSearch('Contact & Accessibility Support Help Enquiries Developers'))
+        _profileTile(
+          Icons.contact_support_outlined,
+          const Color(0xFF1D7A6B),
+          const Color(0xFFE3F3EC),
+          'Contact & Accessibility',
+          'Enquiries • Accessibility requests • Help',
+          _openContactAccessibility,
+        ),
       if (_matchesSearch('Sign Out Logout'))
         _profileTile(Icons.logout_rounded, const Color(0xFFD94848), const Color(0xFFFFEAEA),
             'Sign Out', 'Sign out of this SportSpace account', _signOut),
@@ -710,6 +735,15 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
 
   Widget _buildSupportTab() {
     final tiles = <Widget>[
+      if (_matchesSearch('Contact & Accessibility Support Help Enquiries Developers'))
+        _profileTile(
+          Icons.contact_support_outlined,
+          const Color(0xFF1D7A6B),
+          const Color(0xFFE3F3EC),
+          'Contact & Accessibility',
+          'Enquiries • Accessibility requests • Help',
+          _openContactAccessibility,
+        ),
       if (_matchesSearch('Contact Support Help'))
         _profileTile(Icons.support_agent_rounded, const Color(0xFF1673D1), const Color(0xFFE6F1FD),
             'Contact Support', 'Share a support request with your account email', _contactSupport),
@@ -719,7 +753,7 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
               showAboutDialog(context: context, applicationName: 'SportSpace');
             }),
     ];
-    return _section('Support', tiles);
+    return _section('Support & Accessibility', tiles);
   }
 
   Widget _section(String title, List<Widget> tiles) {
