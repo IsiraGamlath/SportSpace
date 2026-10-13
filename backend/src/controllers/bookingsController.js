@@ -90,6 +90,16 @@ exports.cancelBooking = async (req, res) => {
       }
     }
 
+    const { dispatchNotification } = require('./notificationsController');
+    await dispatchNotification({
+      targetRoles: ['player', 'facilityManager'],
+      category: 'event',
+      title: 'Booking Cancelled',
+      message: `Booking for ${booking.courtName || 'Court'} has been cancelled.`,
+      accentColor: 'red',
+      metadata: { bookingId: booking._id },
+    });
+
     res.status(200).json({ message: 'Booking cancelled successfully', booking });
   } catch (error) {
     console.error('Error cancelling booking:', error);

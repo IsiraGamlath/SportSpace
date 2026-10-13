@@ -576,11 +576,11 @@ exports.updateFacility = async (req, res) => {
 
     const formatted = formatFacility(facility);
 
-    // Requirement 7: when facility manager edits facility info, notify player, community member, and facility manager
+    // Req 6: when manager change facility details, notify facility manager and community member
     await dispatchNotification({
-      targetRoles: ['player', 'communityMember', 'facilityManager'],
+      targetRoles: ['facilityManager', 'communityMember'],
       category: 'facility',
-      title: 'Facility Update',
+      title: 'Facility Info Updated',
       message: `Facility details have been updated for "${facility.name}".`,
       accentColor: 'orange',
       metadata: { facilityId: formatted.id, action: 'edit' },
