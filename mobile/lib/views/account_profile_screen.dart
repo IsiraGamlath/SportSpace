@@ -15,6 +15,10 @@ import 'my_bookings_screen.dart';
 import 'tertiary/placeholder_view.dart';
 import '../widgets/tertiary/nav_bar.dart';
 import 'tertiary/home_view.dart';
+import '../services/app_services.dart';
+import 'player_notifications_view.dart';
+import 'manager/manager_notifications_screen.dart';
+import 'tertiary/notifications_view.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key, this.communityMode = false});
@@ -24,7 +28,7 @@ class UserProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: const SafeArea(child: AccountProfileContent()),
+      body: SafeArea(child: AccountProfileContent(communityMode: communityMode)),
       bottomNavigationBar: communityMode
           ? TertiaryNavBar(
               currentIndex: 4,
@@ -51,7 +55,7 @@ class UserProfileScreen extends StatelessWidget {
                   0 => const HomeScreen(),
                   1 => const ExploreScreen(),
                   2 => const MyBookingsScreen(),
-                  _ => const TertiaryPlaceholderView(title: 'Notifications'),
+                  _ => const PlayerNotificationsView(),
                 };
                 Navigator.pushReplacement(
                   context,
@@ -67,10 +71,12 @@ class AccountProfileContent extends StatefulWidget {
   const AccountProfileContent({
     super.key,
     this.managerPortal = false,
+    this.communityMode = false,
     this.onOpenManagerBookings,
   });
 
   final bool managerPortal;
+  final bool communityMode;
   final VoidCallback? onOpenManagerBookings;
 
   @override
@@ -82,10 +88,14 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
   static const _tabs = ['Account', 'Preferences', 'Payments', 'Support'];
 
   int _selectedTab = 0;
-  bool _loading = true;
+  bool _loading = false;
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
-  Map<String, dynamic> _profile = {};
+  Map<String, dynamic> _profile = {
+    'fullName': 'User',
+    'email': '',
+    'role': 'Player',
+  };
   List<Booking> _bookings = [];
   Set<String> _favorites = {};
   String? _loadError;
@@ -103,7 +113,10 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
   }
 
   Future<void> _loadAccount() async {
-    final authUser = FirebaseAuth.instance.currentUser;
+    User? authUser;
+    try {
+      authUser = FirebaseAuth.instance.currentUser;
+    } catch (_) {}
     Map<String, dynamic> profile = {
       'fullName': authUser?.displayName ?? authUser?.email?.split('@').first ?? 'User',
       'email': authUser?.email ?? '',
@@ -111,6 +124,16 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
       'phone': '',
       'address': '',
     };
+    if (authUser == null) {
+      if (mounted) {
+        setState(() {
+          _profile = profile;
+          _loading = false;
+        });
+      }
+      return;
+    }
+
     String? loadError;
     try {
       profile = await ApiService.fetchUserProfile() ?? profile;
@@ -150,11 +173,18 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
 
   String get _email => _profile['email']?.toString() ?? '';
   String get _role => _profile['role']?.toString() ?? 'Player';
-  bool get _isManager => _role == 'Facility Manager';
-  bool get _isPlayer => _role == 'Player';
-  bool get _verified => _isManager
-      ? _profile['isApproved'] == true
-      : (FirebaseAuth.instance.currentUser?.emailVerified ?? false);
+  bool get _isManager => widget.managerPortal || _role == 'Facility Manager';
+  bool get _isCommunityMember =>
+      widget.communityMode || _role.toLowerCase() == 'community member';
+  bool get _isPlayer => !_isManager && !_isCommunityMember;
+  bool get _verified {
+    if (_isManager) return _profile['isApproved'] == true;
+    try {
+      return FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 
   bool _matchesSearch(String text) {
     final query = _searchController.text.trim().toLowerCase();
@@ -394,14 +424,84 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
                   style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
                 ),
               ),
-              IconButton.filledTonal(
-                onPressed: () => setState(() => _selectedTab = 1),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: .14),
-                  foregroundColor: Colors.white,
-                ),
-                icon: const Icon(Icons.notifications_none_rounded),
-                tooltip: 'Notification preferences',
+              ListenableBuilder(
+                listenable: appServices.notificationService,
+                builder: (context, _) {
+                  final role = _isManager
+                      ? 'facilityManager'
+                      : (_isCommunityMember ? 'communityMember' : 'player');
+                  final count = appServices.notificationService
+                      .unreadCountForRole(role);
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      IconButton.filledTonal(
+                        key: const Key('profile_notification_bell'),
+                        onPressed: () {
+                          if (_isManager) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ManagerNotificationsScreen(),
+                              ),
+                            );
+                          } else if (_isCommunityMember) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const NotificationsView(),
+                              ),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const PlayerNotificationsView(),
+                              ),
+                            );
+                          }
+                        },
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: .14),
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.notifications_none_rounded),
+                        tooltip: 'Notifications',
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: Container(
+                            key: const Key('profile_notification_badge'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE14C4C),
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Center(
+                              child: Text(
+                                count > 99 ? '99+' : count.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

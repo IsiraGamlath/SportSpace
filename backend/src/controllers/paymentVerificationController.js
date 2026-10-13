@@ -1,7 +1,9 @@
 const PaymentVerification = require('../models/PaymentVerification');
 const Booking = require('../models/Booking');
 const Slot = require('../models/Slot');
+const Event = require('../models/Event');
 const User = require('../models/User');
+const { dispatchNotification } = require('./notificationsController');
 
 // Helper to format output
 const formatVerification = (doc) => {
@@ -376,6 +378,96 @@ exports.verifyPayment = async (req, res) => {
       Slot.updateOne({ _id: updatedBooking.slot }, { $set: { status: 'booked' } }).exec().catch(() => {});
     }
 
+    // Req 5: when facility manager confirm a pending payment, notify player and facility manager
+    const confirmedPlayerId = updatedBooking ? updatedBooking.userId : (doc.bookingRef ? doc.bookingRef.userId : null);
+    await dispatchNotification({
+      targetRoles: ['player', 'facilityManager'],
+      userId: confirmedPlayerId,
+      category: 'payment',
+      title: 'Payment Confirmed',
+      message: `Payment for booking ${doc.bookingId || id} has been confirmed. Court reservation is confirmed!`,
+      accentColor: 'green',
+      metadata: { bookingId: doc.bookingId || id, action: 'confirmed' },
+    });
+
+    // Requirement 2: when manager confirms payment, create/update Event so community members see it under correct day
+    try {
+      const bookingCode = doc.bookingId || id;
+      const courtName = doc.courtName || (updatedBooking && updatedBooking.courtName) || 'Badminton Court 1';
+      let sport = 'Badminton';
+      if (courtName.toLowerCase().includes('tennis')) sport = 'Tennis';
+      else if (courtName.toLowerCase().includes('basketball')) sport = 'Basketball';
+      else if (courtName.toLowerCase().includes('football')) sport = 'Football';
+      else if (courtName.toLowerCase().includes('swimming')) sport = 'Swimming';
+
+      let slotDate = doc.slotDate || 'Today';
+      if (updatedBooking && updatedBooking.slot && updatedBooking.slot.date) {
+        slotDate = updatedBooking.slot.date;
+      }
+      const slotTime = doc.slotTime || (updatedBooking && updatedBooking.slot && (updatedBooking.slot.durationRange || updatedBooking.slot.time)) || '6:00 PM – 7:00 PM';
+
+      const now = new Date();
+      let resolvedEventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+      if (slotDate.toLowerCase() === 'tomorrow') {
+        resolvedEventDate = new Date(resolvedEventDate);
+        resolvedEventDate.setDate(resolvedEventDate.getDate() + 1);
+      } else if (slotDate.toLowerCase() !== 'today') {
+        const match = slotDate.match(/\b(\d{1,2})\b/);
+        if (match) {
+          resolvedEventDate = new Date(resolvedEventDate);
+          resolvedEventDate.setDate(parseInt(match[1], 10));
+        }
+      }
+
+      const resolvedImage = sport === 'Tennis'
+        ? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=1200&q=80'
+        : (sport === 'Basketball'
+          ? 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1200&q=80'
+          : (sport === 'Football' ? 'assets/images/football.jpg' : 'assets/images/badminton.jpg'));
+
+      let eventDoc = await Event.findOne({
+        $or: [
+          { description: { $regex: bookingCode, $options: 'i' } },
+          { title: { $regex: bookingCode, $options: 'i' } },
+        ],
+      });
+
+      if (!eventDoc) {
+        await Event.create({
+          title: doc.playerName
+            ? `${doc.playerName}'s Match - ${courtName}`
+            : `${courtName} - Match Session`,
+          sport,
+          date: slotDate,
+          time: slotTime,
+          eventDate: resolvedEventDate,
+          location: 'Colombo Sports Hub, Colombo',
+          facility: courtName,
+          facilityId: 'colombo_sports_hub',
+          eventType: 'Match',
+          status: 'Confirmed',
+          imageUrl: resolvedImage,
+          description: `Booked and confirmed slot session at ${courtName} by ${doc.playerName || 'Player'} (Booking Ref: ${bookingCode}).`,
+          organizerName: doc.playerName || 'Colombo Community Sports Association',
+          organizerInitials: doc.playerName
+            ? doc.playerName.split(' ').map((w) => w[0]).join('').substring(0, 2).toUpperCase()
+            : 'CC',
+          timeline: [
+            { time: slotTime.split('–')[0].trim(), label: 'Match Start' },
+            { time: (slotTime.split('–')[1] || '').trim() || slotTime, label: 'Session Concludes' },
+          ],
+        });
+      } else {
+        eventDoc.status = 'Confirmed';
+        eventDoc.date = slotDate;
+        eventDoc.time = slotTime;
+        eventDoc.eventDate = resolvedEventDate;
+        await eventDoc.save();
+      }
+    } catch (err) {
+      console.warn('Error creating/updating event from confirmed payment:', err.message);
+    }
+
     res.status(200).json({
       message: 'Payment Confirmed! Booking status updated to Paid.',
       verification: formatVerification(savedDoc || doc),
@@ -445,6 +537,33 @@ exports.markPaymentUnpaid = async (req, res) => {
     if (!slotIdToUpdate && updatedBooking && updatedBooking.slot) {
       Slot.updateOne({ _id: updatedBooking.slot }, { $set: { status: 'available' } }).exec().catch(() => {});
     }
+
+    // Req 4: when facility manager mark as unpaid a payment, notify player and facility manager
+    const unpaidPlayerId = updatedBooking ? updatedBooking.userId : (doc.bookingRef ? doc.bookingRef.userId : null);
+    await dispatchNotification({
+      targetRoles: ['player', 'facilityManager'],
+      userId: unpaidPlayerId,
+      category: 'payment',
+      title: 'Payment Marked Unpaid',
+      message: `Payment for booking ${doc.bookingId || id} was marked as unpaid.`,
+      accentColor: 'red',
+      metadata: { bookingId: doc.bookingId || id, action: 'unpaid' },
+    });
+
+    // Cancel corresponding event if payment marked unpaid
+    try {
+      const bookingCode = doc.bookingId || id;
+      const eventToCancel = await Event.findOne({
+        $or: [
+          { description: { $regex: bookingCode, $options: 'i' } },
+          { title: { $regex: bookingCode, $options: 'i' } },
+        ],
+      });
+      if (eventToCancel) {
+        eventToCancel.status = 'Cancelled';
+        await eventToCancel.save();
+      }
+    } catch (_) {}
 
     res.status(200).json({
       message: 'Booking payment marked as Unpaid.',

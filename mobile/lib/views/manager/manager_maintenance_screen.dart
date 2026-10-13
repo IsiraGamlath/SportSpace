@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
+import '../../services/app_services.dart';
+import '../../models/app_notification_model.dart';
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/maintenance_status_chip.dart';
 import 'manager_notifications_screen.dart';
@@ -79,6 +81,14 @@ class _ManagerMaintenanceScreenState extends State<ManagerMaintenanceScreen> {
   Future<void> _markResolved(String id, String facilityName) async {
     try {
       await ApiService.resolveMaintenanceFlag(id, resolutionNotes: 'Verified and playable');
+      appServices.notificationService.dispatchNotification(
+        targetRoles: ['facilityManager'],
+        title: 'Maintenance Flag Resolved',
+        message: '$facilityName maintenance flag has been resolved and is available for booking.',
+        category: NotificationCategory.facility,
+        accentColor: const Color(0xFF2E8B57),
+        icon: Icons.check_circle_outline_rounded,
+      );
       _loadMaintenanceFlags();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -276,6 +286,14 @@ class _ManagerMaintenanceScreenState extends State<ManagerMaintenanceScreen> {
                             'priority': selectedPriority,
                             'status': 'required',
                           });
+                          appServices.notificationService.dispatchNotification(
+                            targetRoles: ['facilityManager'],
+                            title: 'Maintenance Issue Reported',
+                            message: 'Maintenance reported for $selectedFacility: $issue',
+                            category: NotificationCategory.facility,
+                            accentColor: const Color(0xFFE14C4C),
+                            icon: Icons.build_circle_outlined,
+                          );
                           _loadMaintenanceFlags();
                           if (mounted) {
                             ScaffoldMessenger.of(this.context).showSnackBar(
@@ -447,23 +465,65 @@ class _Header extends StatelessWidget {
           icon: const Icon(Icons.add_circle_outline, color: ManagerColors.navy, size: 24),
           tooltip: 'Report Issue',
         ),
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: ManagerColors.border),
-          ),
-          child: IconButton(
-            onPressed: onNotificationsTap,
-            padding: EdgeInsets.zero,
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              size: 21,
-              color: ManagerColors.navy,
-            ),
-          ),
+        ListenableBuilder(
+          listenable: appServices.notificationService,
+          builder: (context, _) {
+            final count = appServices.notificationService
+                .unreadCountForRole('facilityManager');
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: ManagerColors.border),
+                  ),
+                  child: IconButton(
+                    onPressed: onNotificationsTap,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 21,
+                      color: ManagerColors.navy,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE14C4C),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          count > 99 ? '99+' : count.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );

@@ -7,6 +7,7 @@ import '../../widgets/manager/schedule_tile.dart';
 import 'manager_booking_details_screen.dart';
 import 'manager_facilities_screen.dart';
 import 'manager_notifications_screen.dart';
+import '../../services/app_services.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
   const ManagerDashboardScreen({
@@ -667,23 +668,65 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: ManagerColors.cardBackground,
-            shape: BoxShape.circle,
-            border: Border.all(color: ManagerColors.border),
-          ),
-          child: IconButton(
-            onPressed: onNotificationsTap,
-            padding: EdgeInsets.zero,
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              size: 21,
-              color: ManagerColors.navy,
-            ),
-          ),
+        ListenableBuilder(
+          listenable: appServices.notificationService,
+          builder: (context, _) {
+            final count = appServices.notificationService
+                .unreadCountForRole('facilityManager');
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: ManagerColors.cardBackground,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: ManagerColors.border),
+                  ),
+                  child: IconButton(
+                    onPressed: onNotificationsTap,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 21,
+                      color: ManagerColors.navy,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE14C4C),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          count > 99 ? '99+' : count.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         const SizedBox(width: 12),
         const CircleAvatar(

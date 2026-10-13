@@ -9,6 +9,7 @@ import 'home_screen.dart';
 import 'my_bookings_screen.dart';
 import 'tertiary/profile_view.dart';
 import 'facility_profile_screen.dart';
+import 'player_notifications_view.dart';
 import 'account_profile_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
@@ -179,11 +180,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                 distance: 'Colombo',
                                 rating: '—',
                                 price: facility.price,
-                                                                color: _ExploreFacility._sportColor(
+                                 
+                                color: _ExploreFacility._sportColor(
                                   facility.sport,
                                 ),
-                                icon: _ExploreFacility._sportIcon(facility.sport),
+                                icon: _ExploreFacility._sportIcon(
+                                  facility.sport,
+                                ),
                                 imagePath: facility.photoUrl,
+
                               ),
                             ),
                           );
@@ -222,10 +227,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     transitionDuration: Duration.zero,
                   ),
                 );
-              } else if (index == 4) {
+              } else if (index == 3) {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const PlayerNotificationsView(),
+                  ),
                 );
               }
             },
@@ -280,7 +287,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
           _FilterChip(
             label: 'Filters',
             icon: Icons.tune,
-            selected: _sport != null ||
+            selected:
+                _sport != null ||
                 _location != null ||
                 _price != null ||
                 _showFavoritesOnly,
@@ -289,9 +297,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
           _FilterChip(
             label: 'Favourites',
             selected: _showFavoritesOnly,
-            onTap: () => setState(
-              () => _showFavoritesOnly = !_showFavoritesOnly,
-            ),
+            onTap: () =>
+                setState(() => _showFavoritesOnly = !_showFavoritesOnly),
           ),
           _FilterChip(
             label: _sport ?? 'Sport',
@@ -526,7 +533,8 @@ class _FacilityCard extends StatelessWidget {
                     Image.network(
                       facility.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _facilityImageFallback(facility),
+                      errorBuilder: (_, __, ___) =>
+                          _facilityImageFallback(facility),
                     )
                   else if (facility.imagePath == null)
                     _facilityImageFallback(facility)

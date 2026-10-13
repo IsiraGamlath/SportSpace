@@ -172,22 +172,71 @@ class _MyRequestsViewState extends State<MyRequestsView> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: InkWell(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const NotificationsView()),
-              ),
-              borderRadius: BorderRadius.circular(18),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F6F8),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: _cardBorder),
-                ),
-                child: const Icon(Icons.notifications_none_rounded,
-                    size: 18, color: _navy),
-              ),
+            child: ListenableBuilder(
+              listenable: appServices.notificationService,
+              builder: (context, _) {
+                final count = appServices.notificationService
+                    .unreadCountForRole('communityMember');
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    InkWell(
+                      key: const Key('my_requests_notification_bell'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsView(),
+                        ),
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F6F8),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _cardBorder),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none_rounded,
+                          size: 18,
+                          color: _navy,
+                        ),
+                      ),
+                    ),
+                    if (count > 0)
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: Container(
+                          key: const Key('my_requests_notification_badge'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE14C4C),
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Center(
+                            child: Text(
+                              count > 99 ? '99+' : count.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ],

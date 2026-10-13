@@ -1,5 +1,6 @@
 const Maintenance = require('../models/Maintenance');
 const Slot = require('../models/Slot');
+const { dispatchNotification } = require('./notificationsController');
 
 const mockMaintenance = [
   {
@@ -225,6 +226,15 @@ exports.createMaintenanceFlag = async (req, res) => {
 
     await flag.save();
 
+    await dispatchNotification({
+      targetRoles: ['facilityManager'],
+      category: 'facility',
+      title: 'Maintenance Issue Reported',
+      message: `Maintenance reported for ${facilityName}: ${issue}`,
+      accentColor: 'red',
+      metadata: { facilityName, issue, priority, status, flagId: flag._id },
+    });
+
     res.status(201).json({
       message: 'Maintenance flag created successfully',
       maintenance: formatMaintenance(flag),
@@ -316,6 +326,15 @@ exports.updateMaintenanceFlag = async (req, res) => {
         }
       );
       flag.affectedSlots = [];
+
+      await dispatchNotification({
+        targetRoles: ['facilityManager'],
+        category: 'facility',
+        title: 'Maintenance Flag Resolved',
+        message: `${flag.facilityName} maintenance flag has been resolved and is available for booking.`,
+        accentColor: 'green',
+        metadata: { facilityName: flag.facilityName, flagId: flag._id },
+      });
     }
 
     await flag.save();
@@ -367,6 +386,15 @@ exports.resolveMaintenanceFlag = async (req, res) => {
 
     flag.affectedSlots = [];
     await flag.save();
+
+    await dispatchNotification({
+      targetRoles: ['facilityManager'],
+      category: 'facility',
+      title: 'Maintenance Flag Resolved',
+      message: `${flag.facilityName} maintenance flag has been resolved and is available for booking.`,
+      accentColor: 'green',
+      metadata: { facilityName: flag.facilityName, flagId: flag._id },
+    });
 
     res.status(200).json({
       message: `Issue resolved! ${flag.facilityName} is now available for booking.`,

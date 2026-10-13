@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
+import '../../services/app_services.dart';
 import '../../theme/manager_colors.dart';
+import '../../utils/schedule_date_utils.dart';
 import '../../widgets/manager/schedule_card.dart';
 import 'manager_booking_details_screen.dart';
 import 'manager_facilities_screen.dart';
@@ -26,15 +28,8 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _slots = [];
 
-  final List<String> _days = [
-    'Today',
-    'Tomorrow',
-    'Wed 23',
-    'Thu 24',
-    'Fri 25',
-    'Sat 26',
-    'Sun 27',
-  ];
+  late final List<String> _days =
+      ScheduleDateUtils.generateRealWorldDays(count: 7);
 
   List<String> _courts = [
     'All Courts',
@@ -1210,32 +1205,78 @@ class _ManagerScheduleScreenState extends State<ManagerScheduleScreen> {
   Widget _buildHeader() {
     return Row(
       children: [
-        const Text(
-          'Real-time Schedule',
-          style: TextStyle(
-            color: ManagerColors.navyDark,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const Spacer(),
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: ManagerColors.border),
-          ),
-          child: IconButton(
-            onPressed: _openNotifications,
-            padding: EdgeInsets.zero,
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              size: 21,
-              color: ManagerColors.navy,
+        const Expanded(
+          child: Text(
+            'Real-time Schedule',
+            style: TextStyle(
+              color: ManagerColors.navyDark,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
             ),
           ),
+        ),
+        const SizedBox(width: 8),
+        ListenableBuilder(
+          listenable: appServices.notificationService,
+          builder: (context, _) {
+            final count = appServices.notificationService
+                .unreadCountForRole('facilityManager');
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: ManagerColors.border),
+                  ),
+                  child: IconButton(
+                    key: const Key('schedule_notification_bell'),
+                    onPressed: _openNotifications,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 21,
+                      color: ManagerColors.navy,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      key: const Key('schedule_notification_badge'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE14C4C),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          count > 99 ? '99+' : count.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );

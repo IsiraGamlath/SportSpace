@@ -1,8 +1,11 @@
 
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/sport_event_model.dart';
+import '../../services/account_settings_service.dart';
+import '../../services/api_service.dart';
 import '../../services/app_services.dart';
 import '../../utils/tertiary_navigation.dart';
 import '../../widgets/tertiary/nav_bar.dart';
@@ -50,7 +53,30 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
   void initState() {
     super.initState();
     _loadEvents();
+    _syncAccountName();
   }
+
+  Future<void> _syncAccountName() async {
+    await AccountSettingsService.loadCommunityUserName();
+    try {
+      final fb = FirebaseAuth.instance.currentUser;
+      if (fb?.displayName != null && fb!.displayName!.trim().isNotEmpty) {
+        await AccountSettingsService.setCommunityUserName(fb.displayName!);
+        return;
+      }
+    } catch (_) {}
+
+    try {
+      final profile = await ApiService.fetchUserProfile();
+      if (profile != null) {
+        final profileName = profile['fullName'] ?? profile['name'];
+        if (profileName != null && profileName.toString().trim().isNotEmpty) {
+          await AccountSettingsService.setCommunityUserName(profileName.toString());
+        }
+      }
+    } catch (_) {}
+  }
+
 
   @override
   void dispose() {
@@ -186,39 +212,61 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
     );
   }
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  String _greetingName(String fullName) {
+    final trimmed = fullName.trim();
+    if (trimmed.isEmpty) return 'Saantha';
+    return trimmed.split(RegExp(r'\s+')).first;
+  }
+
   Widget _buildHeader() {
+    final greeting = _greeting();
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            child: ValueListenableBuilder<String>(
+              valueListenable: AccountSettingsService.communityUserName,
+              builder: (context, userName, _) {
+                final firstName = _greetingName(userName);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        'Good morning, Saantha',
-                        style: const TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700,
-                          color: _heading,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Good morning, $firstName',
+                            key: const Key('community_home_welcome_msg'),
+                            style: const TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w700,
+                              color: _heading,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        const SizedBox(width: 6),
+                        const Text('👋', style: TextStyle(fontSize: 18)),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    const Text('👋', style: TextStyle(fontSize: 18)),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Ready to play?',
+                      style: TextStyle(fontSize: 13.5, color: _subtext),
+                    ),
                   ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Ready to play?',
-                  style: TextStyle(fontSize: 13.5, color: _subtext),
-                ),
-              ],
+                );
+              },
             ),
           ),
           const SizedBox(width: 8),

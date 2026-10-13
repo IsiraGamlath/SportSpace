@@ -42,14 +42,21 @@ class _EventsViewState extends State<EventsView> {
   bool _isLoading = true;
   List<NearbyEvent> _allEvents = [];
 
-  final List<DateTime> _availableDates = [
-    DateTime(2026, 9, 18), // Fri
-    DateTime(2026, 9, 19), // Sat
-    DateTime(2026, 9, 20), // Sun — matches prototype's selected date
-    DateTime(2026, 9, 21), // Mon
-    DateTime(2026, 9, 22), // Tue
-  ];
-  late DateTime _selectedDate = _availableDates[2];
+  static List<DateTime> _generateDates() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // Include the past 30 days and 90 future days
+    return List.generate(
+      121,
+      (i) => today.add(Duration(days: i - 30)),
+    );
+  }
+
+  late final List<DateTime> _availableDates = _generateDates();
+  late DateTime _selectedDate = () {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }();
 
   @override
   void initState() {
@@ -59,11 +66,18 @@ class _EventsViewState extends State<EventsView> {
       _searchQuery = widget.initialQuery!;
     }
     appServices.bookmarkService.addListener(_onBookmarksChanged);
+    if (appServices.eventRepository is ChangeNotifier) {
+      (appServices.eventRepository as ChangeNotifier).addListener(_onEventsChanged);
+    }
     _loadEvents();
   }
 
   void _onBookmarksChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _onEventsChanged() {
+    if (mounted) _loadEvents();
   }
 
   Future<void> _loadEvents() async {
@@ -82,12 +96,20 @@ class _EventsViewState extends State<EventsView> {
   List<String> get _eventTypeOptions =>
       _allEvents.map((e) => e.eventType).toSet().toList();
 
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  bool _isSameDay(DateTime a, DateTime b) {
+    final localA = a.toLocal();
+    final localB = b.toLocal();
+    return localA.year == localB.year &&
+        localA.month == localB.month &&
+        localA.day == localB.day;
+  }
 
   // All four filters + search combine with AND logic, per spec.
   List<NearbyEvent> get _filteredEvents {
     final query = _searchQuery.trim().toLowerCase();
+    final now = DateTime.now();
+    final isTodaySelected = _isSameDay(_selectedDate, now);
+    final isTomorrowSelected = _isSameDay(_selectedDate, now.add(const Duration(days: 1)));
 
     return _allEvents.where((event) {
       final matchesSearch = query.isEmpty ||
@@ -104,8 +126,14 @@ class _EventsViewState extends State<EventsView> {
           _selectedEventType == null || event.eventType == _selectedEventType;
       final matchesSaved =
           !_onlySaved || appServices.bookmarkService.isSaved(event.id);
-      final matchesDate =
-          !_dateFilterEnabled || _isSameDay(event.eventDate, _selectedDate);
+
+      final eventDateLabel = event.date.toLowerCase().trim();
+      final matchesDate = !_dateFilterEnabled ||
+          _onlySaved ||
+          query.isNotEmpty ||
+          _isSameDay(event.eventDate, _selectedDate) ||
+          (isTodaySelected && eventDateLabel == 'today') ||
+          (isTomorrowSelected && eventDateLabel == 'tomorrow');
 
       return matchesSearch &&
           matchesSport &&
@@ -205,6 +233,9 @@ class _EventsViewState extends State<EventsView> {
   @override
   void dispose() {
     appServices.bookmarkService.removeListener(_onBookmarksChanged);
+    if (appServices.eventRepository is ChangeNotifier) {
+      (appServices.eventRepository as ChangeNotifier).removeListener(_onEventsChanged);
+    }
     _searchController.dispose();
     super.dispose();
   }
@@ -219,49 +250,54 @@ class _EventsViewState extends State<EventsView> {
         bottom: false,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(child: _buildHeader()),
-                  SliverToBoxAdapter(child: _buildSearchBar()),
-                  SliverToBoxAdapter(child: _buildFilterChips()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                  SliverToBoxAdapter(
-                    child: DateSelector(
-                      dates: _availableDates,
-                      selectedDate: _selectedDate,
-                      onDateSelected: (date) =>
-                          setState(() => _selectedDate = date),
-                    ),
-                  ),
-                  SliverToBoxAdapter(child: _buildSectionHeader(events.length)),
-                  if (events.isEmpty)
-                    SliverToBoxAdapter(child: _buildEmptyState())
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final event = events[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: NearbyEventCard(
-                                event: event,
-                                showActions: true,
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        EventDetailsView(event: event),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          childCount: events.length,
-                        ),
+            : RefreshIndicator(
+                onRefresh: _loadEvents,
+                color: _heading,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(child: _buildHeader()),
+                    SliverToBoxAdapter(child: _buildSearchBar()),
+                    SliverToBoxAdapter(child: _buildFilterChips()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                    SliverToBoxAdapter(
+                      child: DateSelector(
+                        dates: _availableDates,
+                        selectedDate: _selectedDate,
+                        onDateSelected: (date) =>
+                            setState(() => _selectedDate = date),
                       ),
                     ),
-                ],
+                    SliverToBoxAdapter(child: _buildSectionHeader(events.length)),
+                    if (events.isEmpty)
+                      SliverToBoxAdapter(child: _buildEmptyState())
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final event = events[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: NearbyEventCard(
+                                  event: event,
+                                  showActions: true,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          EventDetailsView(event: event),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            childCount: events.length,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
       ),
       // --- Reused global nav bar, not re-implemented here -----------------
@@ -340,25 +376,70 @@ class _EventsViewState extends State<EventsView> {
                 ),
               ),
               const SizedBox(width: 8),
-              InkWell(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const NotificationsView()),
-                ),
-                borderRadius: BorderRadius.circular(19),
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFE7EAF0)),
-                  ),
-                  child: const Icon(
-                    Icons.notifications_none_rounded,
-                    size: 19,
-                    color: _heading,
-                  ),
-                ),
+              ListenableBuilder(
+                listenable: appServices.notificationService,
+                builder: (context, _) {
+                  final count = appServices.notificationService
+                      .unreadCountForRole('communityMember');
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      InkWell(
+                        key: const Key('events_notification_bell'),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const NotificationsView()),
+                        ),
+                        borderRadius: BorderRadius.circular(19),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFE7EAF0)),
+                          ),
+                          child: const Icon(
+                            Icons.notifications_none_rounded,
+                            size: 19,
+                            color: _heading,
+                          ),
+                        ),
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            key: const Key('events_notification_badge'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE14C4C),
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 17,
+                              minHeight: 17,
+                            ),
+                            child: Center(
+                              child: Text(
+                                count > 99 ? '99+' : count.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

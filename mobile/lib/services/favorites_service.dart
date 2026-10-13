@@ -3,8 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class FavoritesService {
   static String get _storageKey {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
-    return 'sportspace_favorites_$uid';
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+      return 'sportspace_favorites_$uid';
+    } catch (_) {
+      return 'sportspace_favorites_guest';
+    }
   }
 
   static Future<Set<String>> loadFavorites() async {
