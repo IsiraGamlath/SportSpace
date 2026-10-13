@@ -232,11 +232,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     builder: (_) => const PlayerNotificationsView(),
                   ),
                 );
-              } else if (index == 4) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const UserProfileScreen()),
-                );
               }
             },
           ),

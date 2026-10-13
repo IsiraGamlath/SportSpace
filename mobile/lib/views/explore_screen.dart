@@ -234,11 +234,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     builder: (_) => const PlayerNotificationsView(),
                   ),
                 );
-              } else if (index == 4) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const UserProfileScreen()),
-                );
               }
             },
           ),

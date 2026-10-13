@@ -8,6 +8,8 @@ import 'explore_screen.dart';
 import 'player_notifications_view.dart';
 import 'tertiary/profile_view.dart';
 import 'account_profile_screen.dart';
+import '../services/app_services.dart';
+import '../models/app_notification_model.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -72,6 +74,87 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         ),
         centerTitle: false,
         titleSpacing: 16,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Center(
+              child: ListenableBuilder(
+                listenable: appServices.notificationService,
+                builder: (context, _) {
+                  final count =
+                      appServices.notificationService.unreadCountForRole('player');
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      InkWell(
+                        key: const Key('my_bookings_notification_bell'),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PlayerNotificationsView(),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFE2E8F0),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: AppColors.textPrimary,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            key: const Key('my_bookings_notification_badge'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE14C4C),
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Center(
+                              child: Text(
+                                count > 99 ? '99+' : count.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: FutureBuilder<List<Booking>>(
@@ -283,7 +366,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   child: SizedBox(
                     height: 44,
                     child: OutlinedButton(
-                      onPressed: () => _handleCancelBooking(booking.id),
+                      onPressed: () => _handleCancelBooking(booking.id, booking),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.bookedText,
                         side: const BorderSide(color: AppColors.bookedBorder),
@@ -309,7 +392,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     );
   }
 
-  void _handleCancelBooking(String bookingId) {
+  void _handleCancelBooking(String bookingId, [Booking? booking]) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -342,6 +425,19 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               Navigator.pop(ctx);
               try {
                 await ApiService.cancelBooking(bookingId);
+                final court = booking?.courtName ?? 'Court';
+                final date = (booking?.slot.date?.isNotEmpty == true)
+                    ? ' on ${booking!.slot.date}'
+                    : '';
+                appServices.notificationService.dispatchNotification(
+                  targetRoles: ['player', 'facilityManager'],
+                  title: 'Booking Cancelled',
+                  message:
+                      'Booking for $court$date has been cancelled.',
+                  category: NotificationCategory.event,
+                  accentColor: const Color(0xFFE14C4C),
+                  icon: Icons.event_busy_rounded,
+                );
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -427,19 +523,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 transitionDuration: Duration.zero,
               ),
             );
-          } else if (index == 4) {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
-                transitionDuration: Duration.zero,
-              ),
-            );
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const ExploreScreen()),
-            );
           } else if (index == 3) {
             Navigator.push(
               context,
@@ -448,9 +531,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               ),
             );
           } else if (index == 4) {
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
+                transitionDuration: Duration.zero,
+              ),
             );
           }
         },
