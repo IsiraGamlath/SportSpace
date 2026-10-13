@@ -115,81 +115,11 @@ const seedDefaultEvents = async () => {
   }
 };
 
-const syncConfirmedBookingsToEvents = async () => {
-  try {
-    const PaymentVerification = require('../models/PaymentVerification');
-    const verified = await PaymentVerification.find({ paymentStatus: 'verified' });
-    for (const doc of verified) {
-      const bookingCode = doc.bookingId;
-      if (!bookingCode) continue;
-      const existing = await Event.findOne({
-        $or: [
-          { description: { $regex: bookingCode, $options: 'i' } },
-          { title: { $regex: bookingCode, $options: 'i' } },
-        ],
-      });
-      if (!existing) {
-        const courtName = doc.courtName || 'Badminton Court 1';
-        let sport = 'Badminton';
-        if (courtName.toLowerCase().includes('tennis')) sport = 'Tennis';
-        else if (courtName.toLowerCase().includes('basketball')) sport = 'Basketball';
-        else if (courtName.toLowerCase().includes('football')) sport = 'Football';
-
-        const dateStr = doc.slotDate || 'Today';
-        const now = new Date();
-        let eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
-        if (dateStr.toLowerCase() === 'tomorrow') {
-          eventDate = new Date(eventDate);
-          eventDate.setDate(eventDate.getDate() + 1);
-        } else if (dateStr.toLowerCase() !== 'today') {
-          const match = dateStr.match(/\b(\d{1,2})\b/);
-          if (match) {
-            eventDate = new Date(eventDate);
-            eventDate.setDate(parseInt(match[1], 10));
-          }
-        }
-
-        await Event.create({
-          title: doc.playerName
-            ? `${doc.playerName}'s Match - ${courtName}`
-            : `${courtName} - Match Session`,
-          sport,
-          date: dateStr,
-          time: doc.slotTime || '6:00 PM – 7:00 PM',
-          eventDate,
-          location: 'Colombo Sports Hub, Colombo',
-          facility: courtName,
-          facilityId: 'colombo_sports_hub',
-          eventType: 'Match',
-          status: 'Confirmed',
-          imageUrl: sport === 'Tennis'
-            ? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=1200&q=80'
-            : (sport === 'Basketball'
-              ? 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1200&q=80'
-              : (sport === 'Football' ? 'assets/images/football.jpg' : 'assets/images/badminton.jpg')),
-          description: `Booked and confirmed slot session at ${courtName} by ${doc.playerName || 'Player'} (Booking Ref: ${bookingCode}).`,
-          organizerName: doc.playerName || 'Colombo Community Sports Association',
-          organizerInitials: doc.playerName
-            ? doc.playerName.split(' ').map((w) => w[0]).join('').substring(0, 2).toUpperCase()
-            : 'CC',
-          timeline: [
-            { time: (doc.slotTime || '6:00 PM').split('–')[0].trim(), label: 'Match Start' },
-            { time: (doc.slotTime || '7:00 PM').split('–')[1]?.trim() || '7:00 PM', label: 'Session Concludes' },
-          ],
-        });
-      }
-    }
-  } catch (err) {
-    // Graceful fallback
-  }
-};
-
 // GET /api/events
 exports.getEvents = async (req, res) => {
   try {
     await seedDefaultEvents();
-    await syncConfirmedBookingsToEvents();
-    const { sport, status, search } = req.query;
+    const { sport, status, search, facilityId } = req.query;
     const filter = {};
 
     if (sport && sport !== 'All') {
@@ -197,6 +127,13 @@ exports.getEvents = async (req, res) => {
     }
     if (status && status !== 'All') {
       filter.status = status;
+    }
+    if (facilityId && facilityId !== 'All') {
+      if (facilityId.includes(',')) {
+        filter.facilityId = { $in: facilityId.split(',').map((s) => s.trim()) };
+      } else {
+        filter.facilityId = facilityId;
+      }
     }
     if (search && search.trim()) {
       filter.$or = [
@@ -253,6 +190,7 @@ exports.createEvent = async (req, res) => {
       imageUrl,
       createdBy = 'player',
       timeline,
+      capacity = 50,
     } = req.body;
 
     if (!title || !sport || !date || !time) {
@@ -281,6 +219,9 @@ exports.createEvent = async (req, res) => {
       imageUrl: imageUrl || 'assets/images/badminton.jpg',
       createdBy,
       timeline: timeline || [],
+      capacity: Number(capacity) || 50,
+      participants: [],
+      participantCount: 0,
     });
 
     const formatted = formatEvent(newEvent);
@@ -327,6 +268,7 @@ exports.updateEvent = async (req, res) => {
       'status',
       'imageUrl',
       'timeline',
+      'capacity',
     ];
 
     fields.forEach((field) => {
@@ -411,6 +353,81 @@ exports.deleteEvent = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: 'Failed to delete event',
+      error: error.message,
+    });
+  }
+};
+
+// POST /api/events/:id/participate
+exports.toggleParticipation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.body.userId || req.firebaseUser?.uid || 'guest';
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    if (!Array.isArray(event.participants)) {
+      event.participants = [];
+    }
+
+    const existingIndex = event.participants.indexOf(userId);
+    let isParticipating = false;
+
+    if (existingIndex !== -1) {
+      // Leave / Cancel RSVP
+      event.participants.splice(existingIndex, 1);
+      event.participantCount = Math.max(0, event.participants.length);
+      isParticipating = false;
+      await event.save();
+
+      return res.status(200).json({
+        message: 'RSVP removed successfully',
+        isParticipating: false,
+        participantCount: event.participantCount,
+        capacity: event.capacity || 50,
+        event: formatEvent(event),
+      });
+    } else {
+      // Join / RSVP
+      const maxCap = event.capacity && event.capacity > 0 ? event.capacity : 50;
+      if (event.participants.length >= maxCap) {
+        return res.status(400).json({
+          message: 'Event has reached full capacity.',
+          isFull: true,
+          participantCount: event.participants.length,
+          capacity: maxCap,
+        });
+      }
+
+      event.participants.push(userId);
+      event.participantCount = event.participants.length;
+      isParticipating = true;
+      await event.save();
+
+      // Dispatch notification
+      await dispatchNotification({
+        targetRoles: ['player', 'communityMember'],
+        userId: userId,
+        category: 'schedule',
+        title: 'RSVP Confirmed',
+        message: `You are confirmed for ${event.title}!`,
+        accentColor: 'green',
+        metadata: { eventId: event.id, action: 'participate' },
+      });
+
+      return res.status(200).json({
+        message: 'RSVP confirmed successfully',
+        isParticipating: true,
+        participantCount: event.participantCount,
+        capacity: maxCap,
+        event: formatEvent(event),
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: 'Failed to update event participation',
       error: error.message,
     });
   }

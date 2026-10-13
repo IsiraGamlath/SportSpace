@@ -305,20 +305,23 @@ class ApiService {
 
   static Future<http.Response> _delete(
     String path, {
+    Map<String, String>? queryParams,
     Map<String, String>? headers,
   }) async {
     final authHeaders = await _getAuthHeaders(headers);
     try {
+      final uri = Uri.parse('$baseUrl$path').replace(queryParameters: queryParams);
       return await http
-          .delete(Uri.parse('$baseUrl$path'), headers: authHeaders)
+          .delete(uri, headers: authHeaders)
           .timeout(const Duration(milliseconds: 15000));
     } catch (_) {}
 
     for (final candidate in _candidates) {
       if (candidate == baseUrl) continue;
       try {
+        final uri = Uri.parse('$candidate$path').replace(queryParameters: queryParams);
         final res = await http
-            .delete(Uri.parse('$candidate$path'), headers: authHeaders)
+            .delete(uri, headers: authHeaders)
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -1322,6 +1325,7 @@ class ApiService {
     String? sport,
     String? status,
     String? search,
+    String? facilityId,
   }) async {
     try {
       final queryParams = <String, String>{};
@@ -1330,6 +1334,9 @@ class ApiService {
       }
       if (status != null && status.isNotEmpty && status != 'All') {
         queryParams['status'] = status;
+      }
+      if (facilityId != null && facilityId.isNotEmpty && facilityId != 'All') {
+        queryParams['facilityId'] = facilityId;
       }
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
 
@@ -1363,6 +1370,30 @@ class ApiService {
     throw Exception('Failed to create event: ${response.body}');
   }
 
+  static Future<Map<String, dynamic>> toggleEventParticipation(
+    String eventId, {
+    String? userId,
+  }) async {
+    final activeUserId = userId ?? () {
+      try {
+        return FirebaseAuth.instance.currentUser?.uid;
+      } catch (_) {
+        return null;
+      }
+    }() ?? 'guest';
+
+    final response = await _post(
+      '/events/$eventId/participate',
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'userId': activeUserId}),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    final body = json.decode(response.body);
+    throw Exception(body['message'] ?? 'Failed to update event participation');
+  }
+
   static Future<Map<String, dynamic>> updateEvent(
     String id,
     Map<String, dynamic> data,
@@ -1384,6 +1415,16 @@ class ApiService {
       return json.decode(response.body);
     }
     throw Exception('Failed to cancel event: ${response.body}');
+  }
+
+  static Future<bool> deleteEvent(String id) async {
+    try {
+      final response = await _delete('/events/$id');
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error deleting event: $e');
+      return false;
+    }
   }
 
   // ================= SAVED EVENTS ================= //
@@ -1430,7 +1471,10 @@ class ApiService {
     final queryParams = <String, String>{
       if (userId != null && userId.isNotEmpty) 'userId': userId,
     };
-    final response = await _delete('/saved-events/$eventId');
+    final response = await _delete(
+      '/saved-events/$eventId',
+      queryParams: queryParams.isNotEmpty ? queryParams : null,
+    );
     return response.statusCode == 200;
   }
 }

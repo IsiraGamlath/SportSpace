@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/facility_info_model.dart';
 import '../../models/sport_event_model.dart';
@@ -24,69 +25,193 @@ class EventDetailsView extends StatelessWidget {
   static const Color _statusDot = Color(0xFF2E8B57);
   static const Color _statusText = Color(0xFF1C7A4C);
 
+  String _getCurrentUserId() {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.uid.isNotEmpty) {
+        return user.uid;
+      }
+    } catch (_) {}
+    return 'community_user';
+  }
+
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
 
-    return Scaffold(
-      backgroundColor: _background,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeaderImage(context, topInset),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTitleRow(),
-                  const SizedBox(height: 12),
-                  _buildTag(event.sport),
-                  const SizedBox(height: 16),
-                  _buildInfoRow(Icons.calendar_today_outlined, event.date),
-                  const SizedBox(height: 8),
-                  _buildInfoRow(Icons.access_time_rounded, event.time),
-                  const SizedBox(height: 8),
-                  _buildLocationRow(context),
-                  if (event.description.isNotEmpty) ...[
-                    const SizedBox(height: 18),
-                    Text(
-                      event.description,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        height: 1.5,
-                        color: _subtext,
-                      ),
-                    ),
-                  ],
-                  if (event.organizerName.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    _sectionTitle('Organizer'),
-                    const SizedBox(height: 10),
-                    _buildOrganizerCard(context),
-                  ],
-                  if (event.timeline.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    _sectionTitle('Event Timeline'),
-                    const SizedBox(height: 10),
-                    _buildTimeline(),
-                  ],
-                ],
-              ),
+    return ListenableBuilder(
+      listenable: (appServices.eventRepository is Listenable)
+          ? (appServices.eventRepository as Listenable)
+          : appServices.bookmarkService,
+      builder: (context, _) {
+        final liveEvent = appServices.eventRepository.getEventById(event.id) ?? event;
+
+        return Scaffold(
+          backgroundColor: _background,
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeaderImage(context, topInset),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTitleRow(),
+                      const SizedBox(height: 12),
+                      _buildTag(event.sport),
+                      const SizedBox(height: 16),
+                      _buildInfoRow(Icons.calendar_today_outlined, event.date),
+                      const SizedBox(height: 8),
+                      _buildInfoRow(Icons.access_time_rounded, event.time),
+                      const SizedBox(height: 8),
+                      _buildLocationRow(context),
+                      const SizedBox(height: 16),
+                      _buildCapacityCard(liveEvent),
+                      if (event.description.isNotEmpty) ...[
+                        const SizedBox(height: 18),
+                        Text(
+                          event.description,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            height: 1.5,
+                            color: _subtext,
+                          ),
+                        ),
+                      ],
+                      if (event.organizerName.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        _sectionTitle('Organizer'),
+                        const SizedBox(height: 10),
+                        _buildOrganizerCard(context),
+                      ],
+                      if (event.timeline.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        _sectionTitle('Event Timeline'),
+                        const SizedBox(height: 10),
+                        _buildTimeline(),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-      // Buttons live in bottomNavigationBar (not inside the scroll view)
-      // so they stay accessible on longer content without needing
-      // fixed-height containers anywhere above — and the whole page is
-      // scrollable, so nothing clips on smaller screens.
-      bottomNavigationBar: _buildBottomBar(context),
+          ),
+          bottomNavigationBar: _buildBottomBar(context, liveEvent),
+        );
+      },
     );
   }
 
-  Widget _buildHeaderImage(BuildContext context, double topInset) {
+  Widget _buildCapacityCard(NearbyEvent liveEvent) {
+    final ratio = liveEvent.capacity > 0
+        ? (liveEvent.participantCount / liveEvent.capacity).clamp(0.0, 1.0)
+        : 0.0;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: liveEvent.isFull
+                      ? const Color(0xFFFFECEC)
+                      : const Color(0xFFE5F7EC),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.people_alt_rounded,
+                  size: 20,
+                  color: liveEvent.isFull
+                      ? const Color(0xFFE14C4C)
+                      : const Color(0xFF1D7A6B),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Event Capacity & RSVP',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _heading,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      liveEvent.isFull
+                          ? 'Capacity reached (${liveEvent.participantCount}/${liveEvent.capacity})'
+                          : '${liveEvent.participantCount} registered · ${liveEvent.availableSpots} spots open',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: _subtext,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: liveEvent.isFull
+                      ? const Color(0xFFFFECEC)
+                      : const Color(0xFFE3F3EC),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  liveEvent.isFull ? 'FULL' : '${liveEvent.availableSpots} LEFT',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: liveEvent.isFull
+                        ? const Color(0xFFE14C4C)
+                        : const Color(0xFF1D7A6B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: ratio,
+              backgroundColor: const Color(0xFFECEFF3),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                liveEvent.isFull
+                    ? const Color(0xFFE14C4C)
+                    : const Color(0xFF1D7A6B),
+              ),
+              minHeight: 6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderImage(BuildContext context, double topInset, [NearbyEvent? customEvent]) {
+    final e = customEvent ?? event;
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
       child: Stack(
@@ -94,7 +219,7 @@ class EventDetailsView extends StatelessWidget {
           SizedBox(
             height: 260,
             width: double.infinity,
-            child: EventImage(imageUrl: event.imageUrl, height: 260),
+            child: EventImage(imageUrl: e.imageUrl, height: 260),
           ),
           Positioned(
             top: topInset + 12,
@@ -442,10 +567,12 @@ class EventDetailsView extends StatelessWidget {
     );
   }
 
-  /// Save + Remind Me actions, pinned above the safe-area bottom, plus
-  /// the primary "View Facility" CTA. ListenableBuilder re-renders
-  /// just this bar when either service's state changes.
-  Widget _buildBottomBar(BuildContext context) {
+  Widget _buildBottomBar(BuildContext context, [NearbyEvent? customEvent]) {
+    final liveEvent = customEvent ?? event;
+    final userId = _getCurrentUserId();
+    final isGoing = liveEvent.isParticipating(userId);
+    final isFull = liveEvent.isFull;
+
     return Container(
       padding: EdgeInsets.fromLTRB(
         20,
@@ -456,25 +583,33 @@ class EventDetailsView extends StatelessWidget {
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Color(0xFFE7EAF0))),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 8,
+            offset: Offset(0, -2),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Row 1: Save & Remind Me
           ListenableBuilder(
             listenable: Listenable.merge(
               [appServices.bookmarkService, appServices.reminderService],
             ),
             builder: (context, _) {
-              final saved = appServices.bookmarkService.isSaved(event.id);
+              final saved = appServices.bookmarkService.isSaved(liveEvent.id);
               final reminded =
-                  appServices.reminderService.isSubscribed(event.id);
+                  appServices.reminderService.isSubscribed(liveEvent.id);
 
               return Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () =>
-                          appServices.bookmarkService.toggle(event.id),
+                          appServices.bookmarkService.toggle(liveEvent.id),
                       icon: Icon(
                         saved
                             ? Icons.bookmark_rounded
@@ -490,9 +625,9 @@ class EventDetailsView extends StatelessWidget {
                               ? const Color(0xFF2E8B57)
                               : const Color(0xFFE7EAF0),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(24),
                         ),
                       ),
                     ),
@@ -501,7 +636,7 @@ class EventDetailsView extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () =>
-                          appServices.reminderService.toggle(event.id, event),
+                          appServices.reminderService.toggle(liveEvent.id, liveEvent),
                       icon: Icon(
                         reminded
                             ? Icons.notifications_active_rounded
@@ -514,9 +649,9 @@ class EventDetailsView extends StatelessWidget {
                             ? const Color(0xFF2E8B57)
                             : const Color(0xFF1C6E79),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(24),
                         ),
                         elevation: 0,
                       ),
@@ -527,22 +662,88 @@ class EventDetailsView extends StatelessWidget {
             },
           ),
           const SizedBox(height: 10),
+          // Row 2: Prominent Participate / RSVP Button
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => _openFacility(context),
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: isFull && !isGoing
+                  ? null
+                  : () async {
+                      try {
+                        await appServices.eventRepository.toggleParticipation(liveEvent.id, userId);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(isGoing
+                                  ? 'RSVP cancelled for "${liveEvent.title}".'
+                                  : 'You are now registered for "${liveEvent.title}"!'),
+                              backgroundColor: isGoing ? _heading : const Color(0xFF1D7A6B),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.toString().replaceAll('Exception: ', '')),
+                              backgroundColor: const Color(0xFFE14C4C),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              icon: Icon(
+                isGoing
+                    ? Icons.check_circle_rounded
+                    : (isFull ? Icons.block_rounded : Icons.how_to_reg_rounded),
+                size: 20,
+              ),
+              label: Text(
+                isGoing
+                    ? "You're Going (Tap to Leave)"
+                    : (isFull
+                        ? 'Event Full (Capacity Reached)'
+                        : 'Participate / RSVP (${liveEvent.availableSpots} spots left)'),
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1C6E79),
+                backgroundColor: isGoing
+                    ? const Color(0xFF2E8B57)
+                    : const Color(0xFF1D7A6B),
+                disabledBackgroundColor: const Color(0xFFE9ECEF),
+                disabledForegroundColor: const Color(0xFF8A93A3),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 elevation: 0,
               ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Row 3: View Facility (Outlined)
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton(
+              onPressed: () => _openFacility(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1C6E79),
+                side: const BorderSide(color: Color(0xFF1C6E79), width: 1.2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
               child: const Text(
                 'View Facility',
-                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
               ),
             ),
           ),
