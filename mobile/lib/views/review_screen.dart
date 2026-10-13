@@ -456,7 +456,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
       showDragHandle: true,
       builder: (_) => _ReviewComposer(facilityName: widget.facilityName),
     );
-    if (result == true && mounted) _reload();
+    if (result == true && mounted) {
+      // Show the newly saved review even if the user was viewing a filtered
+      // list (for example, a particular star rating).
+      setState(() {
+        _selectedFilter = 0;
+        _starFilter = null;
+      });
+      await _reload();
+    }
   }
 
   Future<void> _openEditor(Review review) async {
@@ -467,7 +475,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       builder: (_) =>
           _ReviewComposer(facilityName: widget.facilityName, review: review),
     );
-    if (result == true && mounted) _reload();
+    if (result == true && mounted) await _reload();
   }
 
   Future<void> _deleteReview(Review review) async {

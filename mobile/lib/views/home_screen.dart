@@ -427,12 +427,27 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         if (showViewAll)
-          const Text(
-            'View All',
-            style: TextStyle(
-              color: AppColors.primaryTeal,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const ExploreScreen(),
+                ),
+              );
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'View All',
+              style: TextStyle(
+                color: AppColors.primaryTeal,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
       ],
