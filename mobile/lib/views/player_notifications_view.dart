@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../models/app_notification_model.dart';
 import '../services/app_services.dart';
-import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
-import 'home_screen.dart';
 import 'explore_screen.dart';
 import 'my_bookings_screen.dart';
-import 'account_profile_screen.dart';
 import 'facility_profile_screen.dart';
+import 'player_main_screen.dart';
 
 class PlayerNotificationsView extends StatefulWidget {
-  const PlayerNotificationsView({super.key});
+  final bool showBottomNav;
+  const PlayerNotificationsView({super.key, this.showBottomNav = true});
 
   @override
   State<PlayerNotificationsView> createState() =>
@@ -75,29 +74,18 @@ class _PlayerNotificationsViewState extends State<PlayerNotificationsView> {
 
   void _onNavTap(int index) {
     if (index == _tabIndex) return;
-
-    if (index == 0) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
-    } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const ExploreScreen()),
-      );
-    } else if (index == 2) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-      );
-    } else if (index == 4) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const UserProfileScreen()),
-      );
+    final parent = PlayerMainScreen.of(context);
+    if (parent != null) {
+      parent.setTab(index);
+      return;
     }
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => PlayerMainScreen(initialIndex: index),
+        transitionDuration: Duration.zero,
+      ),
+    );
   }
 
   @override
@@ -241,10 +229,12 @@ class _PlayerNotificationsViewState extends State<PlayerNotificationsView> {
           ],
         ),
       ),
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: _tabIndex,
-        onItemSelected: _onNavTap,
-      ),
+      bottomNavigationBar: widget.showBottomNav
+          ? AppBottomNav(
+              currentIndex: _tabIndex,
+              onItemSelected: _onNavTap,
+            )
+          : null,
     );
   }
 }

@@ -19,50 +19,60 @@ import '../services/app_services.dart';
 import 'player_notifications_view.dart';
 import 'manager/manager_notifications_screen.dart';
 import 'tertiary/notifications_view.dart';
+import 'player_main_screen.dart';
+import 'tertiary/tertiary_main_screen.dart';
 
 class UserProfileScreen extends StatelessWidget {
-  const UserProfileScreen({super.key, this.communityMode = false});
+  const UserProfileScreen({super.key, this.communityMode = false, this.showBottomNav = true});
 
   final bool communityMode;
+  final bool showBottomNav;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(child: AccountProfileContent(communityMode: communityMode)),
-      bottomNavigationBar: communityMode
-          ? TertiaryNavBar(
-              currentIndex: 4,
-              onItemSelected: (index) {
-                if (index == 4) return;
-                final Widget destination = switch (index) {
-                  0 => const TertiaryHomeView(),
-                  2 => const ExploreScreen(),
-                  _ => TertiaryPlaceholderView(
-                      title: index == 1 ? 'Events' : 'Notifications',
-                    ),
-                };
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute<void>(builder: (_) => destination),
-                );
-              },
-            )
-          : AppBottomNav(
-              currentIndex: 4,
-              onItemSelected: (index) {
-                if (index == 4) return;
-                final Widget destination = switch (index) {
-                  0 => const HomeScreen(),
-                  1 => const ExploreScreen(),
-                  2 => const MyBookingsScreen(),
-                  _ => const PlayerNotificationsView(),
-                };
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute<void>(builder: (_) => destination),
-                );
-              },
-            ),
+      bottomNavigationBar: !showBottomNav
+          ? null
+          : communityMode
+              ? TertiaryNavBar(
+                  currentIndex: 4,
+                  onItemSelected: (index) {
+                    if (index == 4) return;
+                    final parent = TertiaryMainScreen.of(context);
+                    if (parent != null) {
+                      parent.setTab(index);
+                      return;
+                    }
+                    Navigator.pushReplacement(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (_, __, ___) =>
+                            TertiaryMainScreen(initialIndex: index),
+                        transitionDuration: Duration.zero,
+                      ),
+                    );
+                  },
+                )
+              : AppBottomNav(
+                  currentIndex: 4,
+                  onItemSelected: (index) {
+                    if (index == 4) return;
+                    final parent = PlayerMainScreen.of(context);
+                    if (parent != null) {
+                      parent.setTab(index);
+                      return;
+                    }
+                    Navigator.pushReplacement(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (_, __, ___) =>
+                            PlayerMainScreen(initialIndex: index),
+                        transitionDuration: Duration.zero,
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

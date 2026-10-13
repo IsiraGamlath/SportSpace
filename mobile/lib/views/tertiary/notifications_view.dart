@@ -9,7 +9,8 @@ import '../../widgets/tertiary/nav_bar.dart';
 import '../../widgets/tertiary/notification_card.dart';
 
 class NotificationsView extends StatefulWidget {
-  const NotificationsView({super.key});
+  final bool showBottomNav;
+  const NotificationsView({super.key, this.showBottomNav = true});
 
   @override
   State<NotificationsView> createState() => _NotificationsViewState();
@@ -192,15 +193,16 @@ class _NotificationsViewState extends State<NotificationsView> {
           ],
         ),
       ),
-      // --- Reused global nav bar, not re-implemented here -----------------
-      bottomNavigationBar: TertiaryNavBar(
-        currentIndex: _tabIndex,
-        onItemSelected: (index) => handleTertiaryNavTap(
-          context: context,
-          tappedIndex: index,
-          currentIndex: _tabIndex,
-        ),
-      ),
+      bottomNavigationBar: widget.showBottomNav
+          ? TertiaryNavBar(
+              currentIndex: _tabIndex,
+              onItemSelected: (index) => handleTertiaryNavTap(
+                context: context,
+                tappedIndex: index,
+                currentIndex: _tabIndex,
+              ),
+            )
+          : null,
     );
   }
 }

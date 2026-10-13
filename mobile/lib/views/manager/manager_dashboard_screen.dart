@@ -52,7 +52,7 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         ApiService.fetchMaintenanceSummary().catchError((_) => <String, dynamic>{}),
         ApiService.fetchManagerSlots()
             .catchError((_) => <Map<String, dynamic>>[]),
-        ApiService.fetchManagerFacilities().catchError((_) => <dynamic>[]),
+        ApiService.fetchManagerFacilities().catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final allVerifications = results[0] as List<dynamic>;

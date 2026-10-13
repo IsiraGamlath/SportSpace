@@ -15,8 +15,9 @@ import 'notifications_view.dart';
 
 class EventsView extends StatefulWidget {
   final String? initialQuery;
+  final bool showBottomNav;
 
-  const EventsView({super.key, this.initialQuery});
+  const EventsView({super.key, this.initialQuery, this.showBottomNav = true});
 
   @override
   State<EventsView> createState() => _EventsViewState();
@@ -300,9 +301,9 @@ class _EventsViewState extends State<EventsView> {
                 ),
               ),
       ),
-      // --- Reused global nav bar, not re-implemented here -----------------
-      bottomNavigationBar:
-          TertiaryNavBar(currentIndex: _tabIndex, onItemSelected: _onNavTap),
+      bottomNavigationBar: widget.showBottomNav
+          ? TertiaryNavBar(currentIndex: _tabIndex, onItemSelected: _onNavTap)
+          : null,
     );
   }
 

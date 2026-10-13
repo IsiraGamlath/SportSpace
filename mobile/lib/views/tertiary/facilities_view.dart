@@ -11,7 +11,8 @@ import 'notifications_view.dart';
 import '../../services/app_services.dart';
 
 class FacilitiesView extends StatefulWidget {
-  const FacilitiesView({super.key});
+  final bool showBottomNav;
+  const FacilitiesView({super.key, this.showBottomNav = true});
 
   @override
   State<FacilitiesView> createState() => _FacilitiesViewState();
@@ -184,14 +185,16 @@ class _FacilitiesViewState extends State<FacilitiesView> {
           ],
         ),
       ),
-      bottomNavigationBar: TertiaryNavBar(
-        currentIndex: _tabIndex,
-        onItemSelected: (index) => handleTertiaryNavTap(
-          context: context,
-          tappedIndex: index,
-          currentIndex: _tabIndex,
-        ),
-      ),
+      bottomNavigationBar: widget.showBottomNav
+          ? TertiaryNavBar(
+              currentIndex: _tabIndex,
+              onItemSelected: (index) => handleTertiaryNavTap(
+                context: context,
+                tappedIndex: index,
+                currentIndex: _tabIndex,
+              ),
+            )
+          : null,
     );
   }
 
