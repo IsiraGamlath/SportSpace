@@ -52,9 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final profile = await _loadProfile();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => _destinationForRole(profile),
-      ),
+      MaterialPageRoute<void>(builder: (_) => _destinationForRole(profile)),
     );
   }
 
@@ -65,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _destinationForRole(Map<String, dynamic>? profile) {
     final role = profile?['role'] as String?;
     final isApproved = (profile?['isApproved'] as bool?) ?? false;
-    
+
     switch (role) {
       case 'Facility Manager':
         return ManagerMainScreen(isApproved: isApproved);
@@ -157,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (!value.contains('@')) return 'Enter a valid email';
                     return null;
                   },
-                  decoration: _inputDecoration('csc'),
+                  decoration: _inputDecoration('youremail@example.com'),
                 ),
                 const _LoginLabel(label: 'Password'),
                 TextFormField(
