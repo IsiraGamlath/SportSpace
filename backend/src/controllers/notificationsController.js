@@ -39,12 +39,24 @@ exports.dispatchNotification = async ({
     const created = [];
 
     for (const role of roles) {
+      // Prevent duplicate notification for the same task and role within last 5 minutes
+      const existing = await Notification.findOne({
+        targetRole: role,
+        title: title.trim(),
+        message: message.trim(),
+        createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
+      });
+      if (existing) {
+        created.push(formatNotification(existing));
+        continue;
+      }
+
       const doc = await Notification.create({
         targetRole: role,
         userId: userId || null,
         category,
-        title,
-        message,
+        title: title.trim(),
+        message: message.trim(),
         accentColor,
         metadata,
       });
@@ -135,8 +147,20 @@ exports.getNotifications = async (req, res) => {
       filter.category = category.toLowerCase();
     }
 
-    const docs = await Notification.find(filter).sort({ createdAt: -1 }).limit(50);
-    res.status(200).json(docs.map(formatNotification));
+    const docs = await Notification.find(filter).sort({ createdAt: -1 }).limit(60);
+
+    // Deduplicate on read so identical duplicate notifications for the same task are collapsed into one
+    const seen = new Set();
+    const uniqueDocs = [];
+    for (const doc of docs) {
+      const key = `${doc.targetRole || 'all'}_${doc.title.toLowerCase().trim()}_${doc.message.toLowerCase().trim()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueDocs.push(doc);
+      }
+    }
+
+    res.status(200).json(uniqueDocs.map(formatNotification));
   } catch (error) {
     res.status(500).json({
       message: 'Failed to fetch notifications',
@@ -151,6 +175,17 @@ exports.createNotification = async (req, res) => {
     const { targetRole, userId, category, title, message, accentColor, metadata } = req.body;
     if (!title || !message) {
       return res.status(400).json({ message: 'Title and message are required' });
+    }
+
+    // Deduplicate recent identical notification
+    const existing = await Notification.findOne({
+      targetRole: targetRole || 'all',
+      title: title.trim(),
+      message: message.trim(),
+      createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
+    });
+    if (existing) {
+      return res.status(200).json(formatNotification(existing));
     }
 
     const doc = await Notification.create({

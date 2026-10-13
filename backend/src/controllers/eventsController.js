@@ -85,6 +85,28 @@ const seedDefaultEvents = async () => {
           { time: '05:45 PM', label: 'Standings & Close' },
         ],
       },
+      {
+        title: 'Open Badminton Friendly Match',
+        sport: 'Badminton',
+        date: 'Today',
+        time: '5:00 PM – 7:00 PM',
+        eventDate: new Date(),
+        location: 'Colombo Sports Hub, Colombo',
+        facility: 'Colombo Sports Hub',
+        facilityId: 'colombo_sports_hub',
+        eventType: 'Friendly',
+        status: 'Open',
+        imageUrl: 'assets/images/badminton.jpg',
+        description:
+          'Community friendly matches open to all badminton enthusiasts today at Colombo Sports Hub.',
+        organizerName: 'Colombo Community Sports Association',
+        organizerInitials: 'CC',
+        timeline: [
+          { time: '05:00 PM', label: 'Warm-up & Rally' },
+          { time: '05:30 PM', label: 'Friendly Matches' },
+          { time: '06:45 PM', label: 'Cool Down' },
+        ],
+      },
     ];
 
     await Event.insertMany(defaults);
@@ -93,10 +115,80 @@ const seedDefaultEvents = async () => {
   }
 };
 
+const syncConfirmedBookingsToEvents = async () => {
+  try {
+    const PaymentVerification = require('../models/PaymentVerification');
+    const verified = await PaymentVerification.find({ paymentStatus: 'verified' });
+    for (const doc of verified) {
+      const bookingCode = doc.bookingId;
+      if (!bookingCode) continue;
+      const existing = await Event.findOne({
+        $or: [
+          { description: { $regex: bookingCode, $options: 'i' } },
+          { title: { $regex: bookingCode, $options: 'i' } },
+        ],
+      });
+      if (!existing) {
+        const courtName = doc.courtName || 'Badminton Court 1';
+        let sport = 'Badminton';
+        if (courtName.toLowerCase().includes('tennis')) sport = 'Tennis';
+        else if (courtName.toLowerCase().includes('basketball')) sport = 'Basketball';
+        else if (courtName.toLowerCase().includes('football')) sport = 'Football';
+
+        const dateStr = doc.slotDate || 'Today';
+        const now = new Date();
+        let eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+        if (dateStr.toLowerCase() === 'tomorrow') {
+          eventDate = new Date(eventDate);
+          eventDate.setDate(eventDate.getDate() + 1);
+        } else if (dateStr.toLowerCase() !== 'today') {
+          const match = dateStr.match(/\b(\d{1,2})\b/);
+          if (match) {
+            eventDate = new Date(eventDate);
+            eventDate.setDate(parseInt(match[1], 10));
+          }
+        }
+
+        await Event.create({
+          title: doc.playerName
+            ? `${doc.playerName}'s Match - ${courtName}`
+            : `${courtName} - Match Session`,
+          sport,
+          date: dateStr,
+          time: doc.slotTime || '6:00 PM – 7:00 PM',
+          eventDate,
+          location: 'Colombo Sports Hub, Colombo',
+          facility: courtName,
+          facilityId: 'colombo_sports_hub',
+          eventType: 'Match',
+          status: 'Confirmed',
+          imageUrl: sport === 'Tennis'
+            ? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=1200&q=80'
+            : (sport === 'Basketball'
+              ? 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1200&q=80'
+              : (sport === 'Football' ? 'assets/images/football.jpg' : 'assets/images/badminton.jpg')),
+          description: `Booked and confirmed slot session at ${courtName} by ${doc.playerName || 'Player'} (Booking Ref: ${bookingCode}).`,
+          organizerName: doc.playerName || 'Colombo Community Sports Association',
+          organizerInitials: doc.playerName
+            ? doc.playerName.split(' ').map((w) => w[0]).join('').substring(0, 2).toUpperCase()
+            : 'CC',
+          timeline: [
+            { time: (doc.slotTime || '6:00 PM').split('–')[0].trim(), label: 'Match Start' },
+            { time: (doc.slotTime || '7:00 PM').split('–')[1]?.trim() || '7:00 PM', label: 'Session Concludes' },
+          ],
+        });
+      }
+    }
+  } catch (err) {
+    // Graceful fallback
+  }
+};
+
 // GET /api/events
 exports.getEvents = async (req, res) => {
   try {
     await seedDefaultEvents();
+    await syncConfirmedBookingsToEvents();
     const { sport, status, search } = req.query;
     const filter = {};
 
@@ -150,6 +242,7 @@ exports.createEvent = async (req, res) => {
       sport,
       date,
       time,
+      eventDate,
       location,
       facility,
       facilityId,
@@ -168,11 +261,16 @@ exports.createEvent = async (req, res) => {
       });
     }
 
+    const eventDateParsed = eventDate
+      ? new Date(eventDate)
+      : new Date();
+
     const newEvent = await Event.create({
       title: title.trim(),
       sport: sport.trim(),
       date: date.trim(),
       time: time.trim(),
+      eventDate: isNaN(eventDateParsed.getTime()) ? new Date() : eventDateParsed,
       location: location ? location.trim() : 'Colombo Sports Hub, Colombo',
       facility: facility ? facility.trim() : 'Colombo Sports Hub',
       facilityId: facilityId || 'colombo_sports_hub',
@@ -220,6 +318,7 @@ exports.updateEvent = async (req, res) => {
       'sport',
       'date',
       'time',
+      'eventDate',
       'location',
       'facility',
       'facilityId',

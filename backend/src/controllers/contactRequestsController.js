@@ -122,6 +122,22 @@ exports.deleteContactRequest = async (req, res) => {
     if (!removed) {
       return res.status(404).json({ message: 'Request not found' });
     }
+
+    const readableType =
+      removed.type === 'accessibilityRequest'
+        ? 'Accessibility Request'
+        : 'Contact Enquiry';
+
+    await dispatchNotification({
+      targetRoles: 'communityMember',
+      userId: removed.userId,
+      category: 'facility',
+      title: 'Request Deleted',
+      message: `Your ${readableType} for ${removed.facilityId || 'facility'} has been deleted.`,
+      accentColor: 'red',
+      metadata: { requestId: removed._id.toString() },
+    });
+
     res.status(200).json({ message: 'Request deleted successfully' });
   } catch (error) {
     res.status(500).json({
