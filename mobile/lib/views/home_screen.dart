@@ -9,8 +9,10 @@ import '../widgets/app_bottom_nav.dart';
 import 'explore_screen.dart';
 import 'facility_profile_screen.dart';
 import 'my_bookings_screen.dart';
+import 'player_notifications_view.dart';
 import 'tertiary/profile_view.dart';
 import 'account_profile_screen.dart';
+import '../services/app_services.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -84,12 +86,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _userName() {
-    final user = FirebaseAuth.instance.currentUser;
-    final displayName = user?.displayName?.trim();
-    if (displayName != null && displayName.isNotEmpty) return displayName;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final displayName = user?.displayName?.trim();
+      if (displayName != null && displayName.isNotEmpty) return displayName;
 
-    final email = user?.email;
-    if (email != null && email.contains('@')) return email.split('@').first;
+      final email = user?.email;
+      if (email != null && email.contains('@')) return email.split('@').first;
+    } catch (_) {}
     return 'there';
   }
 
@@ -221,10 +225,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     transitionDuration: Duration.zero,
                   ),
                 );
-              } else if (index == 4) {
+              } else if (index == 3) {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const PlayerNotificationsView(),
+                  ),
                 );
               }
             },
@@ -279,6 +285,80 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+        ListenableBuilder(
+          listenable: appServices.notificationService,
+          builder: (context, _) {
+            final count =
+                appServices.notificationService.unreadCountForRole('player');
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                InkWell(
+                  key: const Key('home_notification_bell'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PlayerNotificationsView(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: AppColors.textPrimary,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      key: const Key('home_notification_badge'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE14C4C),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Center(
+                        child: Text(
+                          count > 99 ? '99+' : count.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(width: 10),
         Container(
           width: 40,
           height: 40,
@@ -432,20 +512,19 @@ class _FacilityCard extends StatelessWidget {
     required VoidCallback onTap,
     required bool isFavorite,
     required VoidCallback onFavoriteTap,
-  })
-    : this(
-        name: facility.name,
-        sport: facility.sport,
-        distance: 'Colombo',
-        color: _facilityColor(facility.sport),
-        icon: _facilityIcon(facility.sport),
-        rate: 'Rs. ${facility.price}/hr',
-        imageUrl: facility.photoUrl,
-        imagePath: null,
-        isFavorite: isFavorite,
-        onFavoriteTap: onFavoriteTap,
-        onTap: onTap,
-      );
+  }) : this(
+         name: facility.name,
+         sport: facility.sport,
+         distance: 'Colombo',
+         color: _facilityColor(facility.sport),
+         icon: _facilityIcon(facility.sport),
+         rate: 'Rs. ${facility.price}/hr',
+         imageUrl: facility.photoUrl,
+         imagePath: null,
+         isFavorite: isFavorite,
+         onFavoriteTap: onFavoriteTap,
+         onTap: onTap,
+       );
 
   _FacilityCard.fromData(_FacilityData data, {required VoidCallback onTap})
     : this(
@@ -575,21 +654,21 @@ class _FacilityCard extends StatelessWidget {
                     child: CircleAvatar(
                       radius: 13,
                       backgroundColor: Colors.white.withValues(alpha: 0.9),
-                    child: IconButton(
-                      onPressed: onFavoriteTap,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 26,
-                        height: 26,
+                      child: IconButton(
+                        onPressed: onFavoriteTap,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 26,
+                          height: 26,
+                        ),
+                        icon: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          size: 16,
+                          color: isFavorite
+                              ? Colors.redAccent
+                              : AppColors.textSecondary,
+                        ),
                       ),
-                      icon: Icon(
-                        isFavorite ? Icons.favorite : Icons.favorite_border,
-                        size: 16,
-                        color: isFavorite
-                            ? Colors.redAccent
-                            : AppColors.textSecondary,
-                      ),
-                    ),
                     ),
                   ),
                 ],

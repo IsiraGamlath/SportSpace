@@ -1,5 +1,6 @@
 const Facility = require('../models/Facility');
 const Slot = require('../models/Slot');
+const { dispatchNotification } = require('./notificationsController');
 const cloudinary = require('cloudinary').v2;
 
 cloudinary.config({
@@ -435,9 +436,21 @@ exports.createFacility = async (req, res) => {
       managerId: req.firebaseUser.uid,
     });
 
+    const formatted = formatFacility(newFacility);
+
+    // Requirement 6: when facility manager adds a facility, notify player and community member
+    await dispatchNotification({
+      targetRoles: ['player', 'communityMember'],
+      category: 'facility',
+      title: 'New Facility Added',
+      message: `Facility "${newFacility.name}" is now available for booking and events.`,
+      accentColor: 'green',
+      metadata: { facilityId: formatted.id, action: 'create' },
+    });
+
     res.status(201).json({
       message: 'Facility created successfully',
-      facility: formatFacility(newFacility),
+      facility: formatted,
     });
   } catch (error) {
     res.status(500).json({
@@ -561,9 +574,21 @@ exports.updateFacility = async (req, res) => {
       ).catch(() => {});
     }
 
+    const formatted = formatFacility(facility);
+
+    // Req 6: when manager change facility details, notify facility manager and community member
+    await dispatchNotification({
+      targetRoles: ['facilityManager', 'communityMember'],
+      category: 'facility',
+      title: 'Facility Info Updated',
+      message: `Facility details have been updated for "${facility.name}".`,
+      accentColor: 'orange',
+      metadata: { facilityId: formatted.id, action: 'edit' },
+    });
+
     res.status(200).json({
       message: 'Facility updated successfully',
-      facility: formatFacility(facility),
+      facility: formatted,
     });
   } catch (error) {
     res.status(500).json({
@@ -603,6 +628,16 @@ exports.deleteFacility = async (req, res) => {
     await Slot.deleteMany({ courtName: facility.name, status: 'available' });
 
     await Facility.findByIdAndDelete(id);
+
+    // Requirement 6: when facility manager removes a facility, notify player and community member
+    await dispatchNotification({
+      targetRoles: ['player', 'communityMember'],
+      category: 'facility',
+      title: 'Facility Removed',
+      message: `Facility "${facility.name}" has been removed from active service.`,
+      accentColor: 'red',
+      metadata: { facilityId: id, action: 'delete' },
+    });
 
     res.status(200).json({
       message: `Facility "${facility.name}" deleted successfully`,

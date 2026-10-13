@@ -44,6 +44,10 @@ app.use("/api/payments", require("./routes/payments"));
 app.use("/api/maintenance", require("./routes/maintenance"));
 app.use("/api/payment-verifications", require("./routes/paymentVerifications"));
 app.use("/api/reviews", require("./routes/reviews"));
+app.use("/api/contact-requests", require("./routes/contactRequests"));
+app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api/events", require("./routes/events"));
+app.use("/api/saved-events", require("./routes/savedEvents"));
 
 // admin routes
 app.use("/api/admin", adminRoutes);

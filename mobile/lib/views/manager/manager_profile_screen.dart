@@ -9,9 +9,15 @@ class ManagerProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AccountProfileContent(
-      managerPortal: true,
-      onOpenManagerBookings: onOpenBookings,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: AccountProfileContent(
+          managerPortal: true,
+          onOpenManagerBookings: onOpenBookings,
+        ),
+      ),
     );
   }
 }

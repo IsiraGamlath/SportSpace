@@ -11,6 +11,8 @@ import 'booking_confirmation_screen.dart';
 import 'booking_pending_screen.dart';
 import 'conflict_resolution_screen.dart';
 import 'package:file_picker/file_picker.dart';
+import '../services/app_services.dart';
+import '../models/app_notification_model.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final TimeSlot slot;
@@ -308,6 +310,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         paymentMethod: paymentMethod,
                         slipBytes: _selectedSlipBytes,
                         slipFileName: _selectedSlipName,
+                      );
+                      final courtName =
+                          widget.slot.courtName?.isNotEmpty == true
+                              ? widget.slot.courtName!
+                              : 'Badminton Court 1';
+                      appServices.notificationService.dispatchNotification(
+                        targetRoles: ['player', 'facilityManager'],
+                        title: _selectedPaymentMethod == 1
+                            ? 'Booking Pending Verification'
+                            : 'Slot Booking Confirmed',
+                        message:
+                            'Booked $courtName for ${widget.slot.time} on ${widget.date}.',
+                        category: NotificationCategory.event,
+                        accentColor: const Color(0xFF2E8B57),
+                        icon: Icons.event_available_rounded,
                       );
                       if (!context.mounted) return;
                       setState(() => _isProcessing = false);

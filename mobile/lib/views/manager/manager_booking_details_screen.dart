@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
+import '../../services/app_services.dart';
 import '../../theme/manager_colors.dart';
 import '../../widgets/manager/pending_payment_pill.dart';
 import '../../widgets/manager/section_card.dart';
+import '../../models/sport_event_model.dart';
+import '../../utils/schedule_date_utils.dart';
 import 'manager_notifications_screen.dart';
 
 class ManagerBookingDetailsScreen extends StatefulWidget {
@@ -327,6 +330,7 @@ class ManagerBookingDetailsScreenState
             b['paymentStatus'] = 'verified';
           }
         }
+        _syncEventForConfirmedPayment();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Payment Confirmed! Booking status updated to Paid.'),
@@ -352,6 +356,7 @@ class ManagerBookingDetailsScreenState
                 b['paymentStatus'] = 'verified';
               }
             }
+            _syncEventForConfirmedPayment();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content:
@@ -370,6 +375,62 @@ class ManagerBookingDetailsScreenState
           SnackBar(content: Text('Verification failed: $e')),
         );
       }
+    }
+  }
+
+  void _syncEventForConfirmedPayment() {
+    try {
+      final court = _data?['courtName']?.toString() ?? 'Badminton Court 1';
+      final slotDate = _data?['slotDate']?.toString() ?? 'Today';
+      final slotTime = _data?['slotTime']?.toString() ?? '6:00 PM – 7:00 PM';
+      final playerName = _data?['playerName']?.toString() ?? 'Player';
+      final sport = court.toLowerCase().contains('tennis')
+          ? 'Tennis'
+          : (court.toLowerCase().contains('basketball')
+              ? 'Basketball'
+              : (court.toLowerCase().contains('football') ? 'Football' : 'Badminton'));
+
+      final now = DateTime.now();
+      DateTime eventDate = DateTime(now.year, now.month, now.day);
+      if (slotDate.toLowerCase() == 'tomorrow') {
+        eventDate = eventDate.add(const Duration(days: 1));
+      } else if (slotDate.toLowerCase() != 'today') {
+        eventDate = ScheduleDateUtils.resolveDate(slotDate);
+      }
+
+      final newEvent = NearbyEvent(
+        id: 'evt_booking_${_currentBookingId ?? DateTime.now().millisecondsSinceEpoch}',
+        title: "$playerName's Match - $court",
+        sport: sport,
+        date: slotDate,
+        time: slotTime,
+        eventDate: eventDate,
+        location: 'Colombo Sports Hub, Colombo',
+        facility: court,
+        eventType: 'Match',
+        status: 'Confirmed',
+        imageUrl: sport == 'Tennis'
+            ? 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=1200&q=80'
+            : (sport == 'Basketball'
+                ? 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1200&q=80'
+                : 'assets/images/badminton.jpg'),
+        description: 'Booked and confirmed slot session at $court by $playerName (Booking Ref: $_currentBookingId).',
+        organizerName: playerName,
+        organizerInitials: playerName.isNotEmpty ? playerName[0].toUpperCase() : 'P',
+        timeline: [
+          EventTimelineItem(
+            time: slotTime.split('–')[0].trim(),
+            label: 'Match Start',
+          ),
+          EventTimelineItem(
+            time: (slotTime.split('–').length > 1 ? slotTime.split('–')[1] : slotTime).trim(),
+            label: 'Session Concludes',
+          ),
+        ],
+      );
+      appServices.eventRepository.createEvent(newEvent);
+    } catch (e) {
+      debugPrint('Error syncing event repository: $e');
     }
   }
 
@@ -392,6 +453,9 @@ class ManagerBookingDetailsScreenState
           if (b['bookingId'] == _currentBookingId) {
             b['paymentStatus'] = 'unpaid';
           }
+        }
+        if (_currentBookingId != null) {
+          appServices.eventRepository.cancelEvent('evt_booking_${_currentBookingId}');
         }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -416,6 +480,9 @@ class ManagerBookingDetailsScreenState
               if (b['bookingId'] == _currentBookingId) {
                 b['paymentStatus'] = 'unpaid';
               }
+            }
+            if (_currentBookingId != null) {
+              appServices.eventRepository.cancelEvent('evt_booking_${_currentBookingId}');
             }
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -840,23 +907,67 @@ class _Header extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        Container(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: ManagerColors.border),
-          ),
-          child: IconButton(
-            onPressed: onNotificationsTap,
-            padding: EdgeInsets.zero,
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              size: 16,
-              color: ManagerColors.navy,
-            ),
-          ),
+        ListenableBuilder(
+          listenable: appServices.notificationService,
+          builder: (context, _) {
+            final count = appServices.notificationService
+                .unreadCountForRole('facilityManager');
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: ManagerColors.border),
+                  ),
+                  child: IconButton(
+                    key: const Key('booking_details_notification_bell'),
+                    onPressed: onNotificationsTap,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 16,
+                      color: ManagerColors.navy,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      key: const Key('booking_details_notification_badge'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1.5,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE14C4C),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 14,
+                        minHeight: 14,
+                      ),
+                      child: Center(
+                        child: Text(
+                          count > 99 ? '99+' : count.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );

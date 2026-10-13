@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/time_slot.dart';
 import '../utils/app_colors.dart';
+import '../utils/schedule_date_utils.dart';
 import '../widgets/court_info_card.dart';
 import '../widgets/date_selector.dart';
 import '../widgets/slot_grid.dart';
@@ -30,14 +31,8 @@ class SlotSelectionScreen extends StatefulWidget {
 }
 
 class _SlotSelectionScreenState extends State<SlotSelectionScreen> {
-  final List<String> _dates = const [
-    'Today',
-    'Tomorrow',
-    'Wed 23',
-    'Thu 24',
-    'Fri 25',
-    'Sat 26',
-  ];
+  late final List<String> _dates =
+      ScheduleDateUtils.generateRealWorldDays(count: 7);
 
   int _selectedDateIndex = 1; // Default to 'Tomorrow' as shown in the UI
 

@@ -1,75 +1,107 @@
-# SportSpace
+# 🏟️ SportSpace
 
-Mobile sports facility booking app.
+![SportSpace Banner](https://img.shields.io/badge/Status-Active-brightgreen)
+![Flutter](https://img.shields.io/badge/Mobile-Flutter-blue)
+![Node.js](https://img.shields.io/badge/Backend-Node.js-green)
+![Next.js](https://img.shields.io/badge/Admin-Next.js-black)
+![MongoDB](https://img.shields.io/badge/Database-MongoDB-success)
 
-## Tech Stack
+**SportSpace** is a comprehensive, end-to-end sports facility management and booking system. It seamlessly connects players looking to book courts (badminton, tennis, futsal, etc.) with facility managers who need an efficient way to manage their schedules, payments, and maintenance operations.
 
-- Mobile: Flutter
-- Backend: Node.js + Express
-- Database: MongoDB
-- Auth & Notifications: Firebase (Auth, FCM)
+---
 
-## Repository Structure
+## 🎯 Key Features
 
-- `/mobile`: Flutter app
-- `/backend`: Express API
-- `/docs`: reports and diagrams
+### 👤 For Players
+* **Discover & Explore:** Search for facilities by location, sport type, and availability.
+* **Real-Time Booking:** View live slot availability and reserve courts instantly.
+* **Smart Conflict Resolution:** Handles race conditions gracefully if two users try to book the same slot simultaneously.
+* **Flexible Payments:** Pay securely via Stripe (Credit/Debit Card) or upload a Bank Transfer slip.
+* **Manage Bookings:** Reschedule, cancel, and view past booking history.
 
-## Team
+### 👔 For Facility Managers
+* **Live Dashboard:** Monitor daily revenue, upcoming bookings, and pending tasks.
+* **Payment Verification:** Review and manually verify uploaded bank transfer slips.
+* **Schedule Management:** Block out time slots or mark courts as "Under Maintenance".
+* **Facility Profiles:** Update facility details, amenities, and photos.
 
-| Member | Module                                                          |
-| ------ | --------------------------------------------------------------- |
-| <name> | Login, Home/Search, Facility Profile & Reviews                  |
-| <name> | Slot Selection, Conflict Resolution, Payment, Cancel/Reschedule |
-| <name> | Manager Portal                                                  |
-| <name> | Public Events, Contact Info, Notifications                      |
+### 🌐 For Admin / Web
+* **Global Oversight:** Centralized Next.js dashboard to oversee all platform operations.
+* **Master Payment Audit:** Aggregate view of all transactions and manager actions.
 
-## Branching
+---
 
-- `main`: stable, demo-ready
-- `develop`: integration branch
-- Work on `feature/<name>`, `fix/<name>` or `docs/<name>` branches created from `develop`
-- Merge only through pull requests with at least 1 review; delete the branch after merging
+## 🛠️ Technology Stack
 
-## Commit Messages
+The system follows a modern **3-Tier Architecture**:
 
-`feat:`, `fix:`, `docs:`, `chore:`
+1. **Frontend (Mobile App)**: Flutter (Dart), Firebase Auth (Google Sign-In), Stripe SDK.
+2. **Backend (API Layer)**: Node.js, Express.js, Mongoose, Nodemailer, Multer.
+3. **Frontend (Admin Web)**: Next.js (React), Tailwind CSS, shadcn/ui.
+4. **Database & External Services**: MongoDB Atlas (NoSQL), Stripe Payment Gateway, Cloudinary (Image Hosting).
 
-## Setup
+---
 
-### Prerequisites
+## 📂 Project Structure
 
-- Node.js 20 or newer and npm
-- Flutter SDK with a configured Android emulator or physical Android device
-- MongoDB Atlas access, or a local MongoDB server
+This repository is organized into a monorepo structure containing three main components:
 
-### Backend
-
-1. Copy `.env.example` to `.env` in the repository root.
-2. Set `MONGODB_URI` to your MongoDB connection string. For Atlas, the database user's IP address must be allowed in Atlas **Network Access**.
-3. From the repository root, install dependencies and start the API:
-
-   ```powershell
-   cd backend
-   npm install
-   npm run dev
-   ```
-
-4. Confirm it is running by opening `http://localhost:5000/api/health`. The expected response contains `"status":"OK"`.
-
-The backend loads the root `.env` file even when started from the `backend` directory. Do not commit `.env`; it is ignored by Git.
-
-### Mobile
-
-In a second terminal:
-
-```powershell
-cd mobile
-flutter pub get
-flutter devices
-flutter run
+```
+SportSpace/
+│
+├── mobile/          # The Flutter mobile application (Players, Managers, Tertiary users)
+│
+├── backend/         # The Node.js/Express REST API server
+│
+└── admin-web/       # The Next.js web dashboard for platform administrators
 ```
 
-The app currently uses `http://10.0.2.2:5000/api`, which is correct for an Android emulator. For a physical device, replace `10.0.2.2` in `mobile/lib/services/api_service.dart` with the computer's local network IP (for example, `192.168.1.10`) and ensure Windows Firewall allows port 5000.
+---
 
-For iOS, use `http://127.0.0.1:5000/api` in the iOS simulator, or the computer's local network IP on a physical iPhone.
+## 🚀 Getting Started
+
+Follow these instructions to set up the project locally on your machine.
+
+### Prerequisites
+* [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.19+)
+* [Node.js](https://nodejs.org/) (v18+)
+* [MongoDB](https://www.mongodb.com/) (Local or Atlas instance)
+* Android Studio / Xcode (for mobile emulation)
+
+### 1. Backend Setup
+1. Navigate to the backend directory: `cd backend`
+2. Install dependencies: `npm install`
+3. Create a `.env` file based on the environment variables needed (MongoDB URI, Firebase Admin credentials, Stripe keys, Cloudinary config).
+4. Start the development server: `npm run dev`
+*(The backend runs on `http://localhost:5000`)*
+
+### 2. Admin Web Setup
+1. Navigate to the admin web directory: `cd admin-web`
+2. Install dependencies: `npm install`
+3. Start the Next.js development server: `npm run dev`
+*(The admin dashboard runs on `http://localhost:3000`)*
+
+### 3. Mobile App Setup
+1. Navigate to the mobile directory: `cd mobile`
+2. Fetch Flutter packages: `flutter pub get`
+3. Run the app on a connected device or emulator: `flutter run`
+
+---
+
+## 📖 Architecture & Database Schema
+
+* **3-Tier Architecture Diagram:** Shows the flow between the Flutter Client, Node.js API, and MongoDB/Stripe services.
+* **MongoDB ER Diagram:** Details the 7 core collections (`Users`, `Facilities`, `Slots`, `Bookings`, `PaymentVerifications`, `Maintenance`, `Reviews`).
+
+*(Diagrams are available in the project documentation/artifacts).*
+
+---
+
+## 👥 Contributors
+
+* **Gamlath G.R.I.U** (Booking Flow, Payments, Conflict Resolution)
+* **Ubeysinghe U.A.D** (Onboarding, Home, Facility Profiles, Auth)
+* **Ranaweera S.M.M.H** (Manager Flow, Admin Web Dashboard, Maintenance)
+* **Bimsara P** (Tertiary Users, Events, Notifications, Testing)
+
+*Developed for SLIIT Y3S2 HCI Module.*

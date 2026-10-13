@@ -4,10 +4,36 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AccountSettingsService {
   static final ValueNotifier<bool> darkModeEnabled = ValueNotifier(false);
+  static final ValueNotifier<String> communityUserName =
+      ValueNotifier('Saantha Sudarshana');
 
   static String _key(String setting) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
-    return 'sportspace_${setting}_$uid';
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+      return 'sportspace_${setting}_$uid';
+    } catch (_) {
+      return 'sportspace_${setting}_guest';
+    }
+  }
+
+  static Future<String> loadCommunityUserName() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final name = preferences.getString('community_user_name');
+      if (name != null && name.trim().isNotEmpty) {
+        communityUserName.value = name.trim();
+        return name.trim();
+      }
+    } catch (_) {}
+    return communityUserName.value;
+  }
+
+  static Future<void> setCommunityUserName(String name) async {
+    communityUserName.value = name.trim();
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString('community_user_name', name.trim());
+    } catch (_) {}
   }
 
   static Future<bool> loadDarkMode() async {
@@ -39,3 +65,4 @@ class AccountSettingsService {
     await preferences.setBool(_key('notifications'), enabled);
   }
 }
+

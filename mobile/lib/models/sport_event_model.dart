@@ -1,4 +1,3 @@
-
 class EventTimelineItem {
   final String time;
   final String label;
@@ -54,4 +53,58 @@ class NearbyEvent {
     this.organizerInitials = '',
     this.timeline = const [],
   });
+
+  factory NearbyEvent.fromJson(Map<String, dynamic> json) {
+    DateTime parsedDate;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateStr = (json['date'] as String? ?? '').toLowerCase().trim();
+
+    if (dateStr == 'today') {
+      parsedDate = today;
+    } else if (dateStr == 'tomorrow') {
+      parsedDate = today.add(const Duration(days: 1));
+    } else if (json['eventDate'] != null) {
+      final parsed = DateTime.tryParse(json['eventDate'].toString());
+      if (parsed != null) {
+        parsedDate = parsed.toLocal();
+      } else {
+        parsedDate = today;
+      }
+    } else {
+      parsedDate = today;
+    }
+
+    final timelineList = <EventTimelineItem>[];
+    if (json['timeline'] is List) {
+      for (final t in json['timeline']) {
+        if (t is Map) {
+          timelineList.add(
+            EventTimelineItem(
+              time: t['time'] as String? ?? '',
+              label: t['label'] as String? ?? '',
+            ),
+          );
+        }
+      }
+    }
+
+    return NearbyEvent(
+      id: json['id'] as String? ?? json['_id'] as String? ?? 'evt_${json['title']}',
+      title: json['title'] as String? ?? '',
+      sport: json['sport'] as String? ?? 'Badminton',
+      date: json['date'] as String? ?? '',
+      time: json['time'] as String? ?? '',
+      eventDate: parsedDate,
+      location: json['location'] as String? ?? 'Colombo',
+      facility: json['facility'] as String? ?? json['location'] as String? ?? '',
+      eventType: json['eventType'] as String? ?? 'Tournament',
+      status: json['status'] as String? ?? 'Open',
+      imageUrl: json['imageUrl'] as String? ?? 'assets/images/badminton.jpg',
+      description: json['description'] as String? ?? '',
+      organizerName: json['organizerName'] as String? ?? '',
+      organizerInitials: json['organizerInitials'] as String? ?? '',
+      timeline: timelineList,
+    );
+  }
 }

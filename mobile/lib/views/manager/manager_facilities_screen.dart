@@ -5,6 +5,8 @@ import 'dart:io';
 
 import '../../services/api_service.dart';
 import '../../theme/manager_colors.dart';
+import '../../services/app_services.dart';
+import '../../models/app_notification_model.dart';
 
 class ManagerFacilitiesScreen extends StatefulWidget {
   const ManagerFacilitiesScreen({super.key});
@@ -1146,9 +1148,35 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
                                         id,
                                         facilityData,
                                       );
+                                      appServices.notificationService
+                                          .dispatchNotification(
+                                        targetRoles: [
+                                          'facilityManager',
+                                          'communityMember',
+                                        ],
+                                        title: 'Facility Info Updated',
+                                        message:
+                                            'Facility details have been updated for "$name".',
+                                        category: NotificationCategory.facility,
+                                        accentColor: const Color(0xFFDF8420),
+                                        icon: Icons.location_on_outlined,
+                                      );
                                     } else {
                                       await ApiService.createFacility(
                                         facilityData,
+                                      );
+                                      appServices.notificationService
+                                          .dispatchNotification(
+                                        targetRoles: [
+                                          'player',
+                                          'communityMember',
+                                        ],
+                                        title: 'New Facility Added',
+                                        message:
+                                            'Facility "$name" is now available for booking and events.',
+                                        category: NotificationCategory.facility,
+                                        accentColor: const Color(0xFF2E8B57),
+                                        icon: Icons.location_on_outlined,
                                       );
                                     }
 
@@ -1240,6 +1268,14 @@ class _ManagerFacilitiesScreenState extends State<ManagerFacilitiesScreen> {
     if (confirm == true) {
       try {
         await ApiService.deleteFacility(id);
+        appServices.notificationService.dispatchNotification(
+          targetRoles: ['player', 'communityMember'],
+          title: 'Facility Removed',
+          message: 'Facility "$name" has been removed from active service.',
+          category: NotificationCategory.facility,
+          accentColor: const Color(0xFFE14C4C),
+          icon: Icons.location_off_outlined,
+        );
         if (mounted) {
           _loadFacilities();
           ScaffoldMessenger.of(context).showSnackBar(

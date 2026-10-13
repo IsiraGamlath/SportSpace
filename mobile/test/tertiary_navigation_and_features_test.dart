@@ -37,6 +37,7 @@ void main() {
     appServices.bookmarkService.resetForTesting();
     appServices.reminderService.resetForTesting();
     appServices.contactRequestService.resetForTesting();
+    appServices.notificationService.resetForTesting();
   });
 
   group('1. TertiaryHomeView (Home Entry Screen)', () {

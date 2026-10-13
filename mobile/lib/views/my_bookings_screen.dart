@@ -5,8 +5,11 @@ import '../models/booking.dart';
 import 'slot_selection_screen.dart';
 import 'home_screen.dart';
 import 'explore_screen.dart';
+import 'player_notifications_view.dart';
 import 'tertiary/profile_view.dart';
 import 'account_profile_screen.dart';
+import '../services/app_services.dart';
+import '../models/app_notification_model.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -41,7 +44,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           child: Center(
             child: Material(
               color: AppColors.cardBackground,
-              shape: const CircleBorder(side: BorderSide(color: AppColors.borderLight)),
+              shape: const CircleBorder(
+                side: BorderSide(color: AppColors.borderLight),
+              ),
               child: InkWell(
                 onTap: () => Navigator.pop(context),
                 customBorder: const CircleBorder(),
@@ -69,31 +74,126 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         ),
         centerTitle: false,
         titleSpacing: 16,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Center(
+              child: ListenableBuilder(
+                listenable: appServices.notificationService,
+                builder: (context, _) {
+                  final count =
+                      appServices.notificationService.unreadCountForRole('player');
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      InkWell(
+                        key: const Key('my_bookings_notification_bell'),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PlayerNotificationsView(),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFE2E8F0),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: AppColors.textPrimary,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            key: const Key('my_bookings_notification_badge'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE14C4C),
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Center(
+                              child: Text(
+                                count > 99 ? '99+' : count.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: FutureBuilder<List<Booking>>(
           future: _bookingsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.primaryTeal));
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryTeal),
+              );
             } else if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+              return Center(
+                child: Text(
+                  'Error: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              );
             } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Center(
-                child: Text('No bookings found.', style: TextStyle(color: AppColors.textSecondary)),
+                child: Text(
+                  'No bookings found.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               );
             }
 
             final bookings = snapshot.data!;
-            
+
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
               child: Column(
                 children: [
-                  ...bookings.map((booking) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _buildBookingCard(booking),
-                      )).toList(),
+                  ...bookings
+                      .map(
+                        (booking) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildBookingCard(booking),
+                        ),
+                      )
+                      .toList(),
                 ],
               ),
             );
@@ -109,8 +209,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     final subtitle = booking.slot.facilityType?.isNotEmpty == true ? booking.slot.facilityType! : 'Court';
     final date = booking.slot.date ?? 'N/A';
     final time = booking.slot.durationRange;
-    final price = 'LKR ${booking.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
-    final isActive = booking.status == 'confirmed' || booking.status == 'rescheduled';
+    final price =
+        'LKR ${booking.slot.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
+    final isActive =
+        booking.status == 'confirmed' || booking.status == 'rescheduled';
     final isRescheduled = booking.status == 'rescheduled';
     final isPending = booking.status == 'pending_verification';
     final isCancelled = booking.status == 'cancelled';
@@ -160,9 +262,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
-                  color: isPending 
+                  color: isPending
                       ? Colors.orange.shade50
                       : (isActive
                           ? (isRescheduled ? Colors.blue.shade50 : AppColors.availableBg)
@@ -261,7 +366,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   child: SizedBox(
                     height: 44,
                     child: OutlinedButton(
-                      onPressed: () => _handleCancelBooking(booking.id),
+                      onPressed: () => _handleCancelBooking(booking.id, booking),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.bookedText,
                         side: const BorderSide(color: AppColors.bookedBorder),
@@ -287,11 +392,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     );
   }
 
-  void _handleCancelBooking(String bookingId) {
+  void _handleCancelBooking(String bookingId, [Booking? booking]) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancel Booking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.darkNavy)),
+        title: const Text(
+          'Cancel Booking',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: AppColors.darkNavy,
+          ),
+        ),
         content: const Text(
           'Are you sure you want to cancel this booking? A refund will be issued to your original payment method.',
           style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
@@ -300,16 +412,38 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Keep Booking', style: TextStyle(color: AppColors.darkNavy, fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Keep Booking',
+              style: TextStyle(
+                color: AppColors.darkNavy,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
               try {
                 await ApiService.cancelBooking(bookingId);
+                final court = booking?.courtName ?? 'Court';
+                final date = (booking?.slot.date?.isNotEmpty == true)
+                    ? ' on ${booking!.slot.date}'
+                    : '';
+                appServices.notificationService.dispatchNotification(
+                  targetRoles: ['player', 'facilityManager'],
+                  title: 'Booking Cancelled',
+                  message:
+                      'Booking for $court$date has been cancelled.',
+                  category: NotificationCategory.event,
+                  accentColor: const Color(0xFFE14C4C),
+                  icon: Icons.event_busy_rounded,
+                );
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Booking cancelled successfully'), backgroundColor: AppColors.availableText),
+                  const SnackBar(
+                    content: Text('Booking cancelled successfully'),
+                    backgroundColor: AppColors.availableText,
+                  ),
                 );
                 setState(() {
                   _bookingsFuture = _fetchBookings();
@@ -317,7 +451,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               } catch (e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to cancel: $e'), backgroundColor: AppColors.bookedText),
+                  SnackBar(
+                    content: Text('Failed to cancel: $e'),
+                    backgroundColor: AppColors.bookedText,
+                  ),
                 );
               }
             },
@@ -325,9 +462,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               backgroundColor: AppColors.bookedBg,
               foregroundColor: AppColors.bookedText,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
-            child: const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Yes, Cancel',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -340,10 +482,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         Text(
           value,
@@ -384,6 +523,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 transitionDuration: Duration.zero,
               ),
             );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PlayerNotificationsView(),
+              ),
+            );
           } else if (index == 4) {
             Navigator.pushReplacement(
               context,
@@ -391,11 +537,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
                 transitionDuration: Duration.zero,
               ),
-            );
-          } else if (index == 4) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const UserProfileScreen()),
             );
           }
         },

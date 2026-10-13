@@ -1,7 +1,9 @@
 import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
 import '../models/time_slot.dart';
 import '../models/review.dart';
 import '../models/facility.dart';
@@ -9,7 +11,7 @@ import '../models/facility.dart';
 class ApiService {
   static const String _webUrl = 'http://localhost:5000/api';
   static const String _usbUrl = 'http://127.0.0.1:5000/api';
-  static const String _wifiUrl = 'http://10.137.39.116:5000/api';
+  static const String _wifiUrl = 'http://192.168.8.102:5000/api';
   static const String _altWifiUrl = 'http://192.168.8.100:5000/api';
   static const String _emulatorUrl = 'http://10.0.2.2:5000/api';
   static String? _activeBaseUrl;
@@ -145,7 +147,8 @@ class ApiService {
     required String address,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('You must be signed in to update your profile.');
+    if (user == null)
+      throw Exception('You must be signed in to update your profile.');
     final token = await user.getIdToken();
     final response = await _patch(
       '/users/profile',
@@ -191,9 +194,8 @@ class ApiService {
   }) async {
     final authHeaders = await _getAuthHeaders(headers);
     try {
-      final uri = Uri.parse(
-        '$baseUrl$path',
-      ).replace(queryParameters: queryParams);
+      final uri = Uri.parse('$baseUrl$path')
+          .replace(queryParameters: queryParams);
       return await http
           .get(uri, headers: authHeaders)
           .timeout(const Duration(milliseconds: 7000));
@@ -202,9 +204,8 @@ class ApiService {
     for (final candidate in _candidates) {
       if (candidate == baseUrl) continue;
       try {
-        final uri = Uri.parse(
-          '$candidate$path',
-        ).replace(queryParameters: queryParams);
+        final uri = Uri.parse('$candidate$path')
+            .replace(queryParameters: queryParams);
         final res = await http
             .get(uri, headers: authHeaders)
             .timeout(const Duration(milliseconds: 6000));
@@ -415,8 +416,9 @@ class ApiService {
             filename: fileName ?? 'facility_photo.jpg',
           ),
         );
-        final streamedResponse =
-            await request.send().timeout(const Duration(seconds: 25));
+        final streamedResponse = await request.send().timeout(
+          const Duration(seconds: 25),
+        );
         final response = await http.Response.fromStream(streamedResponse);
         if (response.statusCode == 200 || response.statusCode == 201) {
           final data = json.decode(response.body);
@@ -503,41 +505,56 @@ class ApiService {
     }
   }
 
-  static Future<List<Facility>> fetchFacilities() async {
-    final response = await _get('/facilities');
-    if (response.statusCode != 200) {
-      throw Exception('Failed to load facilities');
-    }
-    final data = json.decode(response.body) as List<dynamic>;
-    final facilities = data
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
+  
 
-    // The slots endpoint provides availability and pricing; facility records
-    // provide the manager-uploaded photos. Merge by exact facility name.
+  static Future<List<Facility>> fetchFacilities() async {
     try {
-      final profileResponse = await _get('/facilities');
-      if (profileResponse.statusCode == 200) {
-        final profiles = json.decode(profileResponse.body) as List<dynamic>;
-        final profilesByName = <String, Map<String, dynamic>>{
-          for (final profile in profiles.whereType<Map>())
-            profile['name']?.toString().trim().toLowerCase() ?? '':
-                Map<String, dynamic>.from(profile),
-        };
-        for (final facility in facilities) {
-          final profile =
-              profilesByName[facility['name']?.toString().trim().toLowerCase()];
-          if (profile != null) {
-            facility['photoUrl'] = profile['photoUrl'];
-            facility['photos'] = profile['photos'];
+      final response = await _get('/slots/facilities/list');
+
+      if (response.statusCode != 200) {
+        return [];
+      }
+
+      final data = json.decode(response.body) as List<dynamic>;
+      final facilities = data
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+
+      try {
+        final profileResponse = await _get('/facilities');
+
+        if (profileResponse.statusCode == 200) {
+          final profiles = json.decode(profileResponse.body) as List<dynamic>;
+
+          final profilesByName = <String, Map<String, dynamic>>{
+            for (final profile in profiles.whereType<Map>())
+              profile['name']?.toString().trim().toLowerCase() ?? '':
+                  Map<String, dynamic>.from(profile),
+          };
+
+          for (final facility in facilities) {
+            final key = facility['name']?.toString().trim().toLowerCase() ?? '';
+            final profile = profilesByName[key];
+
+            if (profile != null) {
+              if (profile['photoUrl'] != null) {
+                facility['photoUrl'] = profile['photoUrl'];
+              }
+
+              if (profile['photos'] != null) {
+                facility['photos'] = profile['photos'];
+              }
+            }
           }
         }
+      } catch (_) {
+        // Keep facility data even if photo loading fails.
       }
-    } catch (e) {
-      debugPrint('Could not load facility photos: $e');
-    }
 
-    return facilities.map(Facility.fromJson).toList();
+      return facilities.map((item) => Facility.fromJson(item)).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Loads full facility profile from `/facilities` matched by [facilityName].
@@ -1140,5 +1157,241 @@ class ApiService {
       default:
         return SlotStatus.available;
     }
+  }
+
+  // ================= CONTACT REQUESTS (Tertiary) ================= //
+
+  static Future<List<Map<String, dynamic>>> fetchContactRequests({
+    String? userId,
+    String? facilityId,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (userId != null && userId.isNotEmpty) queryParams['userId'] = userId;
+      if (facilityId != null && facilityId.isNotEmpty) {
+        queryParams['facilityId'] = facilityId;
+      }
+
+      final response = await _get(
+        '/contact-requests',
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching contact requests: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> createContactRequest(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _post(
+      '/contact-requests',
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to create contact request: ${response.body}');
+  }
+
+  static Future<Map<String, dynamic>> updateContactRequest(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _put(
+      '/contact-requests/$id',
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to update contact request: ${response.body}');
+  }
+
+  static Future<bool> deleteContactRequest(String id) async {
+    final response = await _delete('/contact-requests/$id');
+    return response.statusCode == 200;
+  }
+
+  // ================= NOTIFICATIONS ================= //
+
+  static Future<List<Map<String, dynamic>>> fetchNotifications({
+    String? role,
+    String? userId,
+    String? category,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (role != null && role.isNotEmpty) queryParams['role'] = role;
+      if (userId != null && userId.isNotEmpty) queryParams['userId'] = userId;
+      if (category != null && category.isNotEmpty) {
+        queryParams['category'] = category;
+      }
+
+      final response = await _get(
+        '/notifications',
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching notifications: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> createNotification(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _post(
+      '/notifications',
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to create notification: ${response.body}');
+  }
+
+  static Future<bool> markNotificationAsRead(String id) async {
+    final response = await _patch('/notifications/$id/read');
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> deleteNotification(String id) async {
+    final response = await _delete('/notifications/$id');
+    return response.statusCode == 200;
+  }
+
+  // ================= EVENTS ================= //
+
+  static Future<List<Map<String, dynamic>>> fetchEvents({
+    String? sport,
+    String? status,
+    String? search,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (sport != null && sport.isNotEmpty && sport != 'All') {
+        queryParams['sport'] = sport;
+      }
+      if (status != null && status.isNotEmpty && status != 'All') {
+        queryParams['status'] = status;
+      }
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+
+      final response = await _get(
+        '/events',
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching events: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> createEvent(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _post(
+      '/events',
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to create event: ${response.body}');
+  }
+
+  static Future<Map<String, dynamic>> updateEvent(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _put(
+      '/events/$id',
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to update event: ${response.body}');
+  }
+
+  static Future<Map<String, dynamic>> cancelEvent(String id) async {
+    final response = await _patch('/events/$id/cancel');
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to cancel event: ${response.body}');
+  }
+
+  // ================= SAVED EVENTS ================= //
+
+  static Future<List<Map<String, dynamic>>> fetchSavedEvents({
+    String? userId,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (userId != null && userId.isNotEmpty) queryParams['userId'] = userId;
+
+      final response = await _get(
+        '/saved-events',
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching saved events: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> saveEvent(
+    String eventId, {
+    String? userId,
+  }) async {
+    final response = await _post(
+      '/saved-events',
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'eventId': eventId, 'userId': userId ?? 'guest'}),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return json.decode(response.body);
+    }
+    throw Exception('Failed to save event: ${response.body}');
+  }
+
+  static Future<bool> unsaveEvent(String eventId, {String? userId}) async {
+    final queryParams = <String, String>{
+      if (userId != null && userId.isNotEmpty) 'userId': userId,
+    };
+    final response = await _delete('/saved-events/$eventId');
+    return response.statusCode == 200;
   }
 }

@@ -96,6 +96,24 @@ const mockSlots = [
   }
 ];
 
+const generateRealWorldDays = (count = 7) => {
+  const days = [];
+  const now = new Date();
+  const weekdayShorts = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  for (let i = 0; i < count; i++) {
+    if (i === 0) {
+      days.push('Today');
+    } else if (i === 1) {
+      days.push('Tomorrow');
+    } else {
+      const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+      const dayOfWeek = weekdayShorts[(d.getDay() + 6) % 7];
+      days.push(`${dayOfWeek} ${d.getDate()}`);
+    }
+  }
+  return days;
+};
+
 // Helper to map _id to id for responses
 const formatSlot = (slot) => {
   const obj = slot.toObject ? slot.toObject() : { ...slot };
@@ -107,7 +125,52 @@ exports.seedSlots = async () => {
   try {
     const count = await Slot.countDocuments();
     if (count === 0) {
-      await Slot.insertMany(mockSlots);
+      const days = generateRealWorldDays(7);
+      const allSeedSlots = [...mockSlots];
+
+      for (let i = 2; i < days.length; i++) {
+        const dayLabel = days[i];
+        allSeedSlots.push(
+          {
+            courtName: 'Badminton Court 1',
+            facilityType: 'Badminton',
+            time: '5:00 PM',
+            durationRange: '5:00 PM – 6:00 PM',
+            status: 'available',
+            price: 2500,
+            date: dayLabel,
+          },
+          {
+            courtName: 'Badminton Court 1',
+            facilityType: 'Badminton',
+            time: '6:00 PM',
+            durationRange: '6:00 PM – 7:00 PM',
+            status: 'available',
+            price: 2500,
+            date: dayLabel,
+          },
+          {
+            courtName: 'Basketball Court',
+            facilityType: 'Basketball',
+            time: '6:30 PM',
+            durationRange: '6:30 PM – 7:30 PM',
+            status: 'available',
+            price: 2800,
+            date: dayLabel,
+          },
+          {
+            courtName: 'Tennis Court 1',
+            facilityType: 'Tennis',
+            time: '5:30 PM',
+            durationRange: '5:30 PM – 6:30 PM',
+            status: 'available',
+            price: 3000,
+            date: dayLabel,
+          }
+        );
+      }
+
+      await Slot.insertMany(allSeedSlots);
       console.log('Database seeded with mock facility slots');
     } else {
       // If slots exist but without courtName, update them with default
@@ -437,6 +500,19 @@ exports.bookSlot = async (req, res) => {
       slipUrl,
       bookingId: `SS-${Math.floor(10000 + Math.random() * 90000)}`,
       managerId: slot.managerId,
+    });
+
+    const { dispatchNotification } = require('./notificationsController');
+    await dispatchNotification({
+      targetRoles: ['player', 'facilityManager'],
+      userId: req.firebaseUser.uid,
+      category: 'event',
+      title: bookingStatus === 'pending_verification'
+        ? 'Booking Pending Verification'
+        : 'Slot Booking Confirmed',
+      message: `Slot booking for ${slot.courtName || 'Court'} (${slot.startTime} - ${slot.endTime}) has been received.`,
+      accentColor: 'green',
+      metadata: { slotId: slot._id, bookingId: newBooking.bookingId },
     });
 
     res.status(200).json({
