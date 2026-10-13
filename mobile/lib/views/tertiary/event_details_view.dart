@@ -107,13 +107,57 @@ class EventDetailsView extends StatelessWidget {
           Positioned(
             top: topInset + 12,
             right: 16,
-            child: _circleIconButton(
-              icon: Icons.notifications_none_rounded,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const NotificationsView(),
-                ),
-              ),
+            child: ListenableBuilder(
+              listenable: appServices.notificationService,
+              builder: (context, _) {
+                final count = appServices.notificationService
+                    .unreadCountForRole('communityMember');
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _circleIconButton(
+                      key: const Key('event_details_notification_bell'),
+                      icon: Icons.notifications_none_rounded,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsView(),
+                        ),
+                      ),
+                    ),
+                    if (count > 0)
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: Container(
+                          key: const Key('event_details_notification_badge'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE14C4C),
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Center(
+                            child: Text(
+                              count > 99 ? '99+' : count.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -122,10 +166,12 @@ class EventDetailsView extends StatelessWidget {
   }
 
   Widget _circleIconButton({
+    Key? key,
     required IconData icon,
     required VoidCallback onTap,
   }) {
     return InkWell(
+      key: key,
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(

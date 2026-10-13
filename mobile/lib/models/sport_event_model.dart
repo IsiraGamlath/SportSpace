@@ -56,11 +56,23 @@ class NearbyEvent {
 
   factory NearbyEvent.fromJson(Map<String, dynamic> json) {
     DateTime parsedDate;
-    if (json['eventDate'] != null) {
-      parsedDate =
-          DateTime.tryParse(json['eventDate'].toString()) ?? DateTime(2026, 9, 20);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateStr = (json['date'] as String? ?? '').toLowerCase().trim();
+
+    if (dateStr == 'today') {
+      parsedDate = today;
+    } else if (dateStr == 'tomorrow') {
+      parsedDate = today.add(const Duration(days: 1));
+    } else if (json['eventDate'] != null) {
+      final parsed = DateTime.tryParse(json['eventDate'].toString());
+      if (parsed != null) {
+        parsedDate = parsed.toLocal();
+      } else {
+        parsedDate = today;
+      }
     } else {
-      parsedDate = DateTime(2026, 9, 20);
+      parsedDate = today;
     }
 
     final timelineList = <EventTimelineItem>[];

@@ -127,6 +127,21 @@ class ContactRequestService extends ChangeNotifier {
 
     // Push delete to backend
     ApiService.deleteContactRequest(id).catchError((_) => false);
+
+    // Requirement 3: when community member deletes a request, dispatch notification to communityMember
+    final readableType = existing.type == ContactRequestType.accessibilityRequest
+        ? 'Accessibility Request'
+        : 'Contact Enquiry';
+
+    appServices.notificationService.dispatchNotification(
+      targetRoles: ['communityMember'],
+      userId: _currentUserId,
+      category: NotificationCategory.facility,
+      title: 'Request Deleted',
+      message: 'Your $readableType for ${existing.facilityId} has been deleted.',
+      accentColor: const Color(0xFFE14C4C), // Red
+      icon: Icons.delete_outline_rounded,
+    );
   }
 
   @visibleForTesting

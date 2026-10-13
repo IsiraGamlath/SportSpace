@@ -12,8 +12,30 @@ abstract class EventRepository {
   void resetForTesting();
 }
 
-class MockEventRepository implements EventRepository {
-  static final List<NearbyEvent> _defaultEvents = [
+class MockEventRepository extends ChangeNotifier implements EventRepository {
+  static List<NearbyEvent> get _defaultEvents => [
+    NearbyEvent(
+      id: 'evt_badminton_today',
+      title: 'Open Badminton Friendly Match',
+      sport: 'Badminton',
+      date: 'Today',
+      time: '5:00 PM – 7:00 PM',
+      eventDate: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+      location: 'Colombo Sports Hub, Colombo',
+      facility: 'Colombo Sports Hub',
+      eventType: 'Friendly',
+      status: 'Open',
+      imageUrl: 'assets/images/badminton.jpg',
+      description:
+          'Community friendly matches open to all badminton enthusiasts today at Colombo Sports Hub.',
+      organizerName: 'Colombo Community Sports Association',
+      organizerInitials: 'CC',
+      timeline: const [
+        EventTimelineItem(time: '05:00 PM', label: 'Warm-up & Rally'),
+        EventTimelineItem(time: '05:30 PM', label: 'Friendly Matches'),
+        EventTimelineItem(time: '06:45 PM', label: 'Cool Down'),
+      ],
+    ),
     NearbyEvent(
       id: 'evt_badminton_open',
       title: 'Colombo Community Badminton Open',
@@ -117,6 +139,7 @@ class MockEventRepository implements EventRepository {
       'sport': event.sport,
       'date': event.date,
       'time': event.time,
+      'eventDate': event.eventDate.toIso8601String(),
       'location': event.location,
       'facility': event.facility,
       'eventType': event.eventType,
@@ -136,6 +159,7 @@ class MockEventRepository implements EventRepository {
       accentColor: const Color(0xFFDF8420), // Orange
     );
 
+    notifyListeners();
     return event;
   }
 
@@ -151,6 +175,7 @@ class MockEventRepository implements EventRepository {
       'sport': event.sport,
       'date': event.date,
       'time': event.time,
+      'eventDate': event.eventDate.toIso8601String(),
       'location': event.location,
       'facility': event.facility,
       'status': event.status,
@@ -166,6 +191,7 @@ class MockEventRepository implements EventRepository {
       accentColor: const Color(0xFFDF8420), // Orange
     );
 
+    notifyListeners();
     return event;
   }
 
@@ -205,11 +231,14 @@ class MockEventRepository implements EventRepository {
       message: '$title has been postponed or cancelled.',
       accentColor: const Color(0xFFE14C4C), // Red
     );
+
+    notifyListeners();
   }
 
   @visibleForTesting
   void resetForTesting() {
     _events.clear();
     _events.addAll(_defaultEvents);
+    notifyListeners();
   }
 }
