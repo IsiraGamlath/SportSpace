@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../login_screen.dart';
 import '../../models/sport_event_model.dart';
+import '../../services/account_settings_service.dart';
 import '../../services/app_services.dart';
 import '../../utils/tertiary_navigation.dart';
 import '../../widgets/tertiary/filter_chip.dart';
@@ -19,6 +20,7 @@ import '../../widgets/app_bottom_nav.dart';
 import '../home_screen.dart';
 import '../explore_screen.dart';
 import '../my_bookings_screen.dart';
+import '../player_notifications_view.dart';
 
 class ProfileView extends StatefulWidget {
   final String role;
@@ -56,13 +58,23 @@ class _ProfileViewState extends State<ProfileView> {
   bool _notificationsEnabled = true; // initially ON, per spec
   bool _darkModeEnabled = false; // initially OFF, per spec
 
-  String _userName = '';
-  String _userEmail = '';
-  String _userInitials = '';
+  late String _userName;
+  late String _userEmail;
+  late String _userInitials;
+  String? _detectedRole;
+
+  bool get _isPlayer =>
+      widget.role.toLowerCase() == 'player' ||
+      (_detectedRole?.toLowerCase() == 'player' &&
+          widget.role.toLowerCase() != 'communitymember' &&
+          widget.role.toLowerCase() != 'tertiary');
 
   @override
   void initState() {
     super.initState();
+    _userName = widget.role == 'Player' ? 'User' : 'Saantha Sudarshana';
+    _userEmail = widget.role == 'Player' ? '' : 'SaSudarshana@email.com';
+    _userInitials = widget.role == 'Player' ? 'U' : 'SD';
     _loadProfileData();
     _loadEvents();
     appServices.bookmarkService.addListener(_onBookmarksChanged);
@@ -73,15 +85,28 @@ class _ProfileViewState extends State<ProfileView> {
       final profile = await ApiService.fetchUserProfile();
       if (!mounted) return;
       
-      String name = FirebaseAuth.instance.currentUser?.displayName ?? 'User';
-      String email = FirebaseAuth.instance.currentUser?.email ?? '';
+      String name = widget.role == 'Player' ? 'User' : 'Saantha Sudarshana';
+      String email = widget.role == 'Player' ? '' : 'SaSudarshana@email.com';
+      try {
+        final fb = FirebaseAuth.instance.currentUser;
+        if (fb?.displayName != null && fb!.displayName!.isNotEmpty) {
+          name = fb.displayName!;
+        }
+        if (fb?.email != null && fb!.email!.isNotEmpty) {
+          email = fb.email!;
+        }
+      } catch (_) {}
       
+      String? roleFromApi;
       if (profile != null) {
         name = profile['fullName'] ?? profile['name'] ?? name;
         email = profile['email'] ?? email;
+        if (profile['role'] != null) {
+          roleFromApi = profile['role'].toString();
+        }
       }
       
-      String initials = 'U';
+      String initials = widget.role == 'Player' ? 'U' : 'SD';
       final names = name.trim().split(RegExp(r'\s+'));
       if (names.length > 1) {
         initials = '${names.first[0]}${names.last[0]}'.toUpperCase();
@@ -89,18 +114,39 @@ class _ProfileViewState extends State<ProfileView> {
         initials = name.substring(0, 1).toUpperCase();
       }
       
+      if (widget.role != 'Player') {
+        AccountSettingsService.setCommunityUserName(name);
+      }
+
       setState(() {
         _userName = name;
         _userEmail = email;
         _userInitials = initials;
+        if (roleFromApi != null) {
+          _detectedRole = roleFromApi;
+        }
       });
     } catch (e) {
       if (!mounted) return;
+      String fallbackName = widget.role == 'Player' ? 'User' : 'Saantha Sudarshana';
+      String fallbackEmail = widget.role == 'Player' ? '' : 'SaSudarshana@email.com';
+      try {
+        final fb = FirebaseAuth.instance.currentUser;
+        if (fb?.displayName != null && fb!.displayName!.isNotEmpty) {
+          fallbackName = fb.displayName!;
+        }
+        if (fb?.email != null && fb!.email!.isNotEmpty) {
+          fallbackEmail = fb.email!;
+        }
+      } catch (_) {}
+      if (widget.role != 'Player') {
+        AccountSettingsService.setCommunityUserName(fallbackName);
+      }
       setState(() {
-        _userName = FirebaseAuth.instance.currentUser?.displayName ?? 'User';
-        _userEmail = FirebaseAuth.instance.currentUser?.email ?? '';
+        _userName = fallbackName;
+        _userEmail = fallbackEmail;
         final n = _userName.trim().split(RegExp(r'\s+'));
-        _userInitials = n.length > 1 ? '${n.first[0]}${n.last[0]}'.toUpperCase() : (_userName.isNotEmpty ? _userName.substring(0, 1).toUpperCase() : 'U');
+        _userInitials = n.length > 1 ? '${n.first[0]}${n.last[0]}'.toUpperCase() : (_userName.isNotEmpty ? _userName.substring(0, 1).toUpperCase() : (widget.role == 'Player' ? 'U' : 'SD'));
       });
     }
   }
@@ -229,7 +275,7 @@ class _ProfileViewState extends State<ProfileView> {
         ),
       ),
       // --- Reused global nav bar, not re-implemented here -----------------
-      bottomNavigationBar: widget.role == 'Player'
+      bottomNavigationBar: _isPlayer
           ? AppBottomNav(
               currentIndex: 4,
               onItemSelected: (index) {
@@ -254,6 +300,14 @@ class _ProfileViewState extends State<ProfileView> {
                     context,
                     PageRouteBuilder(
                       pageBuilder: (_, __, ___) => const MyBookingsScreen(),
+                      transitionDuration: Duration.zero,
+                    ),
+                  );
+                } else if (index == 3) {
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => const PlayerNotificationsView(),
                       transitionDuration: Duration.zero,
                     ),
                   );
@@ -310,8 +364,9 @@ class _ProfileViewState extends State<ProfileView> {
               ListenableBuilder(
                 listenable: appServices.notificationService,
                 builder: (context, _) {
+                  final targetRole = _isPlayer ? 'player' : 'communityMember';
                   final count = appServices.notificationService
-                      .unreadCountForRole('communityMember');
+                      .unreadCountForRole(targetRole);
                   return Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -319,7 +374,10 @@ class _ProfileViewState extends State<ProfileView> {
                         key: const Key('profile_notification_bell'),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const NotificationsView()),
+                            builder: (_) => _isPlayer
+                                ? const PlayerNotificationsView()
+                                : const NotificationsView(),
+                          ),
                         ),
                         borderRadius: BorderRadius.circular(19),
                         child: Container(

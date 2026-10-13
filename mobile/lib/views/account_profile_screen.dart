@@ -17,6 +17,8 @@ import '../widgets/tertiary/nav_bar.dart';
 import 'tertiary/home_view.dart';
 import '../services/app_services.dart';
 import 'player_notifications_view.dart';
+import 'manager/manager_notifications_screen.dart';
+import 'tertiary/notifications_view.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key, this.communityMode = false});
@@ -26,7 +28,7 @@ class UserProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: const SafeArea(child: AccountProfileContent()),
+      body: SafeArea(child: AccountProfileContent(communityMode: communityMode)),
       bottomNavigationBar: communityMode
           ? TertiaryNavBar(
               currentIndex: 4,
@@ -69,10 +71,12 @@ class AccountProfileContent extends StatefulWidget {
   const AccountProfileContent({
     super.key,
     this.managerPortal = false,
+    this.communityMode = false,
     this.onOpenManagerBookings,
   });
 
   final bool managerPortal;
+  final bool communityMode;
   final VoidCallback? onOpenManagerBookings;
 
   @override
@@ -169,8 +173,10 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
 
   String get _email => _profile['email']?.toString() ?? '';
   String get _role => _profile['role']?.toString() ?? 'Player';
-  bool get _isManager => _role == 'Facility Manager';
-  bool get _isPlayer => _role == 'Player';
+  bool get _isManager => widget.managerPortal || _role == 'Facility Manager';
+  bool get _isCommunityMember =>
+      widget.communityMode || _role.toLowerCase() == 'community member';
+  bool get _isPlayer => !_isManager && !_isCommunityMember;
   bool get _verified {
     if (_isManager) return _profile['isApproved'] == true;
     try {
@@ -421,20 +427,39 @@ class _AccountProfileContentState extends State<AccountProfileContent> {
               ListenableBuilder(
                 listenable: appServices.notificationService,
                 builder: (context, _) {
-                  final count =
-                      appServices.notificationService.unreadCountForRole('player');
+                  final role = _isManager
+                      ? 'facilityManager'
+                      : (_isCommunityMember ? 'communityMember' : 'player');
+                  final count = appServices.notificationService
+                      .unreadCountForRole(role);
                   return Stack(
                     clipBehavior: Clip.none,
                     children: [
                       IconButton.filledTonal(
                         key: const Key('profile_notification_bell'),
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute<void>(
-                              builder: (_) => const PlayerNotificationsView(),
-                            ),
-                          );
+                          if (_isManager) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ManagerNotificationsScreen(),
+                              ),
+                            );
+                          } else if (_isCommunityMember) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const NotificationsView(),
+                              ),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const PlayerNotificationsView(),
+                              ),
+                            );
+                          }
                         },
                         style: IconButton.styleFrom(
                           backgroundColor: Colors.white.withValues(alpha: .14),

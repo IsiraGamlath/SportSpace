@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/account_settings_service.dart';
+import '../../services/api_service.dart';
 
 class PersonalInformationView extends StatefulWidget {
   const PersonalInformationView({super.key});
@@ -26,7 +29,10 @@ class _PersonalInformationViewState extends State<PersonalInformationView> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: 'Saantha Sudarshana');
+    final initialName = AccountSettingsService.communityUserName.value;
+    _nameController = TextEditingController(
+      text: initialName.isNotEmpty ? initialName : 'Saantha Sudarshana',
+    );
     _emailController = TextEditingController(text: 'SaSudarshana@email.com');
     _phoneController = TextEditingController(text: '+94 77 123 4567');
     _addressController = TextEditingController(text: 'Colombo 07, Sri Lanka');
@@ -43,18 +49,30 @@ class _PersonalInformationViewState extends State<PersonalInformationView> {
     super.dispose();
   }
 
-  void _saveChanges() {
-    if (_nameController.text.trim().isEmpty) {
+  void _saveChanges() async {
+    final updatedName = _nameController.text.trim();
+    if (updatedName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Name cannot be empty')),
       );
       return;
     }
 
+    await AccountSettingsService.setCommunityUserName(updatedName);
+    try {
+      await ApiService.updateUserProfile(
+        fullName: updatedName,
+        phone: _phoneController.text.trim(),
+        address: _addressController.text.trim(),
+      );
+    } catch (_) {}
+
     setState(() => _isEditing = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Personal information updated')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Personal information updated')),
+      );
+    }
   }
 
   @override
