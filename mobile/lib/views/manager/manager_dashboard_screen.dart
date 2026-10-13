@@ -8,6 +8,8 @@ import 'manager_booking_details_screen.dart';
 import 'manager_facilities_screen.dart';
 import 'manager_notifications_screen.dart';
 import '../../services/app_services.dart';
+import 'manager_create_event_screen.dart';
+import 'manager_events_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
   const ManagerDashboardScreen({
@@ -35,6 +37,9 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   int _availableSlotsCount = 0;
   List<Map<String, dynamic>> _recentSlots = [];
   String _facilityName = 'My Sports Centre';
+  String _facilityId = 'fac_colombo_sports_hub';
+  String _facilityLocation = 'Colombo Sports Hub, Colombo';
+  List<Map<String, dynamic>> _assignedFacilities = [];
   List<dynamic> _pendingPaymentsList = [];
 
   @override
@@ -60,10 +65,16 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       final maintenanceSummary = results[2] as Map<String, dynamic>;
       final slots = results[3] as List<Map<String, dynamic>>;
       final facilities = results[4] as List<dynamic>;
+      final facilityMaps = facilities.whereType<Map<String, dynamic>>().toList();
 
       String facName = 'My Sports Centre';
+      String facId = 'fac_colombo_sports_hub';
+      String facLoc = 'Colombo Sports Hub, Colombo';
       if (facilities.isNotEmpty) {
-        facName = facilities.first['name'] ?? 'My Sports Centre';
+        final f = facilities.first;
+        facName = f['name'] ?? 'My Sports Centre';
+        facId = f['id']?.toString() ?? f['_id']?.toString() ?? 'fac_colombo_sports_hub';
+        facLoc = f['location']?.toString() ?? '$facName, Colombo';
       }
 
       final pendingPayments = allVerifications
@@ -83,12 +94,15 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
           _bookingsCount = totalBookings;
           _pendingPaymentsCount = pendingPayments.length;
           _pendingPaymentsList = pendingPayments;
+          _assignedFacilities = facilityMaps;
           final requiredCount = (maintenanceSummary['required'] as num?)?.toInt() ?? 0;
           final scheduledCount = (maintenanceSummary['scheduled'] as num?)?.toInt() ?? 0;
           _maintenanceIssuesCount = requiredCount + scheduledCount;
           _availableSlotsCount = slots.where((s) => s['status'] == 'available').length;
           _recentSlots = slots.take(4).toList();
           _facilityName = facName;
+          _facilityId = facId;
+          _facilityLocation = facLoc;
           _isLoading = false;
         });
       }
@@ -97,6 +111,33 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _openCreateEvent(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<bool>(
+        builder: (_) => ManagerCreateEventScreen(
+          facilityName: _facilityName,
+          facilityId: _facilityId,
+          facilityLocation: _facilityLocation,
+          assignedFacilities: _assignedFacilities,
+        ),
+      ),
+    ).then((created) {
+      if (created == true) {
+        _loadDashboardData();
+      }
+    });
+  }
+
+  void _openManageEvents(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ManagerEventsScreen(
+          initialAssignedFacilities: _assignedFacilities,
+        ),
+      ),
+    ).then((_) => _loadDashboardData());
   }
 
   void _openPendingPayments(BuildContext context) {
@@ -305,25 +346,45 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth > 430 ? 430.0 : constraints.maxWidth;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'manager_dashboard_manage_events_fab',
+        onPressed: () => _openManageEvents(context),
+        backgroundColor: ManagerColors.teal,
+        elevation: 3,
+        icon: const Icon(Icons.event_note_rounded, color: Colors.white, size: 20),
+        label: const Text(
+          'Manage Events',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 13.5,
+          ),
+        ),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth > 430 ? 430.0 : constraints.maxWidth;
 
-        return Align(
-          alignment: Alignment.topCenter,
-          child: SizedBox(
-            width: width,
-            child: RefreshIndicator(
-              onRefresh: _loadDashboardData,
-              color: ManagerColors.navy,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _TopBar(onNotificationsTap: () => _openNotifications(context)),
-                    const SizedBox(height: 18),
+          return Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: width,
+              child: RefreshIndicator(
+                onRefresh: _loadDashboardData,
+                color: ManagerColors.navy,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 80),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _TopBar(
+                        onNotificationsTap: () => _openNotifications(context),
+                        onCreateEventTap: () => _openCreateEvent(context),
+                      ),
+                      const SizedBox(height: 18),
 
                     if (!widget.isApproved)
                       Container(
@@ -453,17 +514,20 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                                   : ManagerColors.green,
                             ),
                             const SizedBox(width: 12),
-                            Text(
-                              _maintenanceIssuesCount > 0
-                                  ? '$_maintenanceIssuesCount facilities require attention.'
-                                  : 'All facilities in good condition.',
-                              style: const TextStyle(
-                                color: ManagerColors.navy,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
+                            Expanded(
+                              child: Text(
+                                _maintenanceIssuesCount > 0
+                                    ? '$_maintenanceIssuesCount facilities require attention.'
+                                    : 'All facilities in good condition.',
+                                style: const TextStyle(
+                                  color: ManagerColors.navy,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             Icon(
                               Icons.chevron_right_rounded,
                               size: 22,
@@ -506,18 +570,67 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                               color: ManagerColors.teal,
                             ),
                             SizedBox(width: 12),
-                            Text(
-                              'Manage Facilities & Courts (Add / Edit)',
-                              style: TextStyle(
-                                color: ManagerColors.navy,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
+                            Expanded(
+                              child: Text(
+                                'Manage Facilities & Courts',
+                                style: TextStyle(
+                                  color: ManagerColors.navy,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            Spacer(),
+                            SizedBox(width: 8),
                             Icon(
                               Icons.chevron_right_rounded,
                               size: 22,
+                              color: ManagerColors.teal,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    InkWell(
+                      onTap: () => _openManageEvents(context),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        height: 50,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFBBF7D0),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.event_available_rounded,
+                              size: 20,
+                              color: ManagerColors.teal,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Manage & Host Events',
+                                style: TextStyle(
+                                  color: ManagerColors.navy,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 20,
                               color: ManagerColors.teal,
                             ),
                           ],
@@ -633,14 +746,19 @@ class ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
           ),
         );
       },
-    );
-  }
+    ),
+  );
+}
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onNotificationsTap});
+  const _TopBar({
+    required this.onNotificationsTap,
+    required this.onCreateEventTap,
+  });
 
   final VoidCallback onNotificationsTap;
+  final VoidCallback onCreateEventTap;
 
   @override
   Widget build(BuildContext context) {
@@ -668,6 +786,20 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
+        OutlinedButton.icon(
+          onPressed: onCreateEventTap,
+          icon: const Icon(Icons.add, size: 15),
+          label: const Text('Event', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: ManagerColors.teal,
+            side: const BorderSide(color: ManagerColors.teal, width: 1.2),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        const SizedBox(width: 8),
         ListenableBuilder(
           listenable: appServices.notificationService,
           builder: (context, _) {

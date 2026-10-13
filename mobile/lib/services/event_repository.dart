@@ -5,10 +5,14 @@ import 'api_service.dart';
 import 'app_services.dart';
 
 abstract class EventRepository {
-  Future<List<NearbyEvent>> getEvents();
+  Future<List<NearbyEvent>> getEvents({bool forceRefresh = false});
+  List<NearbyEvent> get currentEvents;
+  NearbyEvent? getEventById(String id);
   Future<NearbyEvent> createEvent(NearbyEvent event);
   Future<NearbyEvent> updateEvent(NearbyEvent event);
+  Future<NearbyEvent> toggleParticipation(String eventId, String userId);
   Future<void> cancelEvent(String id);
+  Future<bool> deleteEvent(String id);
   void resetForTesting();
 }
 
@@ -62,137 +66,184 @@ class MockEventRepository extends ChangeNotifier implements EventRepository {
         EventTimelineItem(time: '04:00 PM', label: 'Finals'),
       ],
     ),
-    NearbyEvent(
-      id: 'evt_football_training',
-      title: 'Youth Football Training Day',
-      sport: 'Football',
-      date: '22 September 2026',
-      time: '4:00 PM – 7:00 PM',
-      eventDate: DateTime(2026, 9, 22),
-      location: 'City Sports Ground, Colombo',
-      facility: 'City Sports Ground',
-      eventType: 'Training',
-      status: 'Confirmed',
-      imageUrl: 'assets/images/football.jpg',
-      description:
-          'A structured training session for youth players focused on '
-          'fundamentals, drills, and a friendly scrimmage to close the day.',
-      organizerName: 'City Youth Football Club',
-      organizerInitials: 'CY',
-      timeline: const [
-        EventTimelineItem(time: '04:00 PM', label: 'Warm-up'),
-        EventTimelineItem(time: '04:30 PM', label: 'Skills Drills'),
-        EventTimelineItem(time: '06:00 PM', label: 'Scrimmage Match'),
-        EventTimelineItem(time: '06:45 PM', label: 'Cool Down & Feedback'),
-      ],
-    ),
-    NearbyEvent(
-      id: 'evt_basketball_league',
-      title: 'Weekend Basketball League',
-      sport: 'Basketball',
-      date: '19 September 2026',
-      time: '2:00 PM – 6:00 PM',
-      eventDate: DateTime(2026, 9, 19),
-      location: 'Downtown Arena, Colombo',
-      facility: 'Downtown Arena',
-      eventType: 'League',
-      status: 'Open',
-      imageUrl:
-          'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1200&q=80',
-      description:
-          'Weekly league matches open to registered teams, with standings '
-          'updated after every round.',
-      organizerName: 'Downtown Basketball League',
-      organizerInitials: 'DB',
-      timeline: const [
-        EventTimelineItem(time: '02:00 PM', label: 'Check-in'),
-        EventTimelineItem(time: '02:30 PM', label: 'Round 1 Matches'),
-        EventTimelineItem(time: '04:30 PM', label: 'Round 2 Matches'),
-        EventTimelineItem(time: '05:45 PM', label: 'Standings & Close'),
-      ],
-    ),
   ];
 
   final List<NearbyEvent> _events = List.from(_defaultEvents);
 
+  MockEventRepository() {
+    getEvents();
+  }
+
   @override
-  Future<List<NearbyEvent>> getEvents() async {
+  List<NearbyEvent> get currentEvents => List.unmodifiable(_events);
+
+  @override
+  NearbyEvent? getEventById(String id) {
+    try {
+      return _events.firstWhere((e) => e.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _isFetching = false;
+
+  @override
+  Future<List<NearbyEvent>> getEvents({bool forceRefresh = false}) async {
+    if (_isFetching) return List.unmodifiable(_events);
+    _isFetching = true;
     try {
       final backendList = await ApiService.fetchEvents();
       if (backendList.isNotEmpty) {
         final parsed = backendList.map((e) => NearbyEvent.fromJson(e)).toList();
         _events.clear();
         _events.addAll(parsed);
+        notifyListeners();
       }
     } catch (_) {
       // Offline fallback
+    } finally {
+      _isFetching = false;
     }
     return List.unmodifiable(_events);
   }
 
   @override
   Future<NearbyEvent> createEvent(NearbyEvent event) async {
-    _events.insert(0, event);
+    try {
+      final res = await ApiService.createEvent({
+        'title': event.title,
+        'sport': event.sport,
+        'date': event.date,
+        'time': event.time,
+        'eventDate': event.eventDate.toIso8601String(),
+        'location': event.location,
+        'facility': event.facility,
+        'facilityId': event.facilityId,
+        'eventType': event.eventType,
+        'status': event.status,
+        'description': event.description,
+        'organizerName': event.organizerName,
+        'organizerInitials': event.organizerInitials,
+        'imageUrl': event.imageUrl,
+        'capacity': event.capacity,
+        'participants': event.participants,
+        'participantCount': event.participantCount,
+      });
 
-    ApiService.createEvent({
-      'title': event.title,
-      'sport': event.sport,
-      'date': event.date,
-      'time': event.time,
-      'eventDate': event.eventDate.toIso8601String(),
-      'location': event.location,
-      'facility': event.facility,
-      'eventType': event.eventType,
-      'status': event.status,
-      'description': event.description,
-      'organizerName': event.organizerName,
-      'organizerInitials': event.organizerInitials,
-      'imageUrl': event.imageUrl,
-    }).catchError((_) => <String, dynamic>{});
+      final created = NearbyEvent.fromJson(res);
+      _events.removeWhere((e) => e.id == event.id || e.id == created.id);
+      _events.insert(0, created);
 
-    // Requirement 5: when player creates an event, notify player, facility manager, community member
-    appServices.notificationService.dispatchNotification(
-      targetRoles: ['player', 'facilityManager', 'communityMember'],
-      category: NotificationCategory.schedule,
-      title: 'New Event Scheduled',
-      message: '${event.title} has been scheduled for ${event.date} at ${event.time}.',
-      accentColor: const Color(0xFFDF8420), // Orange
+      appServices.notificationService.dispatchNotification(
+        targetRoles: ['player', 'facilityManager', 'communityMember'],
+        category: NotificationCategory.schedule,
+        title: 'New Event Scheduled',
+        message: '${created.title} has been scheduled for ${created.date} at ${created.time}.',
+        accentColor: const Color(0xFFDF8420), // Orange
+      );
+
+      notifyListeners();
+      return created;
+    } catch (_) {
+      _events.removeWhere((e) => e.id == event.id);
+      _events.insert(0, event);
+
+      appServices.notificationService.dispatchNotification(
+        targetRoles: ['player', 'facilityManager', 'communityMember'],
+        category: NotificationCategory.schedule,
+        title: 'New Event Scheduled',
+        message: '${event.title} has been scheduled for ${event.date} at ${event.time}.',
+        accentColor: const Color(0xFFDF8420),
+      );
+
+      notifyListeners();
+      return event;
+    }
+  }
+
+  @override
+  Future<NearbyEvent> toggleParticipation(String eventId, String userId) async {
+    final idx = _events.indexWhere((e) => e.id == eventId);
+    if (idx == -1) {
+      throw Exception('Event not found');
+    }
+    final event = _events[idx];
+    final isAlready = event.participants.contains(userId);
+    final List<String> newParticipants = List.from(event.participants);
+    if (isAlready) {
+      newParticipants.remove(userId);
+    } else {
+      if (event.isFull) {
+        throw Exception('Event is already full');
+      }
+      newParticipants.add(userId);
+    }
+    final updated = event.copyWith(
+      participants: newParticipants,
+      participantCount: newParticipants.length,
     );
+    _events[idx] = updated;
+
+    ApiService.toggleEventParticipation(eventId, userId: userId).catchError((_) => <String, dynamic>{});
 
     notifyListeners();
-    return event;
+    return updated;
   }
 
   @override
   Future<NearbyEvent> updateEvent(NearbyEvent event) async {
-    final idx = _events.indexWhere((e) => e.id == event.id);
-    if (idx != -1) {
-      _events[idx] = event;
+    try {
+      final res = await ApiService.updateEvent(event.id, {
+        'title': event.title,
+        'sport': event.sport,
+        'date': event.date,
+        'time': event.time,
+        'eventDate': event.eventDate.toIso8601String(),
+        'location': event.location,
+        'facility': event.facility,
+        'facilityId': event.facilityId,
+        'eventType': event.eventType,
+        'status': event.status,
+        'description': event.description,
+        'capacity': event.capacity,
+      });
+
+      final updated = NearbyEvent.fromJson(res);
+      final idx = _events.indexWhere((e) => e.id == event.id);
+      if (idx != -1) {
+        _events[idx] = updated;
+      } else {
+        _events.insert(0, updated);
+      }
+
+      appServices.notificationService.dispatchNotification(
+        targetRoles: ['player', 'facilityManager', 'communityMember'],
+        category: NotificationCategory.schedule,
+        title: 'Schedule Updated',
+        message: '${updated.title} — schedule/start time was updated to ${updated.time}.',
+        accentColor: const Color(0xFFDF8420),
+      );
+
+      notifyListeners();
+      return updated;
+    } catch (_) {
+      final idx = _events.indexWhere((e) => e.id == event.id);
+      if (idx != -1) {
+        _events[idx] = event;
+      }
+
+      appServices.notificationService.dispatchNotification(
+        targetRoles: ['player', 'facilityManager', 'communityMember'],
+        category: NotificationCategory.schedule,
+        title: 'Schedule Updated',
+        message: '${event.title} — schedule/start time was updated to ${event.time}.',
+        accentColor: const Color(0xFFDF8420),
+      );
+
+      notifyListeners();
+      return event;
     }
-
-    ApiService.updateEvent(event.id, {
-      'title': event.title,
-      'sport': event.sport,
-      'date': event.date,
-      'time': event.time,
-      'eventDate': event.eventDate.toIso8601String(),
-      'location': event.location,
-      'facility': event.facility,
-      'status': event.status,
-      'description': event.description,
-    }).catchError((_) => <String, dynamic>{});
-
-    // Requirement 5: when player edits an event, notify player, facility manager, community member
-    appServices.notificationService.dispatchNotification(
-      targetRoles: ['player', 'facilityManager', 'communityMember'],
-      category: NotificationCategory.schedule,
-      title: 'Schedule Updated',
-      message: '${event.title} — schedule/start time was updated to ${event.time}.',
-      accentColor: const Color(0xFFDF8420), // Orange
-    );
-
-    notifyListeners();
-    return event;
   }
 
   @override
@@ -202,28 +253,11 @@ class MockEventRepository extends ChangeNotifier implements EventRepository {
     if (idx != -1) {
       final old = _events[idx];
       title = old.title;
-      _events[idx] = NearbyEvent(
-        id: old.id,
-        title: old.title,
-        sport: old.sport,
-        date: old.date,
-        time: old.time,
-        eventDate: old.eventDate,
-        location: old.location,
-        facility: old.facility,
-        eventType: old.eventType,
-        status: 'Cancelled',
-        imageUrl: old.imageUrl,
-        description: old.description,
-        organizerName: old.organizerName,
-        organizerInitials: old.organizerInitials,
-        timeline: old.timeline,
-      );
+      _events[idx] = old.copyWith(status: 'Cancelled');
     }
 
     ApiService.cancelEvent(id).catchError((_) => <String, dynamic>{});
 
-    // Requirement 5: when player cancels an event, notify player, facility manager, community member
     appServices.notificationService.dispatchNotification(
       targetRoles: ['player', 'facilityManager', 'communityMember'],
       category: NotificationCategory.event,
@@ -235,6 +269,18 @@ class MockEventRepository extends ChangeNotifier implements EventRepository {
     notifyListeners();
   }
 
+  @override
+  Future<bool> deleteEvent(String id) async {
+    _events.removeWhere((e) => e.id == id);
+    notifyListeners();
+    try {
+      return await ApiService.deleteEvent(id);
+    } catch (_) {
+      return true;
+    }
+  }
+
+  @override
   @visibleForTesting
   void resetForTesting() {
     _events.clear();

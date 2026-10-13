@@ -5,6 +5,7 @@ const controller = require('../controllers/eventsController');
 router.get('/', controller.getEvents);
 router.get('/:id', controller.getEventById);
 router.post('/', controller.createEvent);
+router.post('/:id/participate', controller.toggleParticipation);
 router.put('/:id', controller.updateEvent);
 router.patch('/:id/cancel', controller.cancelEvent);
 router.delete('/:id', controller.deleteEvent);

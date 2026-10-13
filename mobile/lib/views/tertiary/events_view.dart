@@ -38,7 +38,7 @@ class _EventsViewState extends State<EventsView> {
   String? _selectedLocation;
   String? _selectedEventType;
   bool _onlySaved = false;
-  bool _dateFilterEnabled = true;
+  bool _dateFilterEnabled = false;
 
   bool _isLoading = true;
   List<NearbyEvent> _allEvents = [];
@@ -78,7 +78,11 @@ class _EventsViewState extends State<EventsView> {
   }
 
   void _onEventsChanged() {
-    if (mounted) _loadEvents();
+    if (mounted) {
+      setState(() {
+        _allEvents = appServices.eventRepository.currentEvents;
+      });
+    }
   }
 
   Future<void> _loadEvents() async {
@@ -266,7 +270,10 @@ class _EventsViewState extends State<EventsView> {
                         dates: _availableDates,
                         selectedDate: _selectedDate,
                         onDateSelected: (date) =>
-                            setState(() => _selectedDate = date),
+                            setState(() {
+                              _selectedDate = date;
+                              _dateFilterEnabled = true;
+                            }),
                       ),
                     ),
                     SliverToBoxAdapter(child: _buildSectionHeader(events.length)),
@@ -558,8 +565,8 @@ class _EventsViewState extends State<EventsView> {
           ),
           const SizedBox(width: 10),
           EventFilterChip(
-            label: 'Date',
-            isActive: !_dateFilterEnabled,
+            label: _dateFilterEnabled ? 'Filter by Date' : 'All Dates',
+            isActive: _dateFilterEnabled,
             onTap: () =>
                 setState(() => _dateFilterEnabled = !_dateFilterEnabled),
           ),

@@ -54,8 +54,20 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
   @override
   void initState() {
     super.initState();
+    if (appServices.eventRepository is ChangeNotifier) {
+      (appServices.eventRepository as ChangeNotifier).addListener(_onEventsChanged);
+    }
     _loadEvents();
     _syncAccountName();
+  }
+
+  void _onEventsChanged() {
+    if (mounted) {
+      setState(() {
+        _allEvents = appServices.eventRepository.currentEvents;
+        _nearbyEvents = _allEvents.take(2).toList();
+      });
+    }
   }
 
   Future<void> _syncAccountName() async {
@@ -79,9 +91,11 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
     } catch (_) {}
   }
 
-
   @override
   void dispose() {
+    if (appServices.eventRepository is ChangeNotifier) {
+      (appServices.eventRepository as ChangeNotifier).removeListener(_onEventsChanged);
+    }
     _searchController.dispose();
     super.dispose();
   }
@@ -253,7 +267,7 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
                       children: [
                         Flexible(
                           child: Text(
-                            'Good morning, $firstName',
+                            '$greeting, $firstName',
                             key: const Key('community_home_welcome_msg'),
                             style: const TextStyle(
                               fontSize: 19,

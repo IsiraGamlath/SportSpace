@@ -2,7 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/facility.dart';
+import '../models/sport_event_model.dart';
 import '../services/api_service.dart';
+import '../services/event_repository.dart';
 import '../services/favorites_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
@@ -13,6 +15,8 @@ import 'player_notifications_view.dart';
 import 'account_profile_screen.dart';
 import '../services/app_services.dart';
 import 'player_main_screen.dart';
+import 'tertiary/event_details_view.dart';
+import 'tertiary/events_view.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool showBottomNav;
@@ -24,32 +28,29 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
+  final EventRepository _eventRepository = appServices.eventRepository;
   String? _selectedSport;
   Set<String> _favoriteNames = {};
   late Future<List<Facility>> _facilitiesFuture;
-
-  static const _events = [
-    _EventData(
-      'Colombo Weekend 5K Run',
-      'Sat, 12 Oct  •  6:30 AM',
-      'Viharamahadevi Park',
-      Color(0xFF4C7895),
-      Icons.directions_run,
-    ),
-    _EventData(
-      'Community Badminton Meetup',
-      'Sun, 20 Oct  •  4:00 PM',
-      'City Sports Complex',
-      Color(0xFF8B6E54),
-      Icons.sports_tennis,
-    ),
-  ];
+  late Future<List<NearbyEvent>> _eventsFuture;
 
   @override
   void initState() {
     super.initState();
     _facilitiesFuture = ApiService.fetchFacilities();
+    _eventsFuture = _eventRepository.getEvents();
+    if (_eventRepository is ChangeNotifier) {
+      (_eventRepository as ChangeNotifier).addListener(_onEventsChanged);
+    }
     _loadFavorites();
+  }
+
+  void _onEventsChanged() {
+    if (mounted) {
+      setState(() {
+        _eventsFuture = Future.value(_eventRepository.currentEvents);
+      });
+    }
   }
 
   Future<void> _loadFavorites() async {
@@ -104,6 +105,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    if (_eventRepository is ChangeNotifier) {
+      (_eventRepository as ChangeNotifier).removeListener(_onEventsChanged);
+    }
     _searchController.dispose();
     super.dispose();
   }
@@ -132,9 +136,18 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           backgroundColor: AppColors.scaffoldBackground,
           body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-              child: Column(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                setState(() {
+                  _facilitiesFuture = ApiService.fetchFacilities();
+                  _eventsFuture = _eventRepository.getEvents(forceRefresh: true);
+                });
+                await Future.wait([_facilitiesFuture, _eventsFuture]);
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeader(userName, greetingName),
@@ -187,18 +200,96 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Community Events', showViewAll: true),
+                  _buildSectionTitle(
+                    'Community Events',
+                    showViewAll: true,
+                    onViewAll: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => const EventsView(),
+                        ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 10),
-                  ..._events.map(
-                    (event) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _CommunityEventCard(event: event),
-                    ),
+                  FutureBuilder<List<NearbyEvent>>(
+                    future: _eventsFuture,
+                    builder: (context, eventSnapshot) {
+                      if (eventSnapshot.connectionState ==
+                              ConnectionState.waiting &&
+                          !eventSnapshot.hasData &&
+                          _eventRepository.currentEvents.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final allEvents = eventSnapshot.data ??
+                          _eventRepository.currentEvents;
+                      final liveEvents = allEvents.where((event) {
+                        final matchesSport = _selectedSport == null ||
+                            event.sport.toLowerCase() ==
+                                _selectedSport!.toLowerCase();
+                        final searchable =
+                            '${event.title} ${event.sport} ${event.location} ${event.facility}'
+                                .toLowerCase();
+                        return matchesSport &&
+                            (query.isEmpty || searchable.contains(query));
+                      }).toList();
+
+                      if (liveEvents.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: Text(
+                              'No community events found',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return Column(
+                        children: liveEvents.take(4).map((event) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _CommunityEventCard(
+                              event: event,
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => EventDetailsView(event: event),
+                                  ),
+                                );
+                                if (mounted) {
+                                  setState(() {
+                                    _eventsFuture = _eventRepository.getEvents();
+                                  });
+                                }
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
           ),
+        ),
           bottomNavigationBar: widget.showBottomNav
               ? AppBottomNav(
                   currentIndex: 0,
@@ -422,7 +513,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title, {bool showViewAll = false}) {
+  Widget _buildSectionTitle(
+    String title, {
+    bool showViewAll = false,
+    VoidCallback? onViewAll,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -436,14 +531,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         if (showViewAll)
           TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => const ExploreScreen(),
-                ),
-              );
-            },
+            onPressed: onViewAll ??
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ExploreScreen(),
+                    ),
+                  );
+                },
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               minimumSize: Size.zero,
@@ -780,131 +876,228 @@ class _FacilityData {
   final String? imagePath;
 }
 
-class _EventData {
-  const _EventData(this.title, this.date, this.location, this.color, this.icon);
-
-  final String title;
-  final String date;
-  final String location;
-  final Color color;
-  final IconData icon;
-}
-
 class _CommunityEventCard extends StatelessWidget {
-  const _CommunityEventCard({required this.event});
+  const _CommunityEventCard({
+    required this.event,
+    this.onTap,
+  });
 
-  final _EventData event;
+  final NearbyEvent event;
+  final VoidCallback? onTap;
+
+  Color _eventColor(String sport) =>
+      const {
+        'Badminton': Color(0xFF477D82),
+        'Tennis': Color(0xFFB77B64),
+        'Basketball': Color(0xFFC9A878),
+        'Football': Color(0xFF5E8C61),
+      }[sport] ??
+      const Color(0xFF4C7895);
+
+  IconData _eventIcon(String sport) =>
+      const {
+        'Badminton': Icons.sports_tennis,
+        'Tennis': Icons.sports_tennis,
+        'Basketball': Icons.sports_basketball,
+        'Football': Icons.sports_soccer,
+        'Swimming': Icons.pool,
+        'Cricket': Icons.sports_cricket,
+        'Running': Icons.directions_run,
+      }[sport] ??
+      Icons.sports;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 108,
-            child: Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        event.color,
-                        event.color.withValues(alpha: 0.55),
+    final color = _eventColor(event.sport);
+    final icon = _eventIcon(event.sport);
+    final isCancelled = event.status.toLowerCase() == 'cancelled';
+    final isFull = event.isFull;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 108,
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          color,
+                          color.withValues(alpha: 0.55),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: event.imageUrl.isNotEmpty
+                        ? (event.imageUrl.startsWith('assets/')
+                            ? Image.asset(
+                                event.imageUrl,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Center(
+                                  child: Icon(
+                                    icon,
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    size: 54,
+                                  ),
+                                ),
+                              )
+                            : Image.network(
+                                event.imageUrl,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Center(
+                                  child: Icon(
+                                    icon,
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    size: 54,
+                                  ),
+                                ),
+                              ))
+                        : Center(
+                            child: Icon(
+                              icon,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              size: 54,
+                            ),
+                          ),
+                  ),
+                  Positioned(
+                    top: 9,
+                    right: 9,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isCancelled
+                                ? Icons.cancel_outlined
+                                : Icons.event_available,
+                            size: 13,
+                            color: isCancelled
+                                ? const Color(0xFFE14C4C)
+                                : AppColors.primaryTeal,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            event.status,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: isCancelled
+                                  ? const Color(0xFFE14C4C)
+                                  : AppColors.primaryTeal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          event.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${event.date}${event.time.isNotEmpty ? '  •  ${event.time}' : ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.primaryTeal,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          event.location.isNotEmpty
+                              ? event.location
+                              : event.facility,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
                     ),
                   ),
-                  child: Center(
-                    child: Icon(
-                      event.icon,
-                      color: Colors.white.withValues(alpha: 0.85),
-                      size: 54,
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isCancelled
+                          ? const Color(0xFFF3F4F6)
+                          : (isFull
+                              ? const Color(0xFFFFEEEE)
+                              : AppColors.availableBg),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      isCancelled
+                          ? 'Cancelled'
+                          : (isFull ? 'Full' : 'Join event'),
+                      style: TextStyle(
+                        color: isCancelled
+                            ? AppColors.textSecondary
+                            : (isFull
+                                ? const Color(0xFFE14C4C)
+                                : AppColors.available),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: 9,
-                  right: 9,
-                  child: CircleAvatar(
-                    radius: 13,
-                    backgroundColor: Colors.white.withValues(alpha: 0.9),
-                    child: const Icon(
-                      Icons.event_available,
-                      size: 16,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        event.title,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        event.date,
-                        style: const TextStyle(
-                          color: AppColors.primaryTeal,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        event.location,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.availableBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Join event',
-                    style: TextStyle(
-                      color: AppColors.available,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

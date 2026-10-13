@@ -80,6 +80,18 @@ const eventSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    capacity: {
+      type: Number,
+      default: 50,
+    },
+    participants: {
+      type: [String],
+      default: [],
+    },
+    participantCount: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
