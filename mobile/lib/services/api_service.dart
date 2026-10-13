@@ -11,7 +11,7 @@ import '../models/facility.dart';
 class ApiService {
   static const String _webUrl = 'http://localhost:5000/api';
   static const String _usbUrl = 'http://127.0.0.1:5000/api';
-  static const String _wifiUrl = 'http://192.168.8.102:5000/api';
+  static const String _wifiUrl = 'http://192.168.1.2:5000/api';
   static const String _altWifiUrl = 'http://192.168.8.100:5000/api';
   static const String _emulatorUrl = 'http://10.0.2.2:5000/api';
   static String? _activeBaseUrl;
@@ -172,9 +172,11 @@ class ApiService {
   static final List<String> _candidates = [_usbUrl, _wifiUrl, _emulatorUrl];
 
   static Future<Map<String, String>> _getAuthHeaders(
-      Map<String, String>? headers) async {
-    final Map<String, String> authHeaders =
-        headers != null ? Map.from(headers) : {};
+    Map<String, String>? headers,
+  ) async {
+    final Map<String, String> authHeaders = headers != null
+        ? Map.from(headers)
+        : {};
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
@@ -194,8 +196,9 @@ class ApiService {
   }) async {
     final authHeaders = await _getAuthHeaders(headers);
     try {
-      final uri = Uri.parse('$baseUrl$path')
-          .replace(queryParameters: queryParams);
+      final uri = Uri.parse(
+        '$baseUrl$path',
+      ).replace(queryParameters: queryParams);
       return await http
           .get(uri, headers: authHeaders)
           .timeout(const Duration(milliseconds: 7000));
@@ -204,8 +207,9 @@ class ApiService {
     for (final candidate in _candidates) {
       if (candidate == baseUrl) continue;
       try {
-        final uri = Uri.parse('$candidate$path')
-            .replace(queryParameters: queryParams);
+        final uri = Uri.parse(
+          '$candidate$path',
+        ).replace(queryParameters: queryParams);
         final res = await http
             .get(uri, headers: authHeaders)
             .timeout(const Duration(milliseconds: 6000));
@@ -232,7 +236,11 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .post(Uri.parse('$candidate$path'), headers: authHeaders, body: body)
+            .post(
+              Uri.parse('$candidate$path'),
+              headers: authHeaders,
+              body: body,
+            )
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -282,7 +290,11 @@ class ApiService {
       if (candidate == baseUrl) continue;
       try {
         final res = await http
-            .patch(Uri.parse('$candidate$path'), headers: authHeaders, body: body)
+            .patch(
+              Uri.parse('$candidate$path'),
+              headers: authHeaders,
+              body: body,
+            )
             .timeout(const Duration(milliseconds: 10000));
         _activeBaseUrl = candidate;
         return res;
@@ -402,7 +414,7 @@ class ApiService {
           'POST',
           Uri.parse('$baseUrl/facilities/upload-photo'),
         );
-        
+
         final user = FirebaseAuth.instance.currentUser;
         final token = user != null ? await user.getIdToken() : '';
         if (token != null && token.isNotEmpty) {
@@ -504,8 +516,6 @@ class ApiService {
       throw Exception('Error fetching slots: $e');
     }
   }
-
-  
 
   static Future<List<Facility>> fetchFacilities() async {
     try {
@@ -703,7 +713,7 @@ class ApiService {
           (slipBytes != null && slipBytes.isNotEmpty) || slipFilePath != null;
 
       if (hasSlipUpload) {
-                var request = http.MultipartRequest(
+        var request = http.MultipartRequest(
           'POST',
           Uri.parse('$baseUrl/slots/$id/book'),
         );
@@ -737,7 +747,9 @@ class ApiService {
         } else if (response.statusCode == 409) {
           throw Exception('Slot already booked or conflict');
         } else {
-          throw Exception('Failed to book slot (Upload): ${response.statusCode} - ${response.body}');
+          throw Exception(
+            'Failed to book slot (Upload): ${response.statusCode} - ${response.body}',
+          );
         }
       } else {
         final response = await _post(
@@ -753,7 +765,9 @@ class ApiService {
         } else if (response.statusCode == 409) {
           throw Exception('Slot already booked or conflict');
         } else {
-          throw Exception('Failed to book slot (Card): ${response.statusCode} - ${response.body}');
+          throw Exception(
+            'Failed to book slot (Card): ${response.statusCode} - ${response.body}',
+          );
         }
       }
     } catch (e) {
