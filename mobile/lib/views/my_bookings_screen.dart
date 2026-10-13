@@ -6,13 +6,14 @@ import 'slot_selection_screen.dart';
 import 'home_screen.dart';
 import 'explore_screen.dart';
 import 'player_notifications_view.dart';
-import 'tertiary/profile_view.dart';
 import 'account_profile_screen.dart';
 import '../services/app_services.dart';
 import '../models/app_notification_model.dart';
+import 'player_main_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
-  const MyBookingsScreen({super.key});
+  final bool showBottomNav;
+  const MyBookingsScreen({super.key, this.showBottomNav = true});
 
   @override
   State<MyBookingsScreen> createState() => _MyBookingsScreenState();
@@ -200,7 +201,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           },
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: widget.showBottomNav ? _buildBottomNavigationBar() : null,
     );
   }
 
@@ -507,6 +508,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       child: BottomNavigationBar(
         currentIndex: 2, // 'Bookings' is selected
         onTap: (index) {
+          final parent = PlayerMainScreen.of(context);
+          if (parent != null) {
+            parent.setTab(index);
+            return;
+          }
           if (index == 0) {
             Navigator.pushReplacement(
               context,
@@ -534,7 +540,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
             Navigator.pushReplacement(
               context,
               PageRouteBuilder(
-                pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
+                pageBuilder: (_, __, ___) => const UserProfileScreen(),
                 transitionDuration: Duration.zero,
               ),
             );

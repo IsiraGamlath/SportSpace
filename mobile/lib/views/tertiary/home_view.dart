@@ -15,9 +15,11 @@ import 'events_view.dart';
 import 'event_details_view.dart';
 import 'my_requests_view.dart';
 import 'profile_view.dart';
+import 'tertiary_main_screen.dart';
 
 class TertiaryHomeView extends StatefulWidget {
-  const TertiaryHomeView({super.key});
+  final bool showBottomNav;
+  const TertiaryHomeView({super.key, this.showBottomNav = true});
 
   @override
   State<TertiaryHomeView> createState() => _TertiaryHomeViewState();
@@ -162,6 +164,11 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
                               const SizedBox(height: 12),
                               TextButton(
                                 onPressed: () {
+                                  final parent = TertiaryMainScreen.of(context);
+                                  if (parent != null) {
+                                    parent.setTab(1);
+                                    return;
+                                  }
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (_) =>
@@ -204,11 +211,12 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
                 ],
               ),
       ),
-      // --- Reused global nav bar, not re-implemented here -----------------
-      bottomNavigationBar: TertiaryNavBar(
-        currentIndex: _currentIndex,
-        onItemSelected: _onNavItemSelected,
-      ),
+      bottomNavigationBar: widget.showBottomNav
+          ? TertiaryNavBar(
+              currentIndex: _currentIndex,
+              onItemSelected: _onNavItemSelected,
+            )
+          : null,
     );
   }
 
@@ -301,9 +309,16 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
           ),
           const SizedBox(width: 10),
           GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProfileView()),
-            ),
+            onTap: () {
+              final parent = TertiaryMainScreen.of(context);
+              if (parent != null) {
+                parent.setTab(4);
+                return;
+              }
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ProfileView()),
+              );
+            },
             child: const CircleAvatar(
               radius: 20,
               backgroundColor: _heading,
@@ -441,9 +456,16 @@ class _TertiaryHomeViewState extends State<TertiaryHomeView> {
             ),
           ),
           GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const EventsView()),
-            ),
+            onTap: () {
+              final parent = TertiaryMainScreen.of(context);
+              if (parent != null) {
+                parent.setTab(1);
+                return;
+              }
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const EventsView()),
+              );
+            },
             child: const Text(
               'View All',
               style: TextStyle(

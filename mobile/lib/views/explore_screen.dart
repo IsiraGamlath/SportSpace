@@ -7,13 +7,14 @@ import '../utils/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'home_screen.dart';
 import 'my_bookings_screen.dart';
-import 'tertiary/profile_view.dart';
 import 'facility_profile_screen.dart';
 import 'player_notifications_view.dart';
 import 'account_profile_screen.dart';
+import 'player_main_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
-  const ExploreScreen({super.key});
+  final bool showBottomNav;
+  const ExploreScreen({super.key, this.showBottomNav = true});
 
   @override
   State<ExploreScreen> createState() => _ExploreScreenState();
@@ -200,43 +201,50 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ],
             ),
           ),
-          bottomNavigationBar: AppBottomNav(
-            currentIndex: 1,
-            onItemSelected: (index) {
-              if (index == 0) {
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const HomeScreen(),
-                    transitionDuration: Duration.zero,
-                  ),
-                );
-              } else if (index == 2) {
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const MyBookingsScreen(),
-                    transitionDuration: Duration.zero,
-                  ),
-                );
-              } else if (index == 4) {
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const ProfileView(role: 'Player'),
-                    transitionDuration: Duration.zero,
-                  ),
-                );
-              } else if (index == 3) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PlayerNotificationsView(),
-                  ),
-                );
-              }
-            },
-          ),
+          bottomNavigationBar: widget.showBottomNav
+              ? AppBottomNav(
+                  currentIndex: 1,
+                  onItemSelected: (index) {
+                    final parent = PlayerMainScreen.of(context);
+                    if (parent != null) {
+                      parent.setTab(index);
+                      return;
+                    }
+                    if (index == 0) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const HomeScreen(),
+                          transitionDuration: Duration.zero,
+                        ),
+                      );
+                    } else if (index == 2) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const MyBookingsScreen(),
+                          transitionDuration: Duration.zero,
+                        ),
+                      );
+                    } else if (index == 4) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const UserProfileScreen(),
+                          transitionDuration: Duration.zero,
+                        ),
+                      );
+                    } else if (index == 3) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PlayerNotificationsView(),
+                        ),
+                      );
+                    }
+                  },
+                )
+              : null,
         );
       },
     );

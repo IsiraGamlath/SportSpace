@@ -24,7 +24,8 @@ import '../player_notifications_view.dart';
 
 class ProfileView extends StatefulWidget {
   final String role;
-  const ProfileView({super.key, this.role = 'Tertiary'});
+  final bool showBottomNav;
+  const ProfileView({super.key, this.role = 'Tertiary', this.showBottomNav = true});
 
   @override
   State<ProfileView> createState() => _ProfileViewState();
@@ -274,54 +275,55 @@ class _ProfileViewState extends State<ProfileView> {
           ],
         ),
       ),
-      // --- Reused global nav bar, not re-implemented here -----------------
-      bottomNavigationBar: _isPlayer
-          ? AppBottomNav(
-              currentIndex: 4,
-              onItemSelected: (index) {
-                if (index == 0) {
-                  Navigator.pushReplacement(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (_, __, ___) => const HomeScreen(),
-                      transitionDuration: Duration.zero,
-                    ),
-                  );
-                } else if (index == 1) {
-                  Navigator.pushReplacement(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (_, __, ___) => const ExploreScreen(),
-                      transitionDuration: Duration.zero,
-                    ),
-                  );
-                } else if (index == 2) {
-                  Navigator.pushReplacement(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (_, __, ___) => const MyBookingsScreen(),
-                      transitionDuration: Duration.zero,
-                    ),
-                  );
-                } else if (index == 3) {
-                  Navigator.pushReplacement(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (_, __, ___) => const PlayerNotificationsView(),
-                      transitionDuration: Duration.zero,
-                    ),
-                  );
-                }
-              },
-            )
-          : TertiaryNavBar(
-              currentIndex: _tabIndex,
-              onItemSelected: (index) => handleTertiaryNavTap(
-                context: context,
-                tappedIndex: index,
-                currentIndex: _tabIndex,
-              ),
-            ),
+      bottomNavigationBar: !widget.showBottomNav
+          ? null
+          : _isPlayer
+              ? AppBottomNav(
+                  currentIndex: 4,
+                  onItemSelected: (index) {
+                    if (index == 0) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const HomeScreen(),
+                          transitionDuration: Duration.zero,
+                        ),
+                      );
+                    } else if (index == 1) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const ExploreScreen(),
+                          transitionDuration: Duration.zero,
+                        ),
+                      );
+                    } else if (index == 2) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const MyBookingsScreen(),
+                          transitionDuration: Duration.zero,
+                        ),
+                      );
+                    } else if (index == 3) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const PlayerNotificationsView(),
+                          transitionDuration: Duration.zero,
+                        ),
+                      );
+                    }
+                  },
+                )
+              : TertiaryNavBar(
+                  currentIndex: _tabIndex,
+                  onItemSelected: (index) => handleTertiaryNavTap(
+                    context: context,
+                    tappedIndex: index,
+                    currentIndex: _tabIndex,
+                  ),
+                ),
     );
   }
 

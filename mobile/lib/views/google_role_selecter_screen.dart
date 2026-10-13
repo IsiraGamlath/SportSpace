@@ -5,9 +5,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../services/api_service.dart';
 import '../utils/app_colors.dart';
-import 'home_screen.dart';
 import 'manager/manager_main_screen.dart';
-import 'tertiary/home_view.dart';
+import 'tertiary/tertiary_main_screen.dart';
+import 'player_main_screen.dart';
 
 class GoogleRoleSelecterScreen extends StatefulWidget {
   const GoogleRoleSelecterScreen({super.key});
@@ -113,9 +113,9 @@ class _GoogleRoleSelecterScreenState extends State<GoogleRoleSelecterScreen> {
       case 'Facility Manager':
         return ManagerMainScreen(isApproved: isApproved);
       case 'Community / Public User':
-        return const TertiaryHomeView();
+        return const TertiaryMainScreen();
       default:
-        return const HomeScreen();
+        return const PlayerMainScreen();
     }
   }
 
