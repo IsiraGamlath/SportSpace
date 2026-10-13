@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/tertiary/event_image.dart';
+import '../../services/app_services.dart';
 import 'contact_accessibility_view.dart';
 import 'events_view.dart';
 import 'facility_details_view.dart';
@@ -138,11 +139,57 @@ class FacilityProfileView extends StatelessWidget {
         Positioned(
           top: topInset + 12,
           right: 16,
-          child: _circleButton(
-            icon: Icons.notifications_none_rounded,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NotificationsView()),
-            ),
+          child: ListenableBuilder(
+            listenable: appServices.notificationService,
+            builder: (context, _) {
+              final count = appServices.notificationService
+                  .unreadCountForRole('communityMember');
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  _circleButton(
+                    key: const Key('facility_profile_notification_bell'),
+                    icon: Icons.notifications_none_rounded,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationsView(),
+                      ),
+                    ),
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: -2,
+                      right: -2,
+                      child: Container(
+                        key: const Key('facility_profile_notification_badge'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE14C4C),
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Center(
+                          child: Text(
+                            count > 99 ? '99+' : count.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ),
         Positioned(
@@ -161,8 +208,9 @@ class FacilityProfileView extends StatelessWidget {
     );
   }
 
-  Widget _circleButton({required IconData icon, required VoidCallback onTap}) {
+  Widget _circleButton({Key? key, required IconData icon, required VoidCallback onTap}) {
     return InkWell(
+      key: key,
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
