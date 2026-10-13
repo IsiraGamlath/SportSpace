@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const ContactRequest = require('../models/ContactRequest');
+const User = require('../models/User');
 const { dispatchNotification } = require('./notificationsController');
 
 const formatRequest = (doc) => {
@@ -10,13 +12,56 @@ const formatRequest = (doc) => {
 // GET /api/contact-requests
 exports.getContactRequests = async (req, res) => {
   try {
+    const authUserId = req.firebaseUser?.uid;
     const { userId, facilityId } = req.query;
     const filter = {};
-    if (userId) filter.userId = userId;
+
+    // Isolate by userId if explicitly requested or authenticated
+    const targetUserId = userId || authUserId;
+    if (targetUserId) {
+      filter.userId = targetUserId;
+    }
     if (facilityId) filter.facilityId = facilityId;
 
     const requests = await ContactRequest.find(filter).sort({ createdAt: -1 });
-    res.status(200).json(requests.map(formatRequest));
+
+    // Collect all unique userIds to lookup details
+    const uniqueUserIds = [...new Set(requests.map(r => r.userId).filter(Boolean))];
+    const objectIds = uniqueUserIds.filter(id => mongoose.isValidObjectId(id));
+
+    const matchedUsers = await User.find({
+      $or: [
+        { firebaseUid: { $in: uniqueUserIds } },
+        { _id: { $in: objectIds } }
+      ]
+    }).lean();
+
+    const userMap = new Map();
+    matchedUsers.forEach(u => {
+      if (u.firebaseUid) userMap.set(u.firebaseUid, u);
+      if (u._id) userMap.set(u._id.toString(), u);
+    });
+
+    const enriched = requests.map(doc => {
+      const formatted = formatRequest(doc);
+      const user = userMap.get(formatted.userId);
+      if (user) {
+        formatted.userName = user.fullName;
+        formatted.userEmail = user.email;
+        formatted.userRole = user.role || 'Community / Public User';
+      } else if (formatted.userId === 'guest') {
+        formatted.userName = 'Guest User';
+        formatted.userEmail = '';
+        formatted.userRole = 'Community / Public User';
+      } else {
+        formatted.userName = 'Community Member';
+        formatted.userEmail = '';
+        formatted.userRole = 'Community / Public User';
+      }
+      return formatted;
+    });
+
+    res.status(200).json(enriched);
   } catch (error) {
     res.status(500).json({
       message: 'Failed to fetch contact requests',
@@ -45,7 +90,8 @@ exports.getContactRequestById = async (req, res) => {
 // POST /api/contact-requests
 exports.createContactRequest = async (req, res) => {
   try {
-    const { facilityId, facilityName, userId = 'guest', type, message } = req.body;
+    const authUserId = req.firebaseUser?.uid;
+    const { facilityId, facilityName, userId, type, message } = req.body;
 
     if (!facilityId || !type || !message) {
       return res.status(400).json({
@@ -53,10 +99,15 @@ exports.createContactRequest = async (req, res) => {
       });
     }
 
+    // Associate with authenticated user ID, explicitly passed userId, or default to guest
+    const effectiveUserId = (userId && userId !== 'guest')
+      ? userId
+      : (authUserId || userId || 'guest');
+
     const doc = await ContactRequest.create({
       facilityId,
       facilityName: facilityName || '',
-      userId,
+      userId: effectiveUserId,
       type,
       message: message.trim(),
     });
@@ -72,7 +123,7 @@ exports.createContactRequest = async (req, res) => {
 
     await dispatchNotification({
       targetRoles: 'communityMember',
-      userId: userId,
+      userId: effectiveUserId,
       category: 'request',
       title: 'Request Submitted',
       message: `Your ${readableType} for ${targetFacility} has been submitted successfully.`,
@@ -93,11 +144,16 @@ exports.createContactRequest = async (req, res) => {
 exports.updateContactRequest = async (req, res) => {
   try {
     const { id } = req.params;
+    const authUserId = req.firebaseUser?.uid;
     const { type, message, status } = req.body;
 
     const request = await ContactRequest.findById(id);
     if (!request) {
       return res.status(404).json({ message: 'Request not found' });
+    }
+
+    if (authUserId && request.userId && request.userId !== 'guest' && request.userId !== authUserId) {
+      return res.status(403).json({ message: 'Unauthorized to update this request' });
     }
 
     if (type !== undefined) request.type = type;
@@ -118,10 +174,18 @@ exports.updateContactRequest = async (req, res) => {
 exports.deleteContactRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const removed = await ContactRequest.findByIdAndDelete(id);
-    if (!removed) {
+    const authUserId = req.firebaseUser?.uid;
+
+    const request = await ContactRequest.findById(id);
+    if (!request) {
       return res.status(404).json({ message: 'Request not found' });
     }
+
+    if (authUserId && request.userId && request.userId !== 'guest' && request.userId !== authUserId) {
+      return res.status(403).json({ message: 'Unauthorized to delete this request' });
+    }
+
+    const removed = await ContactRequest.findByIdAndDelete(id);
 
     const readableType =
       removed.type === 'accessibilityRequest'

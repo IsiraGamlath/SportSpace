@@ -35,6 +35,7 @@ class _MyRequestsViewState extends State<MyRequestsView> {
   @override
   void initState() {
     super.initState();
+    appServices.contactRequestService.loadFromBackend();
     if (widget.initialRequestId != null) {
       final matches = appServices.contactRequestService.myRequests
           .where((r) => r.id == widget.initialRequestId);
@@ -412,15 +413,26 @@ class _MyRequestsViewState extends State<MyRequestsView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Your Submissions (${requests.length})',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: _navy,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Your Submissions (${requests.length})',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _navy,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 20, color: _accent),
+                  tooltip: 'Refresh Status',
+                  onPressed: () => appServices.contactRequestService.loadFromBackend(),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             if (requests.isEmpty)
               Container(
                 width: double.infinity,
@@ -461,6 +473,63 @@ class _MyRequestsViewState extends State<MyRequestsView> {
     );
   }
 
+  Widget _buildStatusBadge(String status) {
+    final Color bgColor;
+    final Color textColor;
+    final Color borderColor;
+    final IconData icon;
+    final String label;
+
+    switch (status.toLowerCase()) {
+      case 'resolved':
+        bgColor = const Color(0xFFF0FDF4);
+        textColor = const Color(0xFF15803D);
+        borderColor = const Color(0xFFBBF7D0);
+        icon = Icons.check_circle_outline_rounded;
+        label = 'Resolved';
+        break;
+      case 'in_review':
+        bgColor = const Color(0xFFEFF6FF);
+        textColor = const Color(0xFF1D4ED8);
+        borderColor = const Color(0xFFBFDBFE);
+        icon = Icons.pending_outlined;
+        label = 'In Review';
+        break;
+      case 'pending':
+      default:
+        bgColor = const Color(0xFFFFFBEB);
+        textColor = const Color(0xFFB45309);
+        borderColor = const Color(0xFFFDE68A);
+        icon = Icons.schedule_rounded;
+        label = 'Pending';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSubmissionCard(ContactRequest request) {
     final isAccessibility =
         request.type == ContactRequestType.accessibilityRequest;
@@ -498,6 +567,8 @@ class _MyRequestsViewState extends State<MyRequestsView> {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              _buildStatusBadge(request.status),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.edit_outlined, size: 17, color: _subtext),
