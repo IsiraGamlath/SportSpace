@@ -120,12 +120,29 @@ class _ManagerNotificationsScreenState
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
-                            'Notifications',
-                            style: TextStyle(
-                              color: ManagerColors.navyDark,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
+                          const Expanded(
+                            child: Text(
+                              'Notifications',
+                              style: TextStyle(
+                                color: ManagerColors.navyDark,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            key: const Key('manager_mark_read_button'),
+                            onPressed: () {
+                              appServices.notificationService
+                                  .markAllAsRead('facilityManager');
+                            },
+                            child: const Text(
+                              'Mark all as read',
+                              style: TextStyle(
+                                color: ManagerColors.navy,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -199,12 +216,18 @@ class _ManagerNotificationsScreenState
                         ...notifications.map(
                           (item) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: NotificationCard(
-                              type: _resolveType(item),
-                              title: item.title,
-                              showUnreadDot: item.showDot,
-                              message: item.description,
-                              timeAgo: item.timeAgo,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                appServices.notificationService.markAsRead(item.id);
+                              },
+                              child: NotificationCard(
+                                type: _resolveType(item),
+                                title: item.title,
+                                showUnreadDot: item.showDot,
+                                message: item.description,
+                                timeAgo: item.timeAgo,
+                              ),
                             ),
                           ),
                         ),

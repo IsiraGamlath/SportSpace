@@ -78,8 +78,16 @@ class NotificationService extends ChangeNotifier {
       final backendList = await ApiService.fetchNotifications(role: role);
       if (backendList.isNotEmpty) {
         final parsed = backendList.map((e) => AppNotification.fromJson(e)).toList();
+        final seen = <String>{};
+        final unique = <AppNotification>[];
+        for (final n in parsed) {
+          final key = '${n.targetRole ?? "all"}_${n.title.toLowerCase().trim()}_${n.description.toLowerCase().trim()}';
+          if (seen.add(key)) {
+            unique.add(n);
+          }
+        }
         _notifications.clear();
-        _notifications.addAll(parsed);
+        _notifications.addAll(unique);
         notifyListeners();
       }
     } catch (_) {
@@ -115,38 +123,47 @@ class NotificationService extends ChangeNotifier {
                     ? Icons.flag_rounded
                     : Icons.notifications_none_rounded)));
 
-    // Create notifications for specified roles
-    final notification = AppNotification(
-      id: id,
-      title: title,
-      description: message,
-      timeAgo: timeAgo,
-      icon: resolvedIcon,
-      accentColor: resolvedColor,
-      category: category,
-      showDot: showDot,
-      targetRole: targetRoles.length == 1 ? targetRoles.first : 'all',
-    );
-
-    // Insert at front
-    _notifications.insert(0, notification);
-    notifyListeners();
-
-    // Async push to backend
+    // Create a notification for each target role so roles are strictly isolated without double notifications
+    AppNotification? primaryNotification;
     for (final role in targetRoles) {
-      ApiService.createNotification({
-        'targetRole': role,
-        'userId': userId,
-        'category': category.name,
-        'title': title,
-        'message': message,
-        'accentColor': resolvedColor == const Color(0xFF2E8B57)
-            ? 'green'
-            : (resolvedColor == const Color(0xFFE14C4C) ? 'red' : 'orange'),
-      }).catchError((_) => <String, dynamic>{});
+      final existingIndex = _notifications.indexWhere((n) {
+        return (n.targetRole == role || n.targetRole == 'all') &&
+            n.title.toLowerCase().trim() == title.toLowerCase().trim() &&
+            n.description.toLowerCase().trim() == message.toLowerCase().trim();
+      });
+      if (existingIndex != -1) {
+        primaryNotification ??= _notifications[existingIndex];
+        continue;
+      }
+
+      final roleNotification = AppNotification(
+        id: '${id}_$role',
+        title: title,
+        description: message,
+        timeAgo: timeAgo,
+        icon: resolvedIcon,
+        accentColor: resolvedColor,
+        category: category,
+        showDot: showDot,
+        targetRole: role,
+      );
+      _notifications.insert(0, roleNotification);
+      primaryNotification ??= roleNotification;
     }
 
-    return notification;
+    notifyListeners();
+    return primaryNotification ??
+        AppNotification(
+          id: id,
+          title: title,
+          description: message,
+          timeAgo: timeAgo,
+          icon: resolvedIcon,
+          accentColor: resolvedColor,
+          category: category,
+          showDot: showDot,
+          targetRole: targetRoles.isNotEmpty ? targetRoles.first : 'all',
+        );
   }
 
   int unreadCountForRole(String role) {
